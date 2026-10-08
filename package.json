@@ -2,6 +2,10 @@
   "name": "atlas-pessoal",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "vendor": "node tools/vendor.mjs"
+  },
   "devDependencies": {
     "@playwright/test": "^1.48.0",
     "leaflet": "^1.9.4",
