@@ -284,3 +284,11 @@ test('cota de armazenamento informa o problema sem perder dados existentes', asy
   expect((await destinationData(page)).length).toBe(5);
   await expect(page.locator('#editor-dialog')).toBeVisible();
 });
+
+test('sem Supabase configurado, informa a ativação pendente e mantém o atlas local', async ({ page }) => {
+  await page.locator('#login-button').click();
+  await expect(page.locator('#cloud-not-configured')).toContainText('login ainda está em preparação');
+  await expect(page.locator('#auth-form')).not.toBeVisible();
+  await page.getByRole('button', { name: 'Fechar login' }).click();
+  await expect(page.locator('.destination-card')).toHaveCount(5);
+});

@@ -1,6 +1,14 @@
 # Atlas Pessoal
 
-Um mapa das suas viagens e das memórias que vieram com elas. Aplicação em português do Brasil, com tema escuro, mapa interativo, visitas múltiplas, fotografias, filtros e backup. Os dados ficam no seu navegador.
+Um mapa das suas viagens e das memórias que vieram com elas. Aplicação em português do Brasil, com tema escuro, mapa interativo, visitas múltiplas, fotografias, filtros e backup. O modo local mantém os dados no navegador; a integração opcional com Supabase acrescenta contas, perfis públicos e viagens sincronizadas.
+
+## Contas e perfis
+
+Esta versão inclui cadastro/login por e-mail e senha, confirmação, recuperação de senha, renovação de sessão, perfil com avatar/bio/usuário exclusivo, busca de perfis, postagens públicas ou privadas, migração da coleção local e sincronização de fotos e viagens. Não há nova dependência de JavaScript nem build: o cliente usa as APIs HTTPS do Supabase.
+
+**O login ainda depende da criação e configuração de um projeto Supabase real.** `config.js` vem vazio e mantém o site no modo local. Siga o [guia de ativação](docs/SUPABASE.md): execute `supabase/schema.sql`, confira `supabase/verify-policies.sql`, configure autenticação/e-mail e preencha somente a URL e a chave pública publishable/anon. Nunca publique chaves administrativas.
+
+Ao entrar, a coleção da conta é separada da coleção sem login. **Meu perfil → Enviar meus dados locais para minha conta** copia as viagens como privadas sem apagar a coleção original. Postagens novas começam privadas; o formulário permite torná-las públicas. Perfis públicos ficam em `#/perfil/usuario`, e somente o dono pode editar suas viagens. Dados e objetos privados são protegidos por políticas no banco e no Storage, não apenas pela interface. A sincronização mantém uma fila offline e verifica revisões para não sobrescrever mudanças de outro dispositivo silenciosamente. Ao sair, removemos a cópia local da conta; confirme a sincronização ou exporte backup antes.
 
 ## Executar
 
@@ -26,7 +34,7 @@ Use sempre a mesma origem (protocolo, endereço e porta) para acessar os mesmos 
 
 ## Offline, fotos e backup
 
-O IndexedDB possui stores separados para metadados (`destinations`), fotos como `Blob` (`photos`) e inicialização (`meta`). Não usamos localStorage. Fotos e miniaturas não são enviadas a nenhum serviço. Antes de salvar, o navegador decodifica a imagem, limita o maior lado a 1600 px, converte para JPEG com qualidade 0,85 e gera uma miniatura de até 240 px. A transparência é composta sobre fundo escuro.
+O IndexedDB possui stores separados para metadados (`destinations`), fotos como `Blob` (`photos`) e inicialização (`meta`). Não usamos localStorage. Sem login, fotos e miniaturas não são enviadas a nenhum serviço. Com conta conectada, as viagens dessa conta são enviadas ao projeto Supabase configurado, conforme a visibilidade escolhida. Antes de salvar, o navegador decodifica a imagem, limita o maior lado a 1600 px, converte para JPEG com qualidade 0,85 e gera uma miniatura de até 240 px. A transparência é composta sobre fundo escuro.
 
 Depois do primeiro carregamento bem-sucedido e da ativação do service worker, os arquivos locais ficam em cache. A aplicação reabre sem internet, com destinos, países, edição, estatísticas e fotos. Os tiles do CARTO Dark Matter são opcionais: se falharem, o GeoJSON continua visível sobre fundo escuro. A busca depende do Nominatim; uma falha oferece a alternativa de mapa ou coordenadas. O cache não armazena tiles nem resultados de geocodificação.
 
@@ -52,7 +60,9 @@ npm test -- --project=mobile
 
 A suíte usa contextos isolados e simula tiles e Nominatim com `page.route`, sem acesso a serviços externos. Cobre exemplos, país por polígono, inclusão por clique/busca/coordenadas, datas inválidas, duração manual, múltiplas visitas, duas fotos e compressão, capa/legenda/remoção, galeria e gesto, edição/exclusão, confirmação, filtros/ordenação, clustering/rota/cores, backup com fotos e deduplicação, persistência após recarregar, cache offline e mensagens para imagem/JSON/rede/cota inválidos. As telas têm 1440 × 980 e 390 × 844 px. Falhas geram screenshot e trace em `test-results/`.
 
-Resultado da entrega: **24 testes passaram**, correspondendo a 12 cenários executados nas duas telas com Chromium. A preparação de `vendor/` também foi repetida sem gerar diferenças, e as duas interfaces foram inspecionadas visualmente.
+A versão inicial passou em 24 testes. A versão com contas e perfis acrescenta testes de autenticação, recuperação, avatar, visibilidade, migração, fotos na nuvem, isolamento de contas, reconexão, conflitos e renovação de sessão, além do estado sem configuração. A preparação de `vendor/` foi repetida sem diferenças, e as interfaces foram inspecionadas visualmente. Os testes do Supabase usam HTTP simulado; o SQL e a integração real precisam ser validados no projeto que você criar, conforme o guia.
+
+Resultado atual: **46 testes passaram** (23 cenários nas duas telas, Chromium). A integração real, o recebimento de e-mails e as políticas SQL ainda dependem da instalação e verificação no seu projeto Supabase.
 
 ## Estrutura e decisões técnicas
 
