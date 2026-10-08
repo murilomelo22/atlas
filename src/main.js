@@ -7,8 +7,11 @@ import { createGeocoder } from './geocoding.js';
 import { processPhoto } from './photos.js';
 import { createGallery } from './gallery.js';
 import { $, escapeHTML, notify, confirmAction, renderList, renderFilterOptions, renderDetail } from './ui.js';
+import { initializeSocial } from './social.js';
+import { currentUser } from './cloud.js';
 
 let destinations = [], allPhotos = [], selectedId = null, mapController;
+let publicView = null, social = null, changingAccount = false;
 const urls = new Map();
 const gallery = createGallery();
 let editId, editPhotos = [], coverId, editorToken = 0, photoBusy = false, editorURLs = [], saving = false;
@@ -40,11 +43,12 @@ function renderSelected() {
   if (!destination) { selectedId = null; $('#list-panel').hidden = false; $('#detail-panel').hidden = true; return; }
   const photos = photosFor(destination);
   renderDetail(destination, photos, urls, {
+    readOnly: Boolean(publicView), account: Boolean(currentUser()),
     back: () => { selectedId = null; renderSelected(); },
     edit: () => openEditor(destination),
     remove: async () => {
       if (!await confirmAction(`Excluir ${destination.name}?`, 'O destino, suas visitas e todas as fotos serão removidos deste navegador. Exporte um backup se quiser guardar uma cópia.')) return;
-      try { await removeDestinations([destination.id]); selectedId = null; await refresh(); notify('Destino excluído.'); }
+      try { await removeDestinations([destination.id]); selectedId = null; await refresh(); social?.afterMutation(); notify('Destino excluído.'); }
       catch (error) { notify(storageMessage(error), true); }
     },
     gallery: (index) => gallery.open(photos, index),
@@ -57,13 +61,15 @@ function selectDestination(id) {
   if (matchMedia('(max-width: 700px)').matches) $('#destinations-panel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   $('#destinations-panel').scrollTop = 0;
 }
-function updateList() { renderList(destinations, urls, selectDestination, () => openEditor()); }
+function updateList() { renderList(destinations, urls, selectDestination, () => openEditor(), Boolean(publicView)); }
 async function refresh() {
-  destinations = await getDestinations(); allPhotos = await getAllPhotos();
+  destinations = publicView ? publicView.destinations : await getDestinations();
+  allPhotos = publicView ? publicView.photos : await getAllPhotos();
   for (const url of urls.values()) URL.revokeObjectURL(url);
   urls.clear();
   for (const photo of allPhotos) urls.set(photo.id, URL.createObjectURL(photo.thumbnail));
   renderFilterOptions(destinations); updateList(); renderSelected();
+  if (publicView) $('#examples-banner').hidden = true;
   const stats = statistics(destinations);
   for (const [key, value] of Object.entries(stats)) $(`#stat-${key}`).textContent = new Intl.NumberFormat('pt-BR').format(value);
   mapController.update(destinations, urls);
@@ -126,6 +132,8 @@ function renderPhotoEditor() {
   });
 }
 async function openEditor(destination, coords = {}) {
+  if (changingAccount) return notify('Aguarde a atualização da sua coleção.');
+  if (publicView) return notify('Volte ao Meu atlas para adicionar ou editar suas viagens.');
   const token = ++editorToken;
   editId = destination?.id || crypto.randomUUID(); coverId = destination?.coverId || null;
   editPhotos = []; photoBusy = false; saving = false;
@@ -136,6 +144,8 @@ async function openEditor(destination, coords = {}) {
   $('#latitude').value = destination?.lat ?? coords.lat ?? '';
   $('#longitude').value = destination?.lng ?? coords.lng ?? '';
   $('#notes').value = destination?.notes || ''; $('#rating').value = destination?.rating || '0'; $('#tags').value = destination?.tags.join(', ') || '';
+  $('#visibility-field').hidden = $('#visibility-hint').hidden = !currentUser();
+  $('#visibility').value = destination?.visibility || 'private';
   $('#geocode-results').replaceChildren(); $('#geocode-status').textContent = 'Digite ao menos 3 caracteres ou use as coordenadas abaixo.';
   $('#photo-status').textContent = 'As fotos são reduzidas para 1600 px e salvas apenas neste navegador.';
   $('#visits-editor').replaceChildren();
@@ -171,7 +181,7 @@ async function addPhotos(files) {
 }
 async function save(event) {
   event.preventDefault();
-  if (photoBusy || saving) return;
+  if (photoBusy || saving || changingAccount || publicView) return;
   $('#form-error').hidden = true;
   try {
     const coords = normalizeCoordinates($('#latitude').value, $('#longitude').value);
@@ -186,10 +196,12 @@ async function save(event) {
       notes: $('#notes').value.trim(), rating: Number($('#rating').value), tags,
       photoIds: editPhotos.map((p) => p.id), coverId: editPhotos.some((p) => p.id === coverId) ? coverId : editPhotos[0]?.id || null,
       example: false, createdAt: previous?.createdAt || now, updatedAt: now };
+    if (currentUser()) { destination.visibility = $('#visibility').value; destination.cloudRevision = previous?.cloudRevision || null; }
     saving = true; $('#save-button').disabled = true; $('#save-button').textContent = 'Salvando…';
     await saveDestination(destination, editPhotos);
     editor.close(); selectedId = destination.id; await refresh(); mapController.flyTo(destination);
-    notify('Destino salvo. Mais um lugar na sua história.');
+    social?.afterMutation();
+    notify(currentUser() ? 'Viagem salva neste dispositivo. A sincronização com sua conta foi agendada.' : 'Destino salvo. Mais um lugar na sua história.');
   } catch (error) {
     $('#form-error').textContent = storageMessage(error); $('#form-error').hidden = false;
     $('#form-error').scrollIntoView({ block: 'nearest' });
@@ -234,12 +246,26 @@ function bindEvents() {
   $('#import-input').onchange = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     $('#import-button').disabled = true;
-    try { notify('Validando o backup e preparando as fotos…'); const count = await importBackup(file); await refresh(); notify(`${count} ${count === 1 ? 'destino importado' : 'destinos importados'}. Os registros existentes foram atualizados sem duplicação.`); }
+    try { notify('Validando o backup e preparando as fotos…'); const count = await importBackup(file); await refresh(); social?.afterMutation(); notify(`${count} ${count === 1 ? 'destino importado' : 'destinos importados'}. Os registros existentes foram atualizados sem duplicação.`); }
     catch (error) { notify(storageMessage(error), true); }
     finally { e.target.value = ''; $('#import-button').disabled = false; }
   };
   window.addEventListener('resize', () => mapController.resize());
   window.addEventListener('pagehide', (event) => { if (!event.persisted) { for (const url of urls.values()) URL.revokeObjectURL(url); releaseEditorURLs(); } });
+}
+function setViewUI() {
+  document.body.classList.toggle('viewing-profile', Boolean(publicView));
+  for (const selector of ['#add-button', '#export-button', '#import-button']) $(selector).hidden = Boolean(publicView);
+  $('#public-profile-header').hidden = !publicView;
+  $('.sidebar-heading .eyebrow').textContent = publicView ? 'VIAGENS PÚBLICAS' : 'SUA COLEÇÃO';
+  $('.sidebar-heading h2').firstChild.textContent = publicView ? 'Viagens públicas ' : 'Meus destinos ';
+  $('#detail-panel').hidden = true; $('#list-panel').hidden = false;
+  $('#list-search').value = ''; $('#country-filter').value = ''; $('#tag-filter').value = '';
+  if (publicView) {
+    const p = publicView.profile;
+    $('#public-profile-header').innerHTML = `<span id="public-avatar" class="profile-avatar" aria-hidden="true">${escapeHTML(p.display_name.slice(0, 1))}</span><div><p class="eyebrow">@${escapeHTML(p.username)}</p><h2>${escapeHTML(p.display_name)}</h2><p>${escapeHTML(p.bio || 'Um mapa de caminhos e memórias.')}</p></div><span class="tag">Perfil público</span>`;
+  }
+  mapController.resize();
 }
 async function init() {
   const buttons = ['#add-button', '#export-button', '#import-button'];
@@ -251,6 +277,19 @@ async function init() {
       $('#map-status').textContent = 'Tiles indisponíveis. Seus países e destinos continuam acessíveis.';
     });
     await refresh(); bindEvents(); buttons.forEach((selector) => { $(selector).disabled = false; });
+    social = await initializeSocial({
+      refresh,
+      lock(value) { changingAccount = value; },
+      async switchAccount(id) {
+        changingAccount = true; editorToken++; editor.close(); $('#gallery-dialog').close(); publicView = null; selectedId = null;
+        $('#destination-form').reset(); $('#visits-editor').replaceChildren(); $('#photo-editor').replaceChildren();
+        editPhotos = []; coverId = null; releaseEditorURLs();
+        try { await openDatabase({ accountId: id }); setViewUI(); await refresh(); }
+        finally { changingAccount = false; }
+      },
+      async showOwn() { publicView = null; selectedId = null; setViewUI(); await refresh(); },
+      async showPublic(data) { publicView = data; selectedId = null; setViewUI(); await refresh(); mapController.fit(destinations); },
+    });
     // Cache the local shell; remote tiles and geocoding are never required to read saved data.
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => notify('O cache offline não pôde ser ativado. Os dados continuam salvos; mantenha o servidor local disponível.', true));
   } catch (error) {

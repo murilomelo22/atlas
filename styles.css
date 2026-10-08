@@ -1055,3 +1055,55 @@
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         transition:none!important;
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         scroll-behavior:auto!important}
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       }
+
+/* Contas, perfis e sincronização */
+.social-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 32px; min-height:52px; border-bottom:1px solid var(--line); }
+.social-nav>div { display:flex; align-items:center; gap:18px; }
+.social-nav button { font-size:12px; }
+.sync-status { max-width:430px; color:var(--muted); font-size:11px; line-height:1.5; }
+.workspace { height:calc(100dvh - 251px); }
+#auth-dialog,#account-dialog,#explore-dialog { width:490px; max-height:92dvh; }
+#account-dialog[open] { display:flex; flex-direction:column; }
+.account-scroll { overflow-y:auto; }
+.account-body { padding:22px 25px; }
+.account-body>label { margin:0 0 14px; }
+.account-body input,.account-body textarea { margin-top:6px; }
+.account-body>p { line-height:1.7; }
+.account-body .primary { margin-top:15px; }
+.auth-switches { display:flex; gap:20px; justify-content:space-between; margin-top:16px; }
+#auth-message,#profile-message { min-height:20px; overflow-wrap:anywhere; }
+.profile-avatar { width:64px; height:64px; flex:none; border:1px solid #70614c; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; border-radius:50%; overflow:hidden; font-size:28px; }
+.profile-avatar img { width:100%; height:100%; object-fit:cover; }
+.profile-avatar-row { display:flex; gap:17px; align-items:center; margin-bottom:22px; }
+.profile-avatar-row label { flex:1; min-width:0; }
+.profile-avatar-row input { padding:6px 0; border:0; background:transparent; font-size:11px; max-width:100%; }
+.account-sync { border-top:1px solid var(--line); }
+.account-sync h3 { font-size:15px; font-weight:500; }
+.account-actions { display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:15px; }
+.account-actions .quiet { font-size:11px; text-align:left; }
+.account-actions .text-button { font-size:11px; }
+#account-sync-message { overflow-wrap:anywhere; }
+.public-profile-header { display:flex; align-items:center; gap:20px; padding:22px 32px; border-bottom:1px solid var(--line); }
+.public-profile-header>div { flex:1; min-width:0; }
+.public-profile-header h2 { font-size:25px; font-weight:450; margin:4px 0; overflow-wrap:anywhere; }
+.public-profile-header p:not(.eyebrow) { color:var(--muted); font-size:12px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywhere; }
+.viewing-profile .workspace { height:calc(100dvh - 380px); }
+.profile-result { display:block; background:var(--raised); border:1px solid var(--line); color:var(--text); padding:14px; text-align:left; width:100%; margin-top:10px; }
+.profile-result strong,.profile-result span,.profile-result small { display:block; overflow-wrap:anywhere; }
+.profile-result strong { font-weight:500; }
+.profile-result span { color:var(--accent); font-size:11px; margin:5px 0; }
+.profile-result small { color:var(--muted); line-height:1.6; }
+@media(max-width:1050px) { .sync-status { max-width:240px; } }
+@media(max-width:700px) {
+  .social-nav { padding:10px 18px; flex-wrap:wrap; gap:8px; }
+  .social-nav>div { gap:16px; }
+  .social-nav>div:last-child { width:100%; justify-content:space-between; }
+  .social-nav button { font-size:11px; }
+  .sync-status { max-width:230px; font-size:10px; }
+  .workspace,.viewing-profile .workspace { height:auto; }
+  .public-profile-header { padding:20px 18px; gap:14px; flex-wrap:wrap; }
+  .public-profile-header h2 { font-size:22px; }
+  .public-profile-header>.tag { margin-left:78px; }
+  .account-body { padding:20px 18px; }
+  .account-actions { gap:8px 12px; }
+}
