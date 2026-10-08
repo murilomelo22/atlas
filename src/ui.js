@@ -34,7 +34,7 @@ export function renderFilterOptions(destinations) {
     if (values.includes(previous)) select.value = previous;
   }
 }
-export function renderList(destinations, urls, onSelect, onAdd) {
+export function renderList(destinations, urls, onSelect, onAdd, readOnly = false) {
   const query = $('#list-search').value.trim().toLocaleLowerCase('pt-BR');
   const country = $('#country-filter').value, tag = $('#tag-filter').value;
   const visible = destinations.filter((d) => (!country || d.countryName === country) && (!tag || d.tags.includes(tag)) && [d.name, d.countryName, d.notes, ...d.tags].some((value) => value.toLocaleLowerCase('pt-BR').includes(query)));
@@ -47,6 +47,7 @@ export function renderList(destinations, urls, onSelect, onAdd) {
   if (!visible.length) {
     list.innerHTML = `<div class="empty-state"><div class="empty-icon" aria-hidden="true">◇</div><h3>${destinations.length ? 'Nenhuma memória por aqui' : 'O mundo está à sua espera'}</h3><p>${destinations.length ? 'Experimente outra busca ou ajuste os filtros.' : 'Comece por um lugar que ficou com você.<br>Clique no mapa ou adicione seu primeiro destino.'}</p>${destinations.length ? '' : '<button class="primary" id="empty-add">Adicionar destino</button>'}</div>`;
     $('#empty-add')?.addEventListener('click', onAdd);
+    if (readOnly) { $('#empty-add')?.remove(); $('.empty-state p', list).textContent = 'Este perfil ainda não tem viagens públicas.'; }
     return;
   }
   list.innerHTML = visible.map((d) => `<button class="destination-card" data-destination-id="${escapeHTML(d.id)}" aria-label="Abrir destino ${escapeHTML(d.name)}"><span class="destination-thumb">${urls.has(d.coverId) ? `<img src="${urls.get(d.coverId)}" alt="" loading="lazy">` : '◇'}</span><span class="destination-summary"><strong>${escapeHTML(d.name)}</strong><small>${escapeHTML(d.countryName)}${d.rating ? ` · ${'★'.repeat(d.rating)}` : ''}</small><span class="duration">${durationLabel(totalDays(d))} · ${d.visits.length} ${d.visits.length === 1 ? 'visita' : 'visitas'}</span></span><span class="card-chevron" aria-hidden="true">›</span></button>`).join('');
@@ -61,5 +62,11 @@ export function renderDetail(destination, photos, urls, actions) {
   $('[data-back]', panel).onclick = actions.back;
   $('[data-edit]', panel).onclick = actions.edit;
   $('[data-delete]', panel).onclick = actions.remove;
+  if (actions.readOnly) $('.detail-actions', panel).remove();
+  else if (actions.account) {
+    const badge = document.createElement('p'); badge.className = 'field-hint';
+    badge.textContent = d.visibility === 'public' ? 'Postagem pública no seu perfil.' : 'Postagem privada · somente você pode ver.';
+    $('.detail-body', panel).prepend(badge);
+  }
   panel.querySelectorAll('[data-photo-index]').forEach((button) => button.onclick = () => actions.gallery(Number(button.dataset.photoIndex)));
 }

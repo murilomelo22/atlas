@@ -8,5 +8,9 @@
     "leaflet.markercluster": "^1.5.3",
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "vendor": "node tools/vendor.mjs"
   }
 }

@@ -73,3 +73,13 @@ O editor permite até 100 fotos por destino, até 40 MB por imagem de entrada e 
 Próximos passos possíveis: países com maior resolução, busca configurável com um serviço próprio, importação/exportação por fluxo para coleções maiores, persistência de armazenamento solicitada ao navegador e testes adicionais em Firefox/Safari e dispositivos físicos. A versão atual usa os recursos de navegadores modernos e foi verificada com Chromium.
 
 Licenças das bibliotecas estão em `vendor/`; dados Natural Earth são de domínio público. Créditos de tiles e geometria aparecem no mapa.
+
+## Contas, perfis e nuvem (nova versão)
+
+A integração com Supabase adiciona cadastro/login, confirmação e recuperação de senha, perfil com avatar/bio/nome de usuário exclusivo, busca e visualização de perfis públicos, postagens públicas ou privadas e sincronização de viagens e fotos. A coleção sem login é preservada, separada das contas, e a migração para a conta é explícita e privada.
+
+**O login precisa ser ativado em um projeto Supabase real.** Como nenhum projeto estava conectado, `config.js` está vazio e o site continua funcionando no modo local. Siga o [guia de ativação](docs/SUPABASE.md): crie o projeto, execute [schema.sql](supabase/schema.sql), verifique as permissões com [verify-policies.sql](supabase/verify-policies.sql), configure os e-mails/redirecionamentos e preencha a URL e a chave pública publishable/anon. Nunca publique chaves administrativas.
+
+O frontend não precisa de build ou nova biblioteca. Contas usam cache IndexedDB separado e uma fila offline; revisões impedem sobrescritas silenciosas entre dispositivos. Ao sair, a sessão e a cópia local privada da conta são removidas. Fotos usam buckets privados e URLs temporárias, conforme explicado no guia.
+
+Verificação: `npm test` passou em **46 testes**, 23 cenários em desktop e celular, incluindo o atlas local e endpoints Supabase simulados. A instalação SQL, as permissões reais, o recebimento de e-mails e a integração de produção ainda precisam ser conferidos no projeto que você configurar.

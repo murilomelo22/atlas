@@ -27,6 +27,11 @@
       <button id="add-button" class="primary">＋ <span>Adicionar destino</span></button>
     </div>
   </header>
+  <nav class="social-nav" aria-label="Conta e comunidade">
+    <div><button id="home-atlas" class="text-button">Meu atlas</button><button id="explore-button" class="text-button">Explorar perfis</button></div>
+    <div><span id="sync-status" class="sync-status" role="status">Coleção neste dispositivo</span><button id="account-button" class="quiet" hidden>Meu perfil</button><button id="login-button" class="quiet">Entrar / Criar conta</button></div>
+  </nav>
+  <section id="public-profile-header" class="public-profile-header" hidden aria-label="Perfil público"></section>
   <section class="statistics" aria-label="Estatísticas das viagens">
     <div><strong id="stat-countries">—</strong><span>países visitados</span></div>
     <div><strong id="stat-cities">—</strong><span>destinos registrados</span></div>
@@ -73,6 +78,7 @@
         <section class="form-section"><h3>03 <span>As memórias</span></h3>
           <label for="notes">Notas</label><textarea id="notes" maxlength="20000" rows="3" placeholder="Uma rua, um sabor, algo que você não quer esquecer…"></textarea>
           <div class="form-row"><label>Avaliação<select id="rating"><option value="0">Sem avaliação</option><option value="1">1 ★</option><option value="2">2 ★★</option><option value="3">3 ★★★</option><option value="4">4 ★★★★</option><option value="5">5 ★★★★★</option></select></label><label>Etiquetas<input id="tags" maxlength="1200" placeholder="arte, natureza, gastronomia"></label></div><p class="field-hint">Separe as etiquetas por vírgulas.</p>
+          <label id="visibility-field" hidden>Quem pode ver esta postagem?<select id="visibility"><option value="private">Somente eu</option><option value="public">Todos no meu perfil público</option></select></label><p id="visibility-hint" class="field-hint" hidden>Notas, datas e fotos fazem parte da postagem. Escolha o que deseja compartilhar.</p>
           <label for="photo-input" id="drop-zone" class="drop-zone"><span aria-hidden="true">＋</span><strong>Escolha fotos ou arraste para cá</strong><small>JPEG, PNG ou WebP · até 40 MB por imagem</small><input id="photo-input" type="file" accept="image/*" multiple></label>
           <p id="photo-status" class="field-hint" role="status">As fotos são reduzidas para 1600 px e salvas apenas neste navegador.</p><div id="photo-editor" class="photo-editor"></div>
         </section>
@@ -83,6 +89,30 @@
   </dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="confirm-content"><p class="eyebrow">ANTES DE CONTINUAR</p><h2 id="confirm-title">Excluir destino?</h2><p id="confirm-message"></p><div class="confirm-actions"><button id="confirm-cancel" class="quiet">Cancelar</button><button id="confirm-ok" class="danger">Excluir</button></div></div></dialog>
   <dialog id="gallery-dialog" aria-label="Visualizador de fotografias"><div class="gallery-top"><span id="gallery-counter"></span><button data-gallery-close class="icon-button" aria-label="Fechar galeria">×</button></div><button data-gallery-prev class="gallery-arrow previous" aria-label="Foto anterior">‹</button><img alt=""><button data-gallery-next class="gallery-arrow next" aria-label="Próxima foto">›</button><p id="gallery-caption"></p></dialog>
+  <dialog id="auth-dialog" aria-labelledby="auth-title">
+    <header class="dialog-header"><div><p class="eyebrow">SUAS MEMÓRIAS, COM VOCÊ</p><h2 id="auth-title">Entrar na sua conta</h2></div><button type="button" class="icon-button" data-close-dialog="auth-dialog" aria-label="Fechar login">×</button></header>
+    <div id="cloud-not-configured" class="account-body" hidden><p>O login ainda está em preparação. Você pode continuar usando o atlas e salvar suas viagens neste navegador.</p><p class="field-hint">O responsável pelo site pode seguir o <a href="./docs/SUPABASE.md" target="_blank" rel="noopener">guia de ativação</a>.</p></div>
+    <form id="auth-form" class="account-body">
+      <label id="signup-name-field" hidden>Seu nome<input id="signup-name" maxlength="80" autocomplete="name"></label>
+      <label id="auth-email-field">E-mail<input id="auth-email" type="email" autocomplete="email" required maxlength="254"></label>
+      <label id="auth-password-field">Senha<input id="auth-password" type="password" autocomplete="current-password" required></label>
+      <p id="auth-message" class="field-hint" role="status"></p>
+      <button id="auth-submit" class="primary" type="submit">Entrar</button>
+      <div class="auth-switches"><button type="button" class="text-button" data-auth-mode="signup">Criar uma conta</button><button type="button" class="text-button" data-auth-mode="recover">Esqueci minha senha</button><button type="button" class="text-button" data-auth-mode="login" hidden>Já tenho uma conta</button></div>
+    </form>
+  </dialog>
+  <dialog id="account-dialog" aria-labelledby="account-title">
+    <header class="dialog-header"><div><p class="eyebrow">SEU LUGAR NO ATLAS</p><h2 id="account-title">Meu perfil</h2></div><button type="button" class="icon-button" data-close-dialog="account-dialog" aria-label="Fechar perfil">×</button></header>
+    <div class="account-scroll"><form id="profile-form" class="account-body">
+      <div class="profile-avatar-row"><span id="my-avatar" class="profile-avatar" aria-hidden="true">◇</span><label>Foto do perfil<input id="avatar-input" type="file" accept="image/*"></label></div>
+      <label>Nome do perfil<input id="profile-name" maxlength="80" required autocomplete="name"></label>
+      <label>Nome de usuário<input id="profile-username" pattern="[a-z0-9_]{3,30}" minlength="3" maxlength="30" required autocomplete="username" placeholder="ex.: murilo_viagens"></label><p class="field-hint">Letras minúsculas, números e sublinhado. Este nome aparece no endereço do seu perfil.</p>
+      <label>Sobre você<textarea id="profile-bio" maxlength="500" rows="3" placeholder="Que lugares fazem parte da sua história?"></textarea></label>
+      <label class="manual-toggle"><input id="profile-public" type="checkbox"> Permitir que outras pessoas encontrem meu perfil</label><p class="field-hint">Somente postagens marcadas como públicas aparecem para visitantes. Seu e-mail não faz parte do perfil.</p>
+      <p id="profile-message" class="field-hint" role="status"></p><button id="profile-save" type="submit" class="primary">Salvar perfil</button>
+    </form><section class="account-body account-sync"><h3>Suas viagens na nuvem</h3><p id="account-sync-message" class="field-hint" role="status">Entre na sua conta para sincronizar.</p><div class="account-actions"><button id="sync-button" class="quiet">Sincronizar agora</button><button id="migrate-button" class="quiet">Enviar meus dados locais para minha conta</button><button id="cloud-reload-button" class="text-button">Carregar versão da nuvem</button></div><p class="field-hint">A migração copia suas viagens como privadas e mantém os dados originais neste navegador. Exemplos não editados são ignorados.</p><div class="account-actions"><button id="my-public-profile" class="text-button">Ver meu perfil público</button><button id="share-profile" class="text-button">Copiar link do perfil</button><button id="logout-button" class="text-button">Sair da conta</button></div></section></div>
+  </dialog>
+  <dialog id="explore-dialog" aria-labelledby="explore-title"><header class="dialog-header"><div><p class="eyebrow">OUTROS CAMINHOS</p><h2 id="explore-title">Explorar perfis</h2></div><button class="icon-button" data-close-dialog="explore-dialog" aria-label="Fechar busca de perfis">×</button></header><div class="account-body"><label>Buscar nome de usuário<input id="profile-search" type="search" autocomplete="off" placeholder="Ex.: murilo" aria-describedby="explore-status"></label><p id="explore-status" class="field-hint" role="status">Digite ao menos 2 caracteres para encontrar perfis públicos.</p><div id="profile-results"></div></div></dialog>
   <noscript><p class="fatal">Ative o JavaScript para usar o Atlas Pessoal.</p></noscript>
 </body>
 </html>
