@@ -1,0 +1,12 @@
+{
+  "name": "atlas-pessoal",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "leaflet": "^1.9.4",
+    "leaflet.markercluster": "^1.5.3",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
+  }
+}
