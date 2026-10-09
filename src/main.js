@@ -236,6 +236,8 @@ function bindEvents() {
   $('#route-toggle').onchange = (e) => mapController.route(e.target.checked);
   $('#map-style').value = mapController.getStyle();
   $('#map-style').onchange = (e) => mapController.setStyle(e.target.value);
+  $('#heat-mode').value = mapController.getHeatMode();
+  $('#heat-mode').onchange = (e) => mapController.setHeatMode(e.target.value);
   $('#show-markers').checked = mapController.markersVisible();
   $('#route-toggle').disabled = !mapController.markersVisible();
   $('#show-markers').onchange = (e) => { mapController.setMarkersVisible(e.target.checked); $('#route-toggle').disabled = !e.target.checked; };
@@ -277,7 +279,9 @@ function setViewUI() {
   $('#list-search').value = ''; $('#country-filter').value = ''; $('#tag-filter').value = '';
   if (publicView) {
     const p = publicView.profile;
-    $('#public-profile-header').innerHTML = `<span id="public-avatar" class="profile-avatar" aria-hidden="true">${escapeHTML(p.display_name.slice(0, 1))}</span><div><p class="eyebrow">@${escapeHTML(p.username)}</p><h2>${escapeHTML(p.display_name)}</h2><p>${escapeHTML(p.bio || 'Um mapa de caminhos e memórias.')}</p></div><span class="tag">Perfil público</span>`;
+    $('#public-profile-header').innerHTML = `<span id="public-avatar" class="profile-avatar" aria-hidden="true">${escapeHTML(p.display_name.slice(0, 1))}</span><div><p class="eyebrow">@${escapeHTML(p.username)}</p><h2>${escapeHTML(p.display_name)}</h2><p>${escapeHTML(p.bio || 'Um mapa de caminhos e memórias.')}</p></div><span class="tag">Perfil público</span>${publicView.publishedTrips?.length ? `<section class="profile-trips" aria-label="Trips publicadas"><h3>Trips compartilhadas</h3><div>${publicView.publishedTrips.map(t=>`<a class="trip-card" href="#/roteiro/${escapeHTML(t.id)}"><strong>${escapeHTML(t.name)}</strong><small>${t.stops.length} destinos · Ver roteiro</small></a>`).join('')}</div></section>` : ''}`;
+  } else {
+    $('#public-profile-header').replaceChildren();
   }
   mapController.resize();
 }
@@ -304,7 +308,7 @@ async function init() {
         try { await openDatabase({ accountId: id }); setViewUI(); await refresh(); }
         finally { changingAccount = false; }
       },
-      async showOwn() { publicView = null; selectedId = null; setViewUI(); await refresh(); },
+      async showOwn({ preserveSelection = false } = {}) { if(preserveSelection && !publicView){await refresh();return;} publicView = null; selectedId = null; setViewUI(); await refresh(); },
       async showPublic(data) { publicView = data; selectedId = null; setViewUI(); await refresh(); mapController.fit(destinations); },
       showTrip: () => journeys.route(),
     });

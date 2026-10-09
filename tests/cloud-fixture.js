@@ -42,6 +42,7 @@ export async function mockCloud(page) {
       if (method === 'PUT') state.changedPassword = body.password;
       return ok(state.session(owner).user);
     }
+    if (path === '/rest/v1/trip_publications') return ok([]);
     if (path === '/rest/v1/profiles') {
       if (method === 'PATCH') {
         if (!owner || url.searchParams.get('id') !== `eq.${owner}`) return denied();
@@ -79,7 +80,7 @@ export async function mockCloud(page) {
         if (state.grants.get(url.searchParams.get('token')) !== key || !state.objects.has(key)) return denied();
         return route.fulfill({ contentType: 'image/jpeg', body: state.objects.get(key) });
       }
-      const allowed = bucket === 'atlas-trip-covers' && (state.trips || []).some(t => t.cover_path === object && (t.is_public || t.owner_id === owner || (state.members || []).some(m => m.trip_id === t.id && m.user_id === owner))) || object.startsWith(`${owner}/`) || bucket === 'atlas-media' && state.photos.some((photo) => [photo.storage_path, photo.thumbnail_path].includes(object) && state.posts.some((post) => post.id === photo.destination_id && post.owner_id === photo.owner_id && canRead(post))) || bucket === 'atlas-avatars' && state.profiles.some((p) => p.is_public && p.avatar_path === object);
+      const allowed = bucket === 'atlas-trip-media' && (state.tripPhotos || []).some(p => p.storage_path === object && (state.trips || []).some(t => t.id === p.trip_id && (t.is_public || t.owner_id === owner || (state.members || []).some(m => m.trip_id === t.id && m.user_id === owner)))) || bucket === 'atlas-trip-covers' && (state.trips || []).some(t => t.cover_path === object && (t.is_public || t.owner_id === owner || (state.members || []).some(m => m.trip_id === t.id && m.user_id === owner))) || object.startsWith(`${owner}/`) || bucket === 'atlas-media' && state.photos.some((photo) => [photo.storage_path, photo.thumbnail_path].includes(object) && state.posts.some((post) => post.id === photo.destination_id && post.owner_id === photo.owner_id && canRead(post))) || bucket === 'atlas-avatars' && state.profiles.some((p) => p.is_public && p.avatar_path === object);
       if (!allowed) return denied();
       const token = randomUUID(); state.grants.set(token, key);
       return ok({ signedURL: `/object/sign/${bucket}/${object}?token=${token}` });
@@ -88,6 +89,11 @@ export async function mockCloud(page) {
     if (storage) {
       const [, bucket, object] = storage;
       if (!owner || object && !object.startsWith(`${owner}/`)) return denied();
+      if (bucket === 'atlas-trip-media' && method === 'POST') {
+        const trip = (state.trips || []).find(t => t.id === object.split('/')[1]), member = (state.members || []).find(m => m.trip_id === trip?.id && m.user_id === owner);
+        if (!trip || trip.owner_id !== owner && !(member?.status === 'accepted' && member.can_add_photos)) return denied();
+        if (state.objects.has(`${bucket}/${object}`)) return ok({message:'Duplicate'},409);
+      }
       if (method === 'DELETE') { for (const prefix of body.prefixes) if (prefix.startsWith(`${owner}/`)) state.objects.delete(`${bucket}/${prefix}`); return ok({}); }
       state.objects.set(`${bucket}/${object}`, request.postDataBuffer()); return ok({ Key: object });
     }

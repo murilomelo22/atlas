@@ -188,7 +188,8 @@ test('exporta e importa JSON com fotos sem duplicar; exclusão tem confirmação
 
 test('falhas de busca e tiles preservam o atlas; imagens e backup inválidos não alteram os dados', async ({ page }) => {
   await page.route('https://nominatim.openstreetmap.org/**', (route) => route.abort());
-  await page.route('https://*.basemaps.cartocdn.com/**', (route) => route.abort());
+  await page.route('https://tile.openstreetmap.org/**', (route) => route.abort());
+  await page.locator('#map-style').selectOption('streets');
   await page.reload();
   await expect(page.locator('#map-status')).toContainText('continuam acessíveis');
   await openNew(page, 'Sem rede');

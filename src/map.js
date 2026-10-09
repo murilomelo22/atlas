@@ -1,5 +1,6 @@
 import { totalDays } from './dates.js';
 import { chronologicalStops } from './stats.js';
+import { createHeatLayer, heatPoints } from './heatmap.js';
 export function createMap(countries, onSelect, onAdd, onTileError) {
   const map = L.map('map', { zoomControl: false, minZoom: 2, maxZoom: 18, worldCopyJump: true }).setView([28, 15], 3);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -7,9 +8,8 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
   map.attributionControl.addAttribution('Países: Natural Earth');
   let base, theme = 'dark';
   const themes = {
-    dark: ['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
-    light: ['https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
-    voyager: ['https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
+    dark: null,
+    light: null,
     streets: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png', '&copy; OpenStreetMap contributors'],
   };
   let durations = new Map(), homes = new Set(), max = 1, routeVisible = false, markersVisible = true, plannedVisible = false;
@@ -17,8 +17,8 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
   const style = (feature) => {
     const days = durations.get(String(feature.id));
     const home = homes.has(String(feature.id));
-    const light = ['light', 'voyager', 'streets'].includes(theme);
-    return { color: home ? '#76b6c8' : days != null ? '#b99671' : light ? '#858b84' : '#545952', weight: home ? 1.2 : 0.7, fillColor: days != null ? '#c09a71' : home ? '#76b6c8' : light ? '#e3ede3' : '#202923', fillOpacity: days != null ? 0.22 + 0.48 * (days / max) : home ? 0.45 : light ? 0.08 : 0.5 };
+    const light = ['light', 'offline', 'streets'].includes(theme);
+    return { color: home ? '#76b6c8' : days != null ? '#b99671' : light ? '#858b84' : '#545952', weight: home ? 1.2 : 0.7, fillColor: days != null ? '#c09a71' : home ? '#76b6c8' : theme === 'offline' ? '#e9dfc6' : light ? '#e3ede3' : '#202923', fillOpacity: days != null ? 0.22 + 0.48 * (days / max) : home ? 0.45 : ['light', 'offline'].includes(theme) ? .85 : light ? 0.08 : 0.5 };
   };
   const layer = L.geoJSON(countries, { style, onEachFeature: (feature, country) => {
     country.bindTooltip(document.createTextNode(feature.properties.name), { sticky: true });
@@ -26,6 +26,9 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
     country.on('mouseover', () => { country.setStyle({ color: '#a5dfc6', weight: 1.8, fillColor: '#6ca78e', fillOpacity: 0.6 }); country.bringToFront(); country.getElement()?.classList.add('country-hover'); });
     country.on('mouseout', () => { layer.resetStyle(country); country.getElement()?.classList.remove('country-hover'); });
   } }).addTo(map);
+  const heat = createHeatLayer(map);
+  let heatMode = 'off';
+  try { const saved = localStorage.getItem('atlas-heat-mode'); if (['visits', 'days'].includes(saved)) heatMode = saved; } catch {}
   function setStyle(value) {
     theme = value in themes || value === 'offline' ? value : 'dark';
     if (base) { map.removeLayer(base); base = null; }
@@ -51,6 +54,16 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
   }
   const allMarkers = new Map();
   let allDestinations = [];
+  function setHeatMode(value) {
+    heatMode = ['visits', 'days'].includes(value) ? value : 'off';
+    heat.update(heatPoints(allDestinations, heatMode)); heat.show(heatMode !== 'off');
+    const legend = document.getElementById('heat-legend');
+    legend.hidden = heatMode === 'off';
+    legend.querySelector('[data-heat-label]').textContent = heatMode === 'days' ? 'Dias registrados por lugar' : 'Visitas registradas por lugar';
+    document.getElementById('map').dataset.heat = heatMode;
+    try { localStorage.setItem('atlas-heat-mode', heatMode); } catch {}
+  }
+  setHeatMode(heatMode);
   map.on('click', (e) => onAdd({ lat: Number(e.latlng.lat.toFixed(5)), lng: Number((((e.latlng.lng + 180) % 360 + 360) % 360 - 180).toFixed(5)) }));
   function redrawRoute() {
     routes.clearLayers();
@@ -76,9 +89,12 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
     getStyle: () => theme,
     setMarkersVisible,
     markersVisible: () => markersVisible,
+    setHeatMode,
+    getHeatMode: () => heatMode,
     update(destinations, photoURLs) {
       plannedVisible = false; planned.clearLayers(); map.removeLayer(planned);
       allDestinations = destinations;
+      heat.update(heatPoints(destinations, heatMode));
       durations = new Map();
       homes = new Set(destinations.filter((d) => d.kind === 'home').map((d) => d.countryId).filter(Boolean));
       for (const d of destinations) if (d.countryId && d.kind !== 'home') durations.set(d.countryId, (durations.get(d.countryId) || 0) + totalDays(d));

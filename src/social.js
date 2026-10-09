@@ -7,7 +7,11 @@ import { shareText, appLink } from './sharing.js';
 
 export async function initializeSocial(callbacks) {
   let profile = null, mode = 'login', change = Promise.resolve(), syncTimer, routeToken = 0, avatarFile = null, submitting = false;
-  function status(message) { $('#sync-status').textContent = message; $('#account-sync-message').textContent = message; }
+  let ownStatus = 'Coleção neste dispositivo';
+  function status(message, viewingProfile = false) {
+    $('#sync-status').textContent = message;
+    if (!viewingProfile) { ownStatus = message; $('#account-sync-message').textContent = message; }
+  }
   function renderAuth() {
     $('#login-button').hidden = Boolean(currentUser()); $('#account-button').hidden = !currentUser();
     status(currentUser() ? 'Conta conectada · sincronização pendente' : 'Coleção neste dispositivo');
@@ -75,17 +79,18 @@ export async function initializeSocial(callbacks) {
     }).catch(() => {});
     $('#account-dialog').showModal();
   }
-  async function route() {
+  async function route(event) {
     if (location.hash.startsWith('#/roteiro/')) return;
     const token = ++routeToken, match = location.hash.match(/^#\/perfil\/([a-z0-9_]{3,30})$/);
-    if (!match) { await callbacks.showOwn(); return; }
+    if (!match) { await callbacks.showOwn({ preserveSelection: !event }); if(token===routeToken)status(ownStatus); return; }
     if (!cloudEnabled) { notify('Perfis públicos estarão disponíveis quando o login for ativado.', true); await callbacks.showOwn(); return; }
-    status('Carregando perfil público…');
+    status('Carregando perfil público…', true);
     try {
       const data = await publicProfile(match[1]);
       if (token !== routeToken) return;
       await callbacks.showPublic(data);
-      status('Você está vendo as viagens públicas deste perfil.');
+      if (token !== routeToken) return;
+      status('Você está vendo as viagens públicas deste perfil.', true);
       if (data.profile.avatar_path) avatarURL(data.profile).then((url) => {
         if (token !== routeToken) return;
         const img = document.createElement('img'); img.src = url; img.alt = ''; $('#public-avatar').replaceChildren(img);

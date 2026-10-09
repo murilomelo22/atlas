@@ -36,6 +36,7 @@ if (channel) channel.onmessage = async () => { session = await readSession() || 
 function apiError(body, status) {
   const error = new Error(status === 401 ? 'Sua sessão expirou. Entre novamente para sincronizar.' : status === 429 ? 'Muitas tentativas. Aguarde um pouco e tente novamente.' : status >= 500 ? 'A nuvem está indisponível. Seus dados locais foram preservados.' : 'Não foi possível concluir a operação.');
   error.code = body?.code || body?.error_code;
+  error.status = status;
   if (error.code === '23505') error.message = 'Este nome de usuário já está em uso. Escolha outro.';
   if (body?.message?.includes('ATLAS_CONFLICT')) { error.code = 'conflict'; error.message = 'Uma viagem foi alterada em outro dispositivo. Suas mudanças locais foram preservadas. Carregue a versão da nuvem ou exporte um backup antes de continuar.'; }
   const tripErrors = {
@@ -44,6 +45,9 @@ function apiError(body, status) {
     ATLAS_TRIP_USER_NOT_FOUND: 'Nome de usuário não encontrado. Confira o nome e se o perfil está encontrável. Você já organiza esta trip.',
     ATLAS_TRIP_INVALID_COVER: 'A foto de capa não foi encontrada ou não pertence a você.',
     ATLAS_TRIP_INVALID: 'Confira o nome, as coordenadas e as datas do roteiro.',
+    ATLAS_TRIP_INVALID_PHOTO: 'A foto não foi encontrada ou não pertence a esta trip.',
+    ATLAS_TRIP_PHOTO_LIMIT: 'A trip já tem 100 fotos. Remova uma antes de adicionar outra.',
+    ATLAS_TRIP_PUBLISH_PUBLIC: 'O criador precisa tornar o roteiro público e seu perfil precisa estar encontrável para publicar a trip no seu perfil.',
   };
   for (const [code, message] of Object.entries(tripErrors)) if (body?.message?.includes(code)) error.message = message;
   if (body?.error_code === 'invalid_credentials') error.message = 'E-mail ou senha incorretos.';
@@ -208,7 +212,15 @@ export async function publicProfile(username) {
   const profiles = await rows('profiles', { username: `eq.${username}`, is_public: 'eq.true' });
   const profile = profiles.find((p) => p.username === username && p.is_public);
   if (!profile) throw new Error('Este perfil não existe ou está privado.');
-  return { profile, ...await readCollection(profile.id, { publicOnly: true }) };
+  let publishedTrips = [];
+  try {
+    const publications = await rows('trip_publications', { select: 'trip_id,trips(id,name,stops)', user_id: `eq.${profile.id}`, order: 'created_at.desc' });
+    publishedTrips = publications.map(p => p.trips).filter(Boolean);
+  } catch (error) {
+    // Profiles already in use keep working before the additive migration is installed.
+    if (!['42P01', 'PGRST205', 'PGRST200'].includes(error.code)) throw error;
+  }
+  return { profile, publishedTrips, ...await readCollection(profile.id, { publicOnly: true }) };
 }
 export async function saveCloudDestination(destination, photos) {
   const existingPhotos = await rows('photos', { owner_id: `eq.${currentUser().id}`, destination_id: `eq.${destination.id}` }, true);

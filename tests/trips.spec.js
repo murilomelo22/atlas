@@ -49,7 +49,7 @@ test('conflito e desconexão mantêm o formulário e exportação disponíveis',
  const cloud=await mockTrips(page);await ready(page);await login(page);await newTrip(page);await saveTrip(page);
  const original=cloud.trips[0].name;cloud.trips[0].revision=randomUUID();await page.locator('#trip-name').fill('Minha edição pendente');await page.locator('#trip-save').click();await expect(page.locator('#trip-message')).toContainText('Outra pessoa alterou');expect(cloud.trips[0].name).toBe(original);await expect(page.locator('#trip-name')).toHaveValue('Minha edição pendente');
  const download=page.waitForEvent('download');await page.locator('#trip-export').click();await download;
- cloud.failed=true;await page.locator('#trip-save').click();await expect(page.locator('#trip-message')).toContainText('não foi enviado');await expect(page.locator('#trip-name')).toHaveValue('Minha edição pendente');
+ cloud.failed=true;await page.locator('#trip-save').click();await expect(page.locator('#trip-message')).toContainText('confirmar o envio');await expect(page.locator('#trip-name')).toHaveValue('Minha edição pendente');
 });
 
 test('favoritas e fixadas sincronizam e aparecem no perfil público',async({page})=>{
