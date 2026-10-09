@@ -61,7 +61,8 @@ create or replace function public.atlas_new_user()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
   insert into public.profiles(id, username, display_name)
-  values (new.id, 'viajante_' || left(replace(new.id::text, '-', ''), 20),
+  -- Hash the complete UUID: accounts may share the same UUID prefix.
+  values (new.id, 'viajante_' || left(md5(new.id::text), 20),
     left(coalesce(nullif(trim(new.raw_user_meta_data->>'display_name'), ''), 'Viajante'), 80));
   return new;
 end;
@@ -72,7 +73,7 @@ create trigger atlas_create_profile after insert on auth.users
   for each row execute function public.atlas_new_user();
 -- Existing accounts can also use the application after installation.
 insert into public.profiles(id, username, display_name)
-select id, 'viajante_' || left(replace(id::text, '-', ''), 20),
+select id, 'viajante_' || left(md5(id::text), 20),
   left(coalesce(nullif(trim(raw_user_meta_data->>'display_name'), ''), 'Viajante'), 80)
 from auth.users on conflict (id) do nothing;
 
