@@ -10,6 +10,7 @@ As postagens existentes são preservadas. Favoritas/fixadas, estilos de mapa, re
 ## Grupos e roteiros
 
 - Crie uma trip, dê um nome, descrição e foto de capa. Adicione paradas manualmente com coordenadas ou escolha destinos do seu atlas. Apenas nome e coordenadas são copiados; fotos e notas privadas da postagem não são publicadas.
+- Use **Adicionar viagens já feitas** para escolher uma ou mais visitas anteriores, com chegada, partida e duração. Visitas futuras, moradias e exemplos não aparecem na seleção. A cópia fica no roteiro; editar a postagem original depois não altera a trip. Notas só são copiadas se você marcar **Incluir minhas notas**; fotos permanecem na postagem original. Uma mesma visita não é adicionada duas vezes.
 - Defina datas e planos de cada parada; use as setas para mudar a ordem. **Ver no mapa** mostra paradas e linhas entre elas. Não há cálculo de estradas, reservas, preços ou horários de transporte.
 - Ao entrar na conta, roteiros são salvos online. Edições offline ficam no formulário aberto e precisam de nova tentativa; não fazem parte da fila automática das postagens. Use **Exportar JSON** antes de fechar uma edição com problema.
 - Convide pelo nome de usuário. O perfil precisa estar encontrável. O convite aparece em **Trips e roteiros** da outra conta, sem envio de e-mail. O convidado pode conhecer o roteiro antes de aceitar; um editor só pode editar depois de aceitar.
@@ -23,7 +24,13 @@ As postagens existentes são preservadas. Favoritas/fixadas, estilos de mapa, re
 
 No editor de destino, marque **Favorita** ou **Fixar no topo**. As fixadas aparecem primeiro em qualquer ordenação. Os destaques são sincronizados com a postagem e aparecem no perfil público quando a postagem é pública.
 
-A seleção de mapa oferece Escuro, Claro, Viajante, Ruas e Atlas sem tiles; a preferência fica neste navegador. Os tiles dependem da conexão e das condições de uso de CARTO/OpenStreetMap. O mapa local de países e os destinos continuam disponíveis sem os tiles.
+A seleção de mapa oferece Escuro, Claro, Viajante, Ruas e Atlas sem tiles; a preferência fica neste navegador. Os tiles dependem da conexão e das condições de uso de CARTO/OpenStreetMap. O mapa local de países e os destinos continuam disponíveis sem os tiles. Desmarque **Mostrar viagens no mapa** para ocultar marcadores, números e rotas, mantendo os países pintados; a preferência fica neste navegador. Ao passar o mouse, o país recebe um destaque no seu próprio contorno e mostra o nome.
+
+No formulário do destino, escolha **Casa / moradia** para marcar onde você mora ou morou. A moradia tem símbolo de casa e seu país recebe azul (ou borda azul se também houver viagens). Moradias não entram nos dias, distâncias, continentes e países visitados, resumos nem na seleção de viagens realizadas; continuam na coleção de destinos. A privacidade é a mesma de uma postagem: começa privada na conta.
+
+Os contornos locais usam Natural Earth 1:50 milhões, com recorte no meridiano de 180° para não desenhar faixas sobre outros territórios. A identificação de um ponto até 3 km de uma costa simplificada pode usar o país mais próximo, com aviso no formulário. Essa aproximação não amplia o contorno desenhado; ilhas pequenas e detalhes costeiros seguem limitados pela escala da base.
+
+Esta atualização não exige um novo SQL se `trips.sql` já foi instalado. Tipo de moradia e visitas copiadas usam os dados existentes das postagens e roteiros.
 
 O WhatsApp abre uma mensagem para você escolher o destinatário e enviar. Perfis/postagens usam o endereço público. Um roteiro privado pode ser compartilhado como texto após confirmar o conteúdo que será enviado, sem torná-lo público. Um roteiro público inclui seu link.
 

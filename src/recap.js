@@ -8,7 +8,7 @@ export function periodSummary(destinations, year, month = 0) {
   const end = Date.UTC(year + (month ? 0 : 1), month || 0, 1) / DAY - 1;
   const activity = new Map(), active = new Set(), stops = [];
   let undated = 0;
-  for (const d of destinations.filter((d) => !d.example)) for (const visit of d.visits) {
+  for (const d of destinations.filter((d) => !d.example && d.kind !== 'home')) for (const visit of d.visits) {
     const a = dateDays(visit.arrival), b = dateDays(visit.departure);
     if (a == null || b == null || visit.manualDays != null) { undated++; continue; }
     if (a <= end && b >= start) {

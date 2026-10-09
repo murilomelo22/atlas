@@ -1,6 +1,6 @@
 import { totalDays } from './dates.js';
 export function chronologicalStops(destinations) {
-  return destinations.flatMap((destination) => destination.visits.filter((visit) => visit.arrival).map((visit) => ({ ...destination, date: visit.arrival }))).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+  return destinations.filter((d) => d.kind !== 'home').flatMap((destination) => destination.visits.filter((visit) => visit.arrival).map((visit) => ({ ...destination, date: visit.arrival }))).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
 }
 export function haversine(a, b) {
   const rad = (n) => n * Math.PI / 180;
@@ -9,11 +9,12 @@ export function haversine(a, b) {
 }
 export function statistics(destinations) {
   const stops = chronologicalStops(destinations);
+  const travels = destinations.filter((d) => d.kind !== 'home');
   return {
-    countries: new Set(destinations.map((d) => d.countryId).filter(Boolean)).size,
+    countries: new Set(travels.map((d) => d.countryId).filter(Boolean)).size,
     cities: destinations.length,
-    days: destinations.reduce((sum, d) => sum + totalDays(d), 0),
-    continents: new Set(destinations.map((d) => d.continent).filter(Boolean)).size,
+    days: travels.reduce((sum, d) => sum + totalDays(d), 0),
+    continents: new Set(travels.map((d) => d.continent).filter(Boolean)).size,
     distance: Math.round(stops.slice(1).reduce((sum, d, i) => sum + haversine(stops[i], d), 0)),
   };
 }

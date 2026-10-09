@@ -68,6 +68,7 @@ function selectDestination(id) {
 function updateList() { renderList(destinations, urls, selectDestination, () => openEditor(), Boolean(publicView)); }
 async function refresh() {
   destinations = publicView ? publicView.destinations : await getDestinations();
+  destinations = destinations.map(d => ({ ...d, ...countryAt(d.lat,d.lng) }));
   allPhotos = publicView ? publicView.photos : await getAllPhotos();
   for (const url of urls.values()) URL.revokeObjectURL(url);
   urls.clear();
@@ -82,7 +83,7 @@ function updateCountry() {
   try {
     const { lat, lng } = normalizeCoordinates($('#latitude').value, $('#longitude').value);
     const info = countryAt(lat, lng);
-    $('#country-preview').textContent = info.countryId ? `${info.countryName} · ${info.continent} — identificado pelas coordenadas` : 'País não identificado. Pode ser uma ilha pequena, uma área costeira ou um ponto no oceano. O destino pode ser salvo.';
+    $('#country-preview').textContent = info.countryId ? `${info.countryName} · ${info.continent} — ${info.countryApproximate ? 'aproximado pela proximidade da costa (até 3 km). Confira as coordenadas.' : 'identificado pelas coordenadas'}` : 'País não identificado. Pode ser uma ilha pequena, uma área costeira ou um ponto no oceano. O destino pode ser salvo.';
   } catch { $('#country-preview').textContent = 'Informe coordenadas válidas para identificar o país.'; }
 }
 function readVisits() {
@@ -145,6 +146,7 @@ async function openEditor(destination, coords = {}) {
   $('#editor-title').textContent = destination ? 'Editar destino' : 'Adicionar destino';
   $('#save-button').disabled = false; $('#save-button').textContent = 'Salvar destino';
   $('#destination-name').value = destination?.name || '';
+  $('#destination-kind').value = destination?.kind || 'trip';
   $('#latitude').value = destination?.lat ?? coords.lat ?? '';
   $('#longitude').value = destination?.lng ?? coords.lng ?? '';
   $('#notes').value = destination?.notes || ''; $('#rating').value = destination?.rating || '0'; $('#tags').value = destination?.tags.join(', ') || '';
@@ -201,7 +203,7 @@ async function save(event) {
     const destination = { id: editId, name, ...coords, ...countryAt(coords.lat, coords.lng), visits,
       notes: $('#notes').value.trim(), rating: Number($('#rating').value), tags,
       photoIds: editPhotos.map((p) => p.id), coverId: editPhotos.some((p) => p.id === coverId) ? coverId : editPhotos[0]?.id || null,
-      favorite: $('#destination-favorite').checked, pinned: $('#destination-pinned').checked,
+      kind: $('#destination-kind').value, favorite: $('#destination-favorite').checked, pinned: $('#destination-pinned').checked,
       example: false, createdAt: previous?.createdAt || now, updatedAt: now };
     if (currentUser()) { destination.visibility = $('#visibility').value; destination.cloudRevision = previous?.cloudRevision || null; }
     saving = true; $('#save-button').disabled = true; $('#save-button').textContent = 'Salvando…';
@@ -234,6 +236,9 @@ function bindEvents() {
   $('#route-toggle').onchange = (e) => mapController.route(e.target.checked);
   $('#map-style').value = mapController.getStyle();
   $('#map-style').onchange = (e) => mapController.setStyle(e.target.value);
+  $('#show-markers').checked = mapController.markersVisible();
+  $('#route-toggle').disabled = !mapController.markersVisible();
+  $('#show-markers').onchange = (e) => { mapController.setMarkersVisible(e.target.checked); $('#route-toggle').disabled = !e.target.checked; };
   $('#fit-button').onclick = () => mapController.fit(destinations);
   $('#clear-examples').onclick = async () => {
     if (!await confirmAction('Limpar os exemplos?', 'Somente os exemplos que você ainda não editou serão removidos. Suas memórias serão preservadas.', 'Limpar exemplos')) return;

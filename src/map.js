@@ -12,13 +12,20 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
     voyager: ['https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
     streets: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png', '&copy; OpenStreetMap contributors'],
   };
-  let durations = new Map(), max = 1, routeVisible = false;
+  let durations = new Map(), homes = new Set(), max = 1, routeVisible = false, markersVisible = true, plannedVisible = false;
+  try { markersVisible = localStorage.getItem('atlas-show-markers') !== 'false'; } catch {}
   const style = (feature) => {
     const days = durations.get(String(feature.id));
+    const home = homes.has(String(feature.id));
     const light = ['light', 'voyager', 'streets'].includes(theme);
-    return { color: days != null ? '#b99671' : light ? '#858b84' : '#545952', weight: 0.7, fillColor: days != null ? '#c09a71' : light ? '#e3ede3' : '#202923', fillOpacity: days != null ? 0.22 + 0.48 * (days / max) : light ? 0.08 : 0.5 };
+    return { color: home ? '#76b6c8' : days != null ? '#b99671' : light ? '#858b84' : '#545952', weight: home ? 1.2 : 0.7, fillColor: days != null ? '#c09a71' : home ? '#76b6c8' : light ? '#e3ede3' : '#202923', fillOpacity: days != null ? 0.22 + 0.48 * (days / max) : home ? 0.45 : light ? 0.08 : 0.5 };
   };
-  const layer = L.geoJSON(countries, { style, onEachFeature: (feature, country) => country.bindTooltip(feature.properties.name, { sticky: true }) }).addTo(map);
+  const layer = L.geoJSON(countries, { style, onEachFeature: (feature, country) => {
+    country.bindTooltip(document.createTextNode(feature.properties.name), { sticky: true });
+    country.on('add', () => { const path = country.getElement(); if (path) { path.dataset.countryId = String(feature.id); path.setAttribute('aria-label', feature.properties.name); } });
+    country.on('mouseover', () => { country.setStyle({ color: '#a5dfc6', weight: 1.8, fillColor: '#6ca78e', fillOpacity: 0.6 }); country.bringToFront(); country.getElement()?.classList.add('country-hover'); });
+    country.on('mouseout', () => { layer.resetStyle(country); country.getElement()?.classList.remove('country-hover'); });
+  } }).addTo(map);
   function setStyle(value) {
     theme = value in themes || value === 'offline' ? value : 'dark';
     if (base) { map.removeLayer(base); base = null; }
@@ -35,6 +42,13 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
   const markers = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 48, spiderfyOnMaxZoom: true, iconCreateFunction: (cluster) => L.divIcon({ className: 'atlas-cluster', html: `<span>${cluster.getChildCount()}</span>`, iconSize: [42, 42] }) }).addTo(map);
   const routes = L.layerGroup();
   const planned = L.layerGroup();
+  if (!markersVisible) map.removeLayer(markers);
+  function setMarkersVisible(value) {
+    markersVisible = Boolean(value);
+    if (markersVisible) { markers.addTo(map); if (routeVisible) routes.addTo(map); if (plannedVisible) planned.addTo(map); }
+    else { map.removeLayer(markers); map.removeLayer(routes); map.removeLayer(planned); }
+    try { localStorage.setItem('atlas-show-markers', String(markersVisible)); } catch {}
+  }
   const allMarkers = new Map();
   let allDestinations = [];
   map.on('click', (e) => onAdd({ lat: Number(e.latlng.lat.toFixed(5)), lng: Number((((e.latlng.lng + 180) % 360 + 360) % 360 - 180).toFixed(5)) }));
@@ -54,17 +68,20 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
       });
       L.polyline(points, { color: '#d0ac83', weight: 2, opacity: 0.8, dashArray: '5 7', interactive: false, smoothFactor: 0 }).addTo(routes);
     }
-    if (routeVisible) routes.addTo(map);
+    if (routeVisible && markersVisible) routes.addTo(map);
   }
   return {
     map,
     setStyle,
     getStyle: () => theme,
+    setMarkersVisible,
+    markersVisible: () => markersVisible,
     update(destinations, photoURLs) {
-      planned.clearLayers(); map.removeLayer(planned);
+      plannedVisible = false; planned.clearLayers(); map.removeLayer(planned);
       allDestinations = destinations;
       durations = new Map();
-      for (const d of destinations) if (d.countryId) durations.set(d.countryId, (durations.get(d.countryId) || 0) + totalDays(d));
+      homes = new Set(destinations.filter((d) => d.kind === 'home').map((d) => d.countryId).filter(Boolean));
+      for (const d of destinations) if (d.countryId && d.kind !== 'home') durations.set(d.countryId, (durations.get(d.countryId) || 0) + totalDays(d));
       max = Math.max(1, ...durations.values());
       layer.setStyle(style);
       markers.clearLayers(); allMarkers.clear();
@@ -72,7 +89,8 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
         const container = document.createElement('span');
         container.className = 'pin-face';
         const photo = photoURLs.get(d.coverId);
-        if (photo) { const img = document.createElement('img'); img.src = photo; img.alt = ''; container.append(img); }
+        if (d.kind === 'home') { container.textContent = '⌂'; container.classList.add('home-pin'); }
+        else if (photo) { const img = document.createElement('img'); img.src = photo; img.alt = ''; container.append(img); }
         else container.textContent = '◇';
         const marker = L.marker([d.lat, d.lng], { title: d.name, alt: d.name, icon: L.divIcon({ className: 'atlas-pin', html: container, iconSize: [42, 42], iconAnchor: [21, 21] }) });
         marker.on('click', () => onSelect(d.id));
@@ -83,7 +101,7 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
     },
     flyTo(destination) { map.flyTo([destination.lat, destination.lng], 9, { duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 0.7 }); },
     fit(destinations) { if (destinations.length) map.fitBounds(destinations.map((d) => [d.lat, d.lng]), { padding: [60, 60], maxZoom: 6 }); },
-    route(show) { planned.clearLayers(); map.removeLayer(planned); routeVisible = show; if (show) routes.addTo(map); else map.removeLayer(routes); },
+    route(show) { plannedVisible = false; planned.clearLayers(); map.removeLayer(planned); routeVisible = show; if (show && markersVisible) routes.addTo(map); else map.removeLayer(routes); },
     itinerary(stops) {
       routeVisible = false; map.removeLayer(routes); planned.clearLayers();
       let previous;
@@ -94,7 +112,7 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
         L.marker([stop.lat,lng]).bindTooltip(document.createTextNode(`${i+1}. ${stop.name}`)).addTo(planned);
         return [stop.lat,lng];
       });
-      L.polyline(points,{color:'#e4bc7e',weight:3,dashArray:'6 6'}).addTo(planned); planned.addTo(map); map.fitBounds(points,{padding:[40,40],maxZoom:9});
+      L.polyline(points,{color:'#e4bc7e',weight:3,dashArray:'6 6'}).addTo(planned); plannedVisible = true; if (markersVisible) planned.addTo(map); map.fitBounds(points,{padding:[40,40],maxZoom:9});
     },
     resize() { map.invalidateSize(); },
   };

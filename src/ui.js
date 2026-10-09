@@ -54,6 +54,7 @@ export function renderList(destinations, urls, onSelect, onAdd, readOnly = false
   list.querySelectorAll('[data-destination-id]').forEach((button) => button.addEventListener('click', () => onSelect(button.dataset.destinationId)));
   list.querySelectorAll('[data-destination-id]').forEach((button) => {
     const d = visible.find((item) => item.id === button.dataset.destinationId);
+    if (d.kind === 'home') { const badge = document.createElement('small'); badge.className = 'home-badge'; badge.textContent = '⌂ Casa / moradia'; $('.destination-summary', button).append(badge); }
     if (d.pinned || d.favorite) { const badge = document.createElement('small'); badge.className = 'highlight-badge'; badge.textContent = [d.pinned && '📌 Fixada', d.favorite && '★ Favorita'].filter(Boolean).join(' · '); $('.destination-summary', button).append(badge); }
   });
 }
@@ -75,4 +76,5 @@ export function renderDetail(destination, photos, urls, actions) {
   panel.querySelectorAll('[data-photo-index]').forEach((button) => button.onclick = () => actions.gallery(Number(button.dataset.photoIndex)));
   const share = document.createElement('button'); share.className = 'quiet'; share.textContent = 'Compartilhar no WhatsApp'; share.onclick = actions.share; $('.detail-body', panel).append(share);
   if (d.favorite || d.pinned) { const badge = document.createElement('p'); badge.className = 'highlight-badge'; badge.textContent = [d.pinned && '📌 Fixada', d.favorite && '★ Favorita'].filter(Boolean).join(' · '); $('.detail-body', panel).prepend(badge); }
+  if (d.kind === 'home') { const badge = document.createElement('p'); badge.className = 'home-badge'; badge.textContent = '⌂ Casa / moradia'; $('.detail-body', panel).prepend(badge); }
 }

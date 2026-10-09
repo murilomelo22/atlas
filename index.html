@@ -58,8 +58,9 @@
       <div id="map" aria-label="Mapa interativo; clique para adicionar um destino"></div>
       <div class="map-title"><p class="eyebrow">UM MUNDO DE MEMÓRIAS</p><h2>Seu mundo,<br><em>revisitado.</em></h2></div>
       <div class="map-toolbar"><label class="map-style-label">Mapa<select id="map-style"><option value="dark">Escuro</option><option value="light">Claro</option><option value="voyager">Viajante</option><option value="streets">Ruas</option><option value="offline">Atlas sem tiles</option></select></label><label class="route-switch"><input id="route-toggle" type="checkbox"><span>Rota cronológica</span></label><button id="fit-button" class="quiet" aria-label="Enquadrar todos os destinos">⌖ <span>Ver todos</span></button></div>
+      <label class="marker-switch"><input id="show-markers" type="checkbox" checked> Mostrar viagens no mapa <small>marcadores e números</small></label>
       <div class="map-status" id="map-status" role="status">Clique em qualquer lugar para guardar uma memória</div>
-      <div class="map-legend"><span></span> Países visitados <small>mais tempo, mais intensidade</small></div>
+      <div class="map-legend"><span></span> Países visitados <span class="home-legend"></span> Moradia <small>mais tempo, mais intensidade</small></div>
     </section>
   </main>
   <div id="toast" role="status" class="toast" hidden></div>
@@ -71,6 +72,7 @@
           <label for="geocode-input">Buscar cidade ou país</label><input id="geocode-input" type="search" placeholder="Ex.: Lisboa, Portugal" autocomplete="off" aria-controls="geocode-results" aria-describedby="geocode-status">
           <p id="geocode-status" class="field-hint" role="status">Digite ao menos 3 caracteres ou use as coordenadas abaixo.</p><div id="geocode-results" class="suggestions"></div>
           <label for="destination-name">Nome do destino <span aria-hidden="true">*</span></label><input id="destination-name" name="name" maxlength="120" required placeholder="Como você chama este lugar?">
+          <label>Tipo de lugar<select id="destination-kind"><option value="trip">Viagem</option><option value="home">Casa / moradia</option></select></label><p class="field-hint">Moradias têm um símbolo de casa e não entram nos dias, distâncias ou resumos de viagem.</p>
           <div class="coordinates"><label>Latitude<input id="latitude" name="latitude" type="number" min="-90" max="90" step="any" required placeholder="−23,5505"></label><label>Longitude<input id="longitude" name="longitude" type="number" min="-180" max="180" step="any" required placeholder="−46,6333"></label></div>
           <p id="country-preview" class="field-hint">O país será identificado pelas coordenadas.</p>
         </section>

@@ -1,7 +1,8 @@
 import { request, currentUser, signedURL, deleteObjects } from './cloud.js';
-import { getMeta, setMeta } from './db.js';
+import { getMeta, setMeta, getDestinations } from './db.js';
 import { processPhoto, blobAsDataURL } from './photos.js';
-import { cleanTrip } from './trip-data.js';
+import { cleanTrip, recordedVisits } from './trip-data.js';
+import { displayDate } from './dates.js';
 import { haversine } from './stats.js';
 import { $, escapeHTML as esc, notify, confirmAction } from './ui.js';
 import { appLink, shareText, downloadText } from './sharing.js';
@@ -17,6 +18,33 @@ export function initializeJourneys(callbacks) {
   const dialog=document.createElement('dialog'); dialog.id='trips-dialog'; dialog.className='wide-dialog'; dialog.setAttribute('aria-labelledby','trips-title');
   dialog.innerHTML='<header class="dialog-header"><div><p class="eyebrow">PRÓXIMOS CAMINHOS</p><h2 id="trips-title">Trips e roteiros</h2></div><button class="icon-button" id="trips-close" aria-label="Fechar trips">×</button></header><div class="account-body"><div id="trip-list-view"><p id="trip-list-status" class="field-hint" role="status"></p><div class="account-actions"><button id="trip-new" class="primary">＋ Criar trip</button><button id="trip-import" class="quiet">Importar roteiro JSON</button><button id="trip-refresh" class="quiet">Atualizar</button><input id="trip-file" type="file" accept="application/json,.json" hidden></div><div id="trip-list" class="trip-list"></div></div><section id="trip-editor-view" hidden></section></div>';
   document.body.append(dialog);
+  const completedDialog = document.createElement('dialog'); completedDialog.id='completed-dialog'; completedDialog.className='wide-dialog'; completedDialog.setAttribute('aria-labelledby','completed-title');
+  completedDialog.innerHTML='<header class="dialog-header"><h2 id="completed-title">Adicionar viagens já feitas</h2><button type="button" class="icon-button" aria-label="Fechar viagens realizadas">×</button></header><form id="completed-form" class="account-body"><p class="field-hint">Escolha visitas da sua coleção. Datas e duração são copiadas para o roteiro. Suas fotos continuam na postagem original.</p><div id="completed-list"></div><label class="manual-toggle"><input id="completed-notes" type="checkbox"> Incluir minhas notas</label><p class="field-hint">As notas copiadas poderão ser vistas pelos participantes e, se publicar o roteiro, por qualquer pessoa.</p><p id="completed-status" class="field-hint" role="status"></p><button id="completed-add" class="primary" type="submit">Adicionar selecionadas</button></form>';
+  document.body.append(completedDialog); $('.icon-button',completedDialog).onclick=()=>completedDialog.close();
+  let recorded=[];
+  completedDialog.addEventListener('close',()=>{recorded=[];$('#completed-list').replaceChildren();});
+  async function chooseRecorded() {
+    const token=epoch,who=account();
+    $('#completed-list').replaceChildren(); $('#completed-status').textContent='Buscando suas viagens…'; $('#completed-notes').checked=false; $('#completed-add').disabled=true;
+    completedDialog.showModal();
+    try {
+      const own = await getDestinations(); if(token!==epoch || who!==account() || !completedDialog.open)return;
+      recorded=recordedVisits(own); const existing=readStops();
+      $('#completed-list').innerHTML=recorded.map((row,i)=>{
+        const duplicate=existing.some(s=>s.sourceDestinationId===row.stop.sourceDestinationId && s.sourceVisitId===row.stop.sourceVisitId);
+        return `<label class="recorded-visit"><input type="checkbox" value="${i}" ${duplicate?'disabled':''}><span><strong>${esc(row.stop.name)}</strong><small>${esc(row.destination.countryName)} · ${row.stop.date?`${displayDate(row.stop.date)} — ${displayDate(row.stop.departure)}`:row.stop.manualDays?`${row.stop.manualDays} dias · sem datas`:'Sem datas'}${duplicate?' · Já adicionada':''}</small></span></label>`;
+      }).join('');
+      $('#completed-status').textContent=recorded.length?'Selecione uma ou mais visitas.':'Não há viagens realizadas nesta coleção. Registre um destino primeiro; moradias e exemplos não entram nesta lista.';
+      $('#completed-add').disabled=!recorded.length;
+    } catch(error) { $('#completed-status').textContent=error.message; }
+  }
+  $('#completed-form').onsubmit=e=>{
+    e.preventDefault(); if(!canEdit())return;
+    const chosen=[...document.querySelectorAll('#completed-list input:checked')].map(input=>recorded[Number(input.value)]);
+    if(!chosen.length){$('#completed-status').textContent='Selecione pelo menos uma visita.';return;}
+    if(readStops().length+chosen.length>200){$('#completed-status').textContent='O roteiro aceita até 200 destinos.';return;}
+    chosen.forEach(row=>addStop({...row.stop,notes:$('#completed-notes').checked?row.destination.notes.slice(0,2000):''}));completedDialog.close();notify('Viagens adicionadas. Salve o roteiro para confirmar.');
+  };
   let trips=[],memberships=[],current=null,people=[],coverFile=null,busy=false,epoch=0;
   function backToList() { current=null; people=[]; coverFile=null; $('#trip-editor-view').replaceChildren(); $('#trip-editor-view').hidden=true; $('#trip-list-view').hidden=false; return load(); }
   const account=()=>currentUser()?.id || null;
@@ -45,15 +73,21 @@ export function initializeJourneys(callbacks) {
     } catch(error) { if(token===epoch) fail(error); }
   }
   function readStops() {
-    return [...$('#trip-stops').children].map(row=>({id:row.dataset.stop,name:$('[data-stop-name]',row).value,lat:$('[data-stop-lat]',row).value,lng:$('[data-stop-lng]',row).value,date:$('[data-stop-date]',row).value,notes:$('[data-stop-notes]',row).value}));
+    return [...$('#trip-stops').children].map(row=>({...row.recordedVisit,id:row.dataset.stop,name:$('[data-stop-name]',row).value,lat:$('[data-stop-lat]',row).value,lng:$('[data-stop-lng]',row).value,date:$('[data-stop-date]',row).value,notes:$('[data-stop-notes]',row).value,...(row.recordedVisit?.completed?{departure:$('[data-stop-departure]',row).value}:{})}));
   }
   function renumber() { [...$('#trip-stops').children].forEach((row,i)=>$('[data-stop-number]',row).textContent=`Destino ${i+1}`); }
   function addStop(stop={}) {
     const row=document.createElement('div'); row.className='trip-stop'; row.dataset.stop=stop.id || crypto.randomUUID();
+    if(stop.completed)row.recordedVisit={completed:true,departure:stop.departure || '',manualDays:stop.manualDays ?? null,sourceDestinationId:stop.sourceDestinationId,sourceVisitId:stop.sourceVisitId};
     row.innerHTML=`<div class="trip-stop-heading"><strong data-stop-number></strong><div><button type="button" data-up aria-label="Mover destino para cima">↑</button><button type="button" data-down aria-label="Mover destino para baixo">↓</button><button type="button" data-remove aria-label="Remover destino do roteiro">×</button></div></div><label>Destino<input data-stop-name maxlength="120" required value="${esc(stop.name || '')}"></label><div class="form-row"><label>Latitude<input data-stop-lat type="number" min="-90" max="90" step="any" required value="${esc(stop.lat ?? '')}"></label><label>Longitude<input data-stop-lng type="number" min="-180" max="180" step="any" required value="${esc(stop.lng ?? '')}"></label><label>Data planejada<input data-stop-date type="date" value="${esc(stop.date || '')}"></label></div><label>Plano para este destino<textarea data-stop-notes maxlength="2000" rows="2">${esc(stop.notes || '')}</textarea></label>`;
     $('[data-up]',row).onclick=()=>{if(row.previousElementSibling) row.parentNode.insertBefore(row,row.previousElementSibling);renumber();};
     $('[data-down]',row).onclick=()=>{if(row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling,row);renumber();};
     $('[data-remove]',row).onclick=()=>{row.remove();renumber();};
+    if(stop.completed) {
+      $('[data-stop-date]',row).parentElement.firstChild.textContent='Chegada da viagem realizada';
+      const badge=document.createElement('p');badge.className='highlight-badge';badge.textContent=`✓ Viagem realizada${stop.manualDays?` · ${stop.manualDays} dias sem datas`:''}`;$('.trip-stop-heading',row).after(badge);
+      const label=document.createElement('label');label.textContent='Partida da viagem realizada';const input=document.createElement('input');input.type='date';input.dataset.stopDeparture='';input.value=stop.departure || '';label.append(input);$('[data-stop-date]',row).closest('.form-row').after(label);
+    }
     $('#trip-stops').append(row); renumber();
   }
   function renderPeople() {
@@ -75,6 +109,7 @@ export function initializeJourneys(callbacks) {
     // Disabled fieldsets cover inputs and reorder controls; sharing remains available.
     $('#trip-back').onclick=backToList;
     $('#trip-add-stop').onclick=()=>addStop();
+    const completedButton=document.createElement('button');completedButton.type='button';completedButton.id='trip-add-completed';completedButton.className='quiet';completedButton.textContent='Adicionar viagens já feitas';$('#trip-add-stop').after(completedButton);completedButton.onclick=chooseRecorded;
     $('#trip-existing').onchange=e=>{const d=callbacks.destinations().find(d=>d.id===e.target.value);if(d)addStop({name:d.name,lat:d.lat,lng:d.lng});e.target.value='';};
     $('#trip-cover').onchange=e=>{coverFile=e.target.files[0] || null;};
     const draft=()=>cleanTrip({...current,name:$('#trip-name').value,notes:$('#trip-notes').value,stops:readStops(),is_public:$('#trip-public').checked});
@@ -131,5 +166,5 @@ export function initializeJourneys(callbacks) {
     }catch(error){if(token===epoch)fail(error);}
   }
   window.addEventListener('hashchange',()=>{if(!location.hash.startsWith('#/roteiro/'))dialog.close();else route();});
-  return { route,reset(){epoch++;dialog.close();$('#share-dialog')?.close();$('#trip-editor-view').replaceChildren();current=null;trips=[];memberships=[];people=[];coverFile=null;busy=false;} };
+  return { route,reset(){epoch++;completedDialog.close();$('#completed-list').replaceChildren();recorded=[];dialog.close();$('#share-dialog')?.close();$('#trip-editor-view').replaceChildren();current=null;trips=[];memberships=[];people=[];coverFile=null;busy=false;} };
 }
