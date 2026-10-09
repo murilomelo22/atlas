@@ -38,6 +38,14 @@ function apiError(body, status) {
   error.code = body?.code || body?.error_code;
   if (error.code === '23505') error.message = 'Este nome de usuário já está em uso. Escolha outro.';
   if (body?.message?.includes('ATLAS_CONFLICT')) { error.code = 'conflict'; error.message = 'Uma viagem foi alterada em outro dispositivo. Suas mudanças locais foram preservadas. Carregue a versão da nuvem ou exporte um backup antes de continuar.'; }
+  const tripErrors = {
+    ATLAS_TRIP_CONFLICT: 'Outra pessoa alterou o roteiro. Exporte seu JSON para preservar as mudanças e reabra a trip antes de editar novamente.',
+    ATLAS_TRIP_FORBIDDEN: 'Você não tem permissão para esta ação. O convite precisa ser aceito para editar; só quem organiza gerencia o grupo.',
+    ATLAS_TRIP_USER_NOT_FOUND: 'Nome de usuário não encontrado. Confira o nome e se o perfil está encontrável. Você já organiza esta trip.',
+    ATLAS_TRIP_INVALID_COVER: 'A foto de capa não foi encontrada ou não pertence a você.',
+    ATLAS_TRIP_INVALID: 'Confira o nome, as coordenadas e as datas do roteiro.',
+  };
+  for (const [code, message] of Object.entries(tripErrors)) if (body?.message?.includes(code)) error.message = message;
   if (body?.error_code === 'invalid_credentials') error.message = 'E-mail ou senha incorretos.';
   if (body?.error_code === 'email_not_confirmed') error.message = 'Confirme seu e-mail antes de entrar.';
   if (body?.error_code === 'weak_password') error.message = 'A senha não atende à política de segurança. Use ao menos 8 caracteres.';

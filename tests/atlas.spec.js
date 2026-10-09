@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 const tile = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64');
 test.beforeEach(async ({ page }) => {
+  await page.route('**/config.js', (route) => route.fulfill({ contentType: 'text/javascript', body: "export const supabaseConfig = { url: '', publishableKey: '' };" }));
   await page.route('https://*.basemaps.cartocdn.com/**', (route) => route.fulfill({ contentType: 'image/png', body: tile }));
   await page.route('https://nominatim.openstreetmap.org/**', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ lat: '38.7223', lon: '-9.1393', display_name: 'Lisboa, Portugal' }]) }));
   await page.goto('/');

@@ -120,7 +120,7 @@ export function sanitizeDestination(raw) {
   const timestamp = (v) => Number.isFinite(Date.parse(v)) ? new Date(v).toISOString() : new Date().toISOString();
   return { id: String(raw.id || crypto.randomUUID()).slice(0, 128), name: raw.name.trim(), ...coords, ...countryAt(coords.lat, coords.lng), visits,
     notes: String(raw.notes || '').slice(0, 20000), rating, tags: [...new Set((Array.isArray(raw.tags) ? raw.tags : []).map((t) => String(t).trim().slice(0, 40)).filter(Boolean))].slice(0, 30),
-    photoIds: [], coverId: null, example: raw.example === true, createdAt: timestamp(raw.createdAt), updatedAt: timestamp(raw.updatedAt) };
+    photoIds: [], coverId: null, favorite: raw.favorite === true, pinned: raw.pinned === true, example: raw.example === true, createdAt: timestamp(raw.createdAt), updatedAt: timestamp(raw.updatedAt) };
 }
 export async function importBackup(file) {
   if (file.size > 250 * 1024 * 1024) throw new Error('O backup excede 250 MB. Divida sua coleção antes de importar.');

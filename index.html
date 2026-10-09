@@ -28,7 +28,7 @@
     </div>
   </header>
   <nav class="social-nav" aria-label="Conta e comunidade">
-    <div><button id="home-atlas" class="text-button">Meu atlas</button><button id="explore-button" class="text-button">Explorar perfis</button></div>
+    <div><button id="home-atlas" class="text-button">Meu atlas</button><button id="explore-button" class="text-button">Explorar perfis</button><button id="trips-button" class="text-button">Trips e roteiros</button><button id="recap-button" class="text-button">Resumos</button></div>
     <div><span id="sync-status" class="sync-status" role="status">Coleção neste dispositivo</span><button id="account-button" class="quiet" hidden>Meu perfil</button><button id="login-button" class="quiet">Entrar / Criar conta</button></div>
   </nav>
   <section id="public-profile-header" class="public-profile-header" hidden aria-label="Perfil público"></section>
@@ -57,7 +57,7 @@
     <section class="map-area" aria-label="Mapa dos seus destinos">
       <div id="map" aria-label="Mapa interativo; clique para adicionar um destino"></div>
       <div class="map-title"><p class="eyebrow">UM MUNDO DE MEMÓRIAS</p><h2>Seu mundo,<br><em>revisitado.</em></h2></div>
-      <div class="map-toolbar"><label class="route-switch"><input id="route-toggle" type="checkbox"><span>Rota cronológica</span></label><button id="fit-button" class="quiet" aria-label="Enquadrar todos os destinos">⌖ <span>Ver todos</span></button></div>
+      <div class="map-toolbar"><label class="map-style-label">Mapa<select id="map-style"><option value="dark">Escuro</option><option value="light">Claro</option><option value="voyager">Viajante</option><option value="streets">Ruas</option><option value="offline">Atlas sem tiles</option></select></label><label class="route-switch"><input id="route-toggle" type="checkbox"><span>Rota cronológica</span></label><button id="fit-button" class="quiet" aria-label="Enquadrar todos os destinos">⌖ <span>Ver todos</span></button></div>
       <div class="map-status" id="map-status" role="status">Clique em qualquer lugar para guardar uma memória</div>
       <div class="map-legend"><span></span> Países visitados <small>mais tempo, mais intensidade</small></div>
     </section>
@@ -79,6 +79,8 @@
           <label for="notes">Notas</label><textarea id="notes" maxlength="20000" rows="3" placeholder="Uma rua, um sabor, algo que você não quer esquecer…"></textarea>
           <div class="form-row"><label>Avaliação<select id="rating"><option value="0">Sem avaliação</option><option value="1">1 ★</option><option value="2">2 ★★</option><option value="3">3 ★★★</option><option value="4">4 ★★★★</option><option value="5">5 ★★★★★</option></select></label><label>Etiquetas<input id="tags" maxlength="1200" placeholder="arte, natureza, gastronomia"></label></div><p class="field-hint">Separe as etiquetas por vírgulas.</p>
           <label id="visibility-field" hidden>Quem pode ver esta postagem?<select id="visibility"><option value="private">Somente eu</option><option value="public">Todos no meu perfil público</option></select></label><p id="visibility-hint" class="field-hint" hidden>Notas, datas e fotos fazem parte da postagem. Escolha o que deseja compartilhar.</p>
+          <div class="form-row"><label class="manual-toggle"><input id="destination-favorite" type="checkbox"> ★ Favorita</label><label class="manual-toggle"><input id="destination-pinned" type="checkbox"> 📌 Fixar no topo</label></div>
+          <p class="field-hint">Os destaques também aparecem no perfil público quando a postagem é pública.</p>
           <label for="photo-input" id="drop-zone" class="drop-zone"><span aria-hidden="true">＋</span><strong>Escolha fotos ou arraste para cá</strong><small>JPEG, PNG ou WebP · até 40 MB por imagem</small><input id="photo-input" type="file" accept="image/*" multiple></label>
           <p id="photo-status" class="field-hint" role="status">As fotos são reduzidas para 1600 px e salvas apenas neste navegador.</p><div id="photo-editor" class="photo-editor"></div>
         </section>

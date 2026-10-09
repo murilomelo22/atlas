@@ -5,18 +5,36 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   map.attributionControl.setPrefix(false);
   map.attributionControl.addAttribution('Países: Natural Earth');
-  const base = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 20, crossOrigin: true,
-  }).addTo(map);
-  base.on('tileerror', onTileError);
+  let base, theme = 'dark';
+  const themes = {
+    dark: ['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
+    light: ['https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
+    voyager: ['https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
+    streets: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png', '&copy; OpenStreetMap contributors'],
+  };
   let durations = new Map(), max = 1, routeVisible = false;
   const style = (feature) => {
     const days = durations.get(String(feature.id));
-    return { color: days != null ? '#b99671' : '#545952', weight: 0.7, fillColor: days != null ? '#c09a71' : '#202923', fillOpacity: days != null ? 0.22 + 0.48 * (days / max) : 0.5 };
+    const light = ['light', 'voyager', 'streets'].includes(theme);
+    return { color: days != null ? '#b99671' : light ? '#858b84' : '#545952', weight: 0.7, fillColor: days != null ? '#c09a71' : light ? '#e3ede3' : '#202923', fillOpacity: days != null ? 0.22 + 0.48 * (days / max) : light ? 0.08 : 0.5 };
   };
   const layer = L.geoJSON(countries, { style, onEachFeature: (feature, country) => country.bindTooltip(feature.properties.name, { sticky: true }) }).addTo(map);
+  function setStyle(value) {
+    theme = value in themes || value === 'offline' ? value : 'dark';
+    if (base) { map.removeLayer(base); base = null; }
+    if (themes[theme]) {
+      const [url, attribution] = themes[theme];
+      base = L.tileLayer(url, { attribution, subdomains: 'abcd', maxZoom: theme === 'streets' ? 19 : 20, crossOrigin: true }).addTo(map);
+      base.on('tileerror', onTileError);
+    }
+    layer.setStyle(style);
+    document.getElementById('map').dataset.style = theme;
+    try { localStorage.setItem('atlas-map-style', theme); } catch {}
+  }
+  try { setStyle(localStorage.getItem('atlas-map-style') || 'dark'); } catch { setStyle('dark'); }
   const markers = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 48, spiderfyOnMaxZoom: true, iconCreateFunction: (cluster) => L.divIcon({ className: 'atlas-cluster', html: `<span>${cluster.getChildCount()}</span>`, iconSize: [42, 42] }) }).addTo(map);
   const routes = L.layerGroup();
+  const planned = L.layerGroup();
   const allMarkers = new Map();
   let allDestinations = [];
   map.on('click', (e) => onAdd({ lat: Number(e.latlng.lat.toFixed(5)), lng: Number((((e.latlng.lng + 180) % 360 + 360) % 360 - 180).toFixed(5)) }));
@@ -40,7 +58,10 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
   }
   return {
     map,
+    setStyle,
+    getStyle: () => theme,
     update(destinations, photoURLs) {
+      planned.clearLayers(); map.removeLayer(planned);
       allDestinations = destinations;
       durations = new Map();
       for (const d of destinations) if (d.countryId) durations.set(d.countryId, (durations.get(d.countryId) || 0) + totalDays(d));
@@ -62,7 +83,19 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
     },
     flyTo(destination) { map.flyTo([destination.lat, destination.lng], 9, { duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 0.7 }); },
     fit(destinations) { if (destinations.length) map.fitBounds(destinations.map((d) => [d.lat, d.lng]), { padding: [60, 60], maxZoom: 6 }); },
-    route(show) { routeVisible = show; if (show) routes.addTo(map); else map.removeLayer(routes); },
+    route(show) { planned.clearLayers(); map.removeLayer(planned); routeVisible = show; if (show) routes.addTo(map); else map.removeLayer(routes); },
+    itinerary(stops) {
+      routeVisible = false; map.removeLayer(routes); planned.clearLayers();
+      let previous;
+      const points = stops.map((stop,i) => {
+        let lng = stop.lng;
+        if (previous != null) { while (lng-previous>180) lng-=360; while (lng-previous< -180) lng+=360; }
+        previous = lng;
+        L.marker([stop.lat,lng]).bindTooltip(document.createTextNode(`${i+1}. ${stop.name}`)).addTo(planned);
+        return [stop.lat,lng];
+      });
+      L.polyline(points,{color:'#e4bc7e',weight:3,dashArray:'6 6'}).addTo(planned); planned.addTo(map); map.fitBounds(points,{padding:[40,40],maxZoom:9});
+    },
     resize() { map.invalidateSize(); },
   };
 }

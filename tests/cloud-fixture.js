@@ -79,7 +79,7 @@ export async function mockCloud(page) {
         if (state.grants.get(url.searchParams.get('token')) !== key || !state.objects.has(key)) return denied();
         return route.fulfill({ contentType: 'image/jpeg', body: state.objects.get(key) });
       }
-      const allowed = object.startsWith(`${owner}/`) || bucket === 'atlas-media' && state.photos.some((photo) => [photo.storage_path, photo.thumbnail_path].includes(object) && state.posts.some((post) => post.id === photo.destination_id && post.owner_id === photo.owner_id && canRead(post))) || bucket === 'atlas-avatars' && state.profiles.some((p) => p.is_public && p.avatar_path === object);
+      const allowed = bucket === 'atlas-trip-covers' && (state.trips || []).some(t => t.cover_path === object && (t.is_public || t.owner_id === owner || (state.members || []).some(m => m.trip_id === t.id && m.user_id === owner))) || object.startsWith(`${owner}/`) || bucket === 'atlas-media' && state.photos.some((photo) => [photo.storage_path, photo.thumbnail_path].includes(object) && state.posts.some((post) => post.id === photo.destination_id && post.owner_id === photo.owner_id && canRead(post))) || bucket === 'atlas-avatars' && state.profiles.some((p) => p.is_public && p.avatar_path === object);
       if (!allowed) return denied();
       const token = randomUUID(); state.grants.set(token, key);
       return ok({ signedURL: `/object/sign/${bucket}/${object}?token=${token}` });

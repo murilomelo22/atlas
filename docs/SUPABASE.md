@@ -67,6 +67,10 @@ Não é necessário adicionar variáveis ao ambiente do Codex: este site é est�
 7. Entre na primeira conta em outro dispositivo e confira se a viagem reaparece. Teste recuperação de senha pelo e-mail antes de disponibilizar o serviço a outras pessoas.
 8. Volte ao navegador que contém suas viagens antigas e use **Meu perfil → Enviar meus dados locais para minha conta**. Os exemplos não editados são ignorados; as viagens migradas começam privadas. A cópia local original é mantida.
 
+## Atualização de grupos e roteiros
+
+Para ativar as novas trips, execute também `supabase/trips.sql` e `supabase/verify-trips.sql`. Veja [o guia de trips, roteiros e resumos](TRIPS.md). Essa atualização é aditiva e preserva suas postagens.
+
 ## Comportamento de sincronização e privacidade
 
 - Cada conta tem uma coleção local própria, separada do atlas sem login. Entrar não migra nem publica registros automaticamente.

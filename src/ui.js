@@ -40,7 +40,7 @@ export function renderList(destinations, urls, onSelect, onAdd, readOnly = false
   const visible = destinations.filter((d) => (!country || d.countryName === country) && (!tag || d.tags.includes(tag)) && [d.name, d.countryName, d.notes, ...d.tags].some((value) => value.toLocaleLowerCase('pt-BR').includes(query)));
   const sort = $('#sort').value;
   const latest = (d) => d.visits.map((v) => v.arrival).filter(Boolean).sort().at(-1) || '';
-  visible.sort((a, b) => (sort === 'name' ? a.name.localeCompare(b.name, 'pt-BR') : sort === 'duration' ? totalDays(b) - totalDays(a) : sort === 'rating' ? b.rating - a.rating : latest(b).localeCompare(latest(a))) || a.name.localeCompare(b.name, 'pt-BR'));
+  visible.sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || (sort === 'name' ? a.name.localeCompare(b.name, 'pt-BR') : sort === 'duration' ? totalDays(b) - totalDays(a) : sort === 'rating' ? b.rating - a.rating : latest(b).localeCompare(latest(a))) || a.name.localeCompare(b.name, 'pt-BR'));
   $('#destination-count').textContent = destinations.length;
   $('#examples-banner').hidden = !destinations.some((d) => d.example);
   const list = $('#destination-list');
@@ -52,6 +52,10 @@ export function renderList(destinations, urls, onSelect, onAdd, readOnly = false
   }
   list.innerHTML = visible.map((d) => `<button class="destination-card" data-destination-id="${escapeHTML(d.id)}" aria-label="Abrir destino ${escapeHTML(d.name)}"><span class="destination-thumb">${urls.has(d.coverId) ? `<img src="${urls.get(d.coverId)}" alt="" loading="lazy">` : '◇'}</span><span class="destination-summary"><strong>${escapeHTML(d.name)}</strong><small>${escapeHTML(d.countryName)}${d.rating ? ` · ${'★'.repeat(d.rating)}` : ''}</small><span class="duration">${durationLabel(totalDays(d))} · ${d.visits.length} ${d.visits.length === 1 ? 'visita' : 'visitas'}</span></span><span class="card-chevron" aria-hidden="true">›</span></button>`).join('');
   list.querySelectorAll('[data-destination-id]').forEach((button) => button.addEventListener('click', () => onSelect(button.dataset.destinationId)));
+  list.querySelectorAll('[data-destination-id]').forEach((button) => {
+    const d = visible.find((item) => item.id === button.dataset.destinationId);
+    if (d.pinned || d.favorite) { const badge = document.createElement('small'); badge.className = 'highlight-badge'; badge.textContent = [d.pinned && '📌 Fixada', d.favorite && '★ Favorita'].filter(Boolean).join(' · '); $('.destination-summary', button).append(badge); }
+  });
 }
 export function renderDetail(destination, photos, urls, actions) {
   const d = destination;
@@ -69,4 +73,6 @@ export function renderDetail(destination, photos, urls, actions) {
     $('.detail-body', panel).prepend(badge);
   }
   panel.querySelectorAll('[data-photo-index]').forEach((button) => button.onclick = () => actions.gallery(Number(button.dataset.photoIndex)));
+  const share = document.createElement('button'); share.className = 'quiet'; share.textContent = 'Compartilhar no WhatsApp'; share.onclick = actions.share; $('.detail-body', panel).append(share);
+  if (d.favorite || d.pinned) { const badge = document.createElement('p'); badge.className = 'highlight-badge'; badge.textContent = [d.pinned && '📌 Fixada', d.favorite && '★ Favorita'].filter(Boolean).join(' · '); $('.detail-body', panel).prepend(badge); }
 }

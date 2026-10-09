@@ -3,6 +3,7 @@ import { getDestinations, getMeta, setMeta, migrateGuest, purgeAccount, currentA
 import { synchronize, syncRunning } from './sync.js';
 import { processPhoto } from './photos.js';
 import { $, notify, confirmAction, escapeHTML } from './ui.js';
+import { shareText, appLink } from './sharing.js';
 
 export async function initializeSocial(callbacks) {
   let profile = null, mode = 'login', change = Promise.resolve(), syncTimer, routeToken = 0, avatarFile = null, submitting = false;
@@ -52,6 +53,7 @@ export async function initializeSocial(callbacks) {
       catch (error) { status(error.message); notify(error.message, true); }
     }
     if (location.hash.startsWith('#/perfil/')) await route();
+    if (location.hash.startsWith('#/roteiro/')) await callbacks.showTrip?.();
   }
   function queueAccountChange() {
     change = change.then(handleAccount).catch((error) => notify(error.message, true));
@@ -74,6 +76,7 @@ export async function initializeSocial(callbacks) {
     $('#account-dialog').showModal();
   }
   async function route() {
+    if (location.hash.startsWith('#/roteiro/')) return;
     const token = ++routeToken, match = location.hash.match(/^#\/perfil\/([a-z0-9_]{3,30})$/);
     if (!match) { await callbacks.showOwn(); return; }
     if (!cloudEnabled) { notify('Perfis públicos estarão disponíveis quando o login for ativado.', true); await callbacks.showOwn(); return; }
@@ -163,6 +166,9 @@ export async function initializeSocial(callbacks) {
     try { await navigator.clipboard.writeText(url); notify('Link do perfil copiado.'); }
     catch { $('#profile-message').textContent = `Copie este endereço: ${url}`; }
   };
+  const whatsapp = document.createElement('button'); whatsapp.className = 'text-button'; whatsapp.textContent = 'Perfil no WhatsApp';
+  $('#share-profile').after(whatsapp);
+  whatsapp.onclick = () => { if (!profile?.is_public) return notify('Torne seu perfil público e salve antes de compartilhar.', true); shareText(`Conheça minhas viagens no Atlas: @${profile.username}`, appLink(`#/perfil/${profile.username}`)); };
   $('#home-atlas').onclick = () => { if (location.hash) location.hash = ''; else callbacks.showOwn(); };
   $('#explore-button').onclick = () => { if (!cloudEnabled) return openAuth(); $('#explore-dialog').showModal(); $('#profile-search').focus(); };
   let searchTimer, searchId = 0;

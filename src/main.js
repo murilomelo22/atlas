@@ -9,9 +9,12 @@ import { createGallery } from './gallery.js';
 import { $, escapeHTML, notify, confirmAction, renderList, renderFilterOptions, renderDetail } from './ui.js';
 import { initializeSocial } from './social.js';
 import { currentUser } from './cloud.js';
+import { initializeJourneys } from './journeys.js';
+import { initializeRecaps } from './recap.js';
+import { shareDestination } from './sharing.js';
 
 let destinations = [], allPhotos = [], selectedId = null, mapController;
-let publicView = null, social = null, changingAccount = false;
+let publicView = null, social = null, journeys = null, recaps = null, changingAccount = false;
 const urls = new Map();
 const gallery = createGallery();
 let editId, editPhotos = [], coverId, editorToken = 0, photoBusy = false, editorURLs = [], saving = false;
@@ -52,6 +55,7 @@ function renderSelected() {
       catch (error) { notify(storageMessage(error), true); }
     },
     gallery: (index) => gallery.open(photos, index),
+    share: () => shareDestination(destination, publicView?.profile),
   });
 }
 function selectDestination(id) {
@@ -146,6 +150,8 @@ async function openEditor(destination, coords = {}) {
   $('#notes').value = destination?.notes || ''; $('#rating').value = destination?.rating || '0'; $('#tags').value = destination?.tags.join(', ') || '';
   $('#visibility-field').hidden = $('#visibility-hint').hidden = !currentUser();
   $('#visibility').value = destination?.visibility || 'private';
+  $('#destination-favorite').checked = destination?.favorite === true;
+  $('#destination-pinned').checked = destination?.pinned === true;
   $('#geocode-results').replaceChildren(); $('#geocode-status').textContent = 'Digite ao menos 3 caracteres ou use as coordenadas abaixo.';
   $('#photo-status').textContent = 'As fotos são reduzidas para 1600 px e salvas apenas neste navegador.';
   $('#visits-editor').replaceChildren();
@@ -195,6 +201,7 @@ async function save(event) {
     const destination = { id: editId, name, ...coords, ...countryAt(coords.lat, coords.lng), visits,
       notes: $('#notes').value.trim(), rating: Number($('#rating').value), tags,
       photoIds: editPhotos.map((p) => p.id), coverId: editPhotos.some((p) => p.id === coverId) ? coverId : editPhotos[0]?.id || null,
+      favorite: $('#destination-favorite').checked, pinned: $('#destination-pinned').checked,
       example: false, createdAt: previous?.createdAt || now, updatedAt: now };
     if (currentUser()) { destination.visibility = $('#visibility').value; destination.cloudRevision = previous?.cloudRevision || null; }
     saving = true; $('#save-button').disabled = true; $('#save-button').textContent = 'Salvando…';
@@ -225,6 +232,8 @@ function bindEvents() {
   window.addEventListener('drop', (e) => e.preventDefault());
   for (const selector of ['#list-search', '#country-filter', '#tag-filter', '#sort']) $(selector).addEventListener('input', updateList);
   $('#route-toggle').onchange = (e) => mapController.route(e.target.checked);
+  $('#map-style').value = mapController.getStyle();
+  $('#map-style').onchange = (e) => mapController.setStyle(e.target.value);
   $('#fit-button').onclick = () => mapController.fit(destinations);
   $('#clear-examples').onclick = async () => {
     if (!await confirmAction('Limpar os exemplos?', 'Somente os exemplos que você ainda não editou serão removidos. Suas memórias serão preservadas.', 'Limpar exemplos')) return;
@@ -277,11 +286,14 @@ async function init() {
       $('#map-status').textContent = 'Tiles indisponíveis. Seus países e destinos continuam acessíveis.';
     });
     await refresh(); bindEvents(); buttons.forEach((selector) => { $(selector).disabled = false; });
+    journeys = initializeJourneys({ destinations: () => destinations, preview: (stops) => { mapController.itinerary(stops); $('#route-toggle').checked = false; notify('Roteiro no mapa. As linhas unem paradas; não representam estradas.'); } });
+    recaps = initializeRecaps(() => destinations);
     social = await initializeSocial({
       refresh,
       lock(value) { changingAccount = value; },
       async switchAccount(id) {
         changingAccount = true; editorToken++; editor.close(); $('#gallery-dialog').close(); publicView = null; selectedId = null;
+        journeys.reset(); recaps.reset();
         $('#destination-form').reset(); $('#visits-editor').replaceChildren(); $('#photo-editor').replaceChildren();
         editPhotos = []; coverId = null; releaseEditorURLs();
         try { await openDatabase({ accountId: id }); setViewUI(); await refresh(); }
@@ -289,7 +301,9 @@ async function init() {
       },
       async showOwn() { publicView = null; selectedId = null; setViewUI(); await refresh(); },
       async showPublic(data) { publicView = data; selectedId = null; setViewUI(); await refresh(); mapController.fit(destinations); },
+      showTrip: () => journeys.route(),
     });
+    await journeys.route();
     // Cache the local shell; remote tiles and geocoding are never required to read saved data.
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => notify('O cache offline não pôde ser ativado. Os dados continuam salvos; mantenha o servidor local disponível.', true));
   } catch (error) {

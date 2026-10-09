@@ -83,3 +83,9 @@ A integração com Supabase adiciona cadastro/login, confirmação e recuperaç�
 O frontend não precisa de build ou nova biblioteca. Contas usam cache IndexedDB separado e uma fila offline; revisões impedem sobrescritas silenciosas entre dispositivos. Ao sair, a sessão e a cópia local privada da conta são removidas. Fotos usam buckets privados e URLs temporárias, conforme explicado no guia.
 
 Verificação: `npm test` passou em **46 testes**, 23 cenários em desktop e celular, incluindo o atlas local e endpoints Supabase simulados. A instalação SQL, as permissões reais, o recebimento de e-mails e a integração de produção ainda precisam ser conferidos no projeto que você configurar.
+
+## Trips, roteiros e resumos
+
+A atualização inclui grupos com convites por usuário e permissões, roteiros com paradas ordenadas e datas, capa, compartilhamento por WhatsApp, favoritas/fixadas, cinco estilos de mapa e resumos mensais/anuais com calendário, tabela e exportação SVG/CSV.
+
+**Para ativar grupos e roteiros na nuvem:** execute `supabase/trips.sql` e depois `supabase/verify-trips.sql` no SQL Editor do seu projeto. As postagens existentes são preservadas. Confira o [guia da atualização](docs/TRIPS.md) para uso, privacidade e limites. Os resumos e destaques não exigem essa migração.
