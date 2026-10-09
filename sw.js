@@ -1,4 +1,4 @@
-const CACHE = 'atlas-pessoal-v2-social';
+const CACHE = 'atlas-pessoal-v3-supabase';
 const FILES = [ './', './index.html', './styles.css', './src/main.js', './src/ui.js', './src/db.js', './src/map.js', './src/geography.js', './src/geocoding.js', './src/gallery.js', './src/photos.js', './src/stats.js', './src/dates.js', './vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css', './vendor/leaflet/images/marker-icon.png', './vendor/leaflet/images/marker-icon-2x.png', './vendor/leaflet/images/marker-shadow.png', './vendor/leaflet/images/layers.png', './vendor/leaflet/images/layers-2x.png', './vendor/markercluster/leaflet.markercluster.js', './vendor/markercluster/MarkerCluster.css', './vendor/markercluster/MarkerCluster.Default.css', './vendor/countries.geojson' ];
 FILES.push('./config.js', './src/cloud.js', './src/session.js', './src/sync.js', './src/social.js');
 self.addEventListener('install', (event) => { event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)).then(() => self.skipWaiting())); });
