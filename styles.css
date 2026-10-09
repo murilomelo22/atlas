@@ -1171,3 +1171,8 @@
 .recorded-visit input{width:auto;margin:0}.recorded-visit span{display:grid;gap:6px}.recorded-visit small{color:var(--muted)}
 @media(max-width:700px){.marker-switch{top:145px;bottom:auto;left:12px;max-width:calc(100% - 24px);padding:7px 9px}.marker-switch small{display:none}.map-legend{font-size:9px}.map-legend small{display:none}}
 .leaflet-interactive[data-country-id]:focus{outline:none}
+
+/* Photo, video and Live Photo galleries. */
+.detail-gallery button,.photo-edit-card{position:relative}.media-badge{display:inline-block;padding:5px 8px;border-radius:6px;background:#14201eee;color:#fff;font-size:11px}.detail-gallery .media-badge{position:absolute;bottom:8px;left:8px}.photo-edit-card>.media-badge{position:absolute;top:8px;left:8px}
+#gallery-dialog>video{max-width:calc(100vw - 120px);max-height:calc(100dvh - 160px);grid-row:2;grid-column:1;object-fit:contain}#gallery-dialog>img{grid-row:2;grid-column:1}#gallery-dialog [data-gallery-live]{position:absolute;bottom:74px;left:50%;transform:translateX(-50%)}#gallery-caption{grid-row:3;grid-column:1}#gallery-dialog>[hidden]{display:none}
+@media(max-width:700px){#gallery-dialog>video{max-width:calc(100vw - 70px);max-height:calc(100dvh - 170px)}}

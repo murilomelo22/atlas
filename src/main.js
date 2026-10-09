@@ -4,7 +4,7 @@ import { durationLabel, totalDays, validateVisits } from './dates.js';
 import { statistics } from './stats.js';
 import { createMap } from './map.js';
 import { createGeocoder } from './geocoding.js';
-import { processPhoto } from './photos.js';
+import { groupMediaFiles, processMedia, mediaLabel } from './media.js';
 import { createGallery } from './gallery.js';
 import { $, escapeHTML, notify, confirmAction, renderList, renderFilterOptions, renderDetail } from './ui.js';
 import { initializeSocial } from './social.js';
@@ -125,7 +125,7 @@ function renderPhotoEditor() {
   editPhotos.forEach((photo, index) => {
     const url = URL.createObjectURL(photo.thumbnail); editorURLs.push(url);
     const card = document.createElement('div'); card.className = 'photo-edit-card';
-    card.innerHTML = `<img src="${url}" alt="Prévia da foto ${index + 1}"><label>Legenda da foto ${index + 1}<input type="text" maxlength="1000" data-caption value="${escapeHTML(photo.caption)}"></label><div class="photo-controls"><label><input type="radio" name="cover" data-cover ${coverId === photo.id ? 'checked' : ''}> Capa</label><button type="button" data-remove-photo aria-label="Remover foto ${index + 1}">Remover</button></div>`;
+    card.innerHTML = `<img src="${url}" alt="Prévia da foto ${index + 1}"><span class="media-badge">${mediaLabel(photo)}</span><label>Legenda da foto ${index + 1}<input type="text" maxlength="1000" data-caption value="${escapeHTML(photo.caption)}"></label><div class="photo-controls"><label><input type="radio" name="cover" data-cover ${coverId === photo.id ? 'checked' : ''}> Capa</label><button type="button" data-remove-photo aria-label="Remover foto ${index + 1}">Remover</button></div>`;
     $('[data-caption]', card).oninput = (e) => { photo.caption = e.target.value; };
     $('[data-cover]', card).onchange = () => { coverId = photo.id; };
     $('[data-remove-photo]', card).onclick = () => {
@@ -155,7 +155,7 @@ async function openEditor(destination, coords = {}) {
   $('#destination-favorite').checked = destination?.favorite === true;
   $('#destination-pinned').checked = destination?.pinned === true;
   $('#geocode-results').replaceChildren(); $('#geocode-status').textContent = 'Digite ao menos 3 caracteres ou use as coordenadas abaixo.';
-  $('#photo-status').textContent = 'As fotos são reduzidas para 1600 px e salvas apenas neste navegador.';
+  $('#photo-status').textContent = 'Fotos: até 40 MB; vídeos: até 50 MB, sem compressão. Live Photo: foto + vídeo com o mesmo nome, selecionados juntos. No iPhone, use Fotos → ••• → Salvar como Vídeo se vier só a foto.';
   $('#visits-editor').replaceChildren();
   for (const visit of destination?.visits.length ? destination.visits : [{}]) addVisit(visit);
   updateCountry(); renderPhotoEditor(); editor.showModal();
@@ -169,21 +169,22 @@ async function openEditor(destination, coords = {}) {
 }
 async function addPhotos(files) {
   if (photoBusy || !files.length) return;
-  if (files.length + editPhotos.length > 100) { notify('Use até 100 fotos por destino.', true); return; }
+  const groups = groupMediaFiles(files);
+  if (groups.length + editPhotos.length > 100) { notify('Use até 100 fotos, vídeos ou Live Photos por destino.', true); return; }
   const token = editorToken; photoBusy = true; $('#save-button').disabled = true;
   const errors = [];
   try {
-    for (let i = 0; i < files.length; i++) {
-      $('#photo-status').textContent = `Preparando foto ${i + 1} de ${files.length}…`;
+    for (let i = 0; i < groups.length; i++) {
+      $('#photo-status').textContent = `Preparando mídia ${i + 1} de ${groups.length}…`;
       try {
-        const photo = await processPhoto(files[i], editId);
+        const photo = await processMedia(groups[i], editId);
         if (token !== editorToken) return;
         editPhotos.push(photo); coverId ||= photo.id;
       } catch (error) { errors.push(error.message); }
     }
     if (token !== editorToken) return;
     renderPhotoEditor();
-    $('#photo-status').textContent = errors.length ? errors.join(' ') : `${editPhotos.length} ${editPhotos.length === 1 ? 'foto pronta' : 'fotos prontas'} para salvar.`;
+    $('#photo-status').textContent = errors.length ? errors.join(' ') : `${editPhotos.length} ${editPhotos.length === 1 ? 'mídia pronta' : 'mídias prontas'} para salvar.`;
     if (errors.length) notify(errors.join(' '), true);
   } finally { if (token === editorToken) { photoBusy = false; $('#save-button').disabled = false; } }
 }

@@ -28,7 +28,7 @@ async function accept(page) { await open(page); await page.locator('#trip-accept
 async function upload(page) {
   const png = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 80; c.height = 60; c.getContext('2d').fillRect(0, 0, 80, 60); return c.toDataURL().split(',')[1]; });
   await page.locator('[data-trip-photo]').setInputFiles({ name: 'ferias.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
-  await page.locator('[data-trip-caption]').fill('Memória com amigos <img onerror="alert(1)">'); await page.getByRole('button', { name: 'Enviar foto', exact: true }).click();
+  await page.locator('[data-trip-caption]').fill('Memória com amigos <img onerror="alert(1)">'); await page.getByRole('button', { name: 'Enviar mídia', exact: true }).click();
 }
 
 test('colaborador com fotos, sem editar roteiro; revogação e remoção pelo criador', async ({ page }) => {
@@ -80,7 +80,7 @@ test('resposta perdida ao adicionar foto permite tentar novamente sem duplicar',
     cloud.tripPhotos.push({ id: body.p_id, trip_id: body.p_trip, uploader_id: ALICE, storage_path: body.p_path, caption: body.p_caption }); await route.abort();
   });
   await upload(page); await expect(page.locator('#trip-message')).toContainText('Sem conexão'); await expect(page.locator('[data-trip-caption]')).toHaveValue('Memória com amigos <img onerror="alert(1)">');
-  await page.getByRole('button', { name: 'Enviar foto', exact: true }).click(); await expect(page.locator('.trip-gallery img')).toBeVisible(); expect(cloud.tripPhotos).toHaveLength(1);
+  await page.getByRole('button', { name: 'Enviar mídia', exact: true }).click(); await expect(page.locator('.trip-gallery img')).toBeVisible(); expect(cloud.tripPhotos).toHaveLength(1);
 });
 
 test('mapa de calor por visitas/dias, privacidade e estilos locais sem tiles de terceiros', async ({ page }) => {

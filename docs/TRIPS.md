@@ -52,3 +52,7 @@ Baixe a imagem **SVG** para usar em publicações ou campanhas e a tabela **CSV*
 ## Validação
 
 `npm test` executa testes desktop/mobile do atlas e das novas funções com HTTP Supabase simulado. Esses testes não substituem `verify-trips.sql` e `verify-collaboration.sql` no PostgreSQL do seu projeto nem a conferência real em duas contas. Não há downloads adicionais de bibliotecas nem novas dependências de execução.
+
+### Vídeos e Live Photos na galeria
+
+A permissão de adicionar fotos também controla vídeos e Live Photos. Execute `media.sql` depois de `collaboration.sql` para ativar as novas mídias na nuvem. Veja o [guia de mídias](MEDIA.md) para envio, reprodução, limites e exportação de Live Photo do iPhone. A capa da trip continua sendo uma foto.

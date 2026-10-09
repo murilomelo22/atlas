@@ -1,6 +1,7 @@
 import { supabaseConfig } from '../config.js';
 import { readSession, writeSession } from './session.js';
 import { sanitizeDestination } from './db.js';
+import { mediaKind, mediaExtension } from './media.js';
 
 function validConfig(config) {
   if (!config.url || !config.publishableKey) return null;
@@ -62,7 +63,7 @@ export async function request(path, { method = 'GET', body, authenticated = fals
   if (authenticated && session.expires_at < Date.now() / 1000 + 30 && retry) await refreshSession();
   const token = authenticated ? session.access_token : config.key.startsWith('ey') ? config.key : null;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), body instanceof Blob ? 120000 : 20000);
   try {
     const response = await fetch(config.url + path, {
       method, credentials: 'omit', signal: controller.signal,
@@ -168,7 +169,7 @@ export async function signedURL(bucket, path, authenticated = false) {
 }
 async function downloadBlob(bucket, path, authenticated) {
   const url = await signedURL(bucket, path, authenticated);
-  const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 20000);
+  const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 120000);
   try { const response = await fetch(url, { signal: controller.signal, credentials: 'omit' }); if (!response.ok) throw new Error('Não foi possível baixar uma fotografia. Os dados locais foram preservados.'); return await response.blob(); }
   finally { clearTimeout(timeout); }
 }
@@ -183,7 +184,15 @@ export async function uploadAvatar(blob) {
   await upload('atlas-avatars', path, blob); return path;
 }
 export async function deleteObjects(bucket, paths) {
-  if (paths.length) await request(`/storage/v1/object/${bucket}`, { method: 'DELETE', authenticated: true, body: { prefixes: [...new Set(paths)] } });
+  const unique = [...new Set(paths.filter(Boolean))];
+  if (unique.length) await request(`/storage/v1/object/${bucket}`, { method: 'DELETE', authenticated: true, body: { prefixes: unique } });
+}
+export async function ensureMediaSupport(table = 'photos') {
+  try { await request(`/rest/v1/${table}?select=kind,motion_path,duration&limit=0`, { authenticated: true }); }
+  catch (error) {
+    if (['42703', 'PGRST204', 'PGRST202', '42P01', 'PGRST205'].includes(error.code)) throw new Error('Para salvar vídeos e Live Photos na nuvem, execute supabase/media.sql no SQL Editor do seu Supabase. A mídia pessoal continua salva neste dispositivo.');
+    throw error;
+  }
 }
 async function hash(value) {
   const bytes = value instanceof Blob ? await value.arrayBuffer() : new TextEncoder().encode(value);
@@ -202,8 +211,11 @@ export async function readCollection(ownerId, { publicOnly = false, cachedPhotos
   const photoRows = (await rows('photos', { owner_id: `eq.${ownerId}` }, authenticated)).filter((p) => p.owner_id === ownerId && visible.has(p.destination_id));
   const photos = [];
   for (const row of photoRows) {
-    const cached = cachedPhotos.find((p) => p.id === row.id && p.destinationId === row.destination_id && p.cloudPath === row.storage_path && p.cloudThumbPath === row.thumbnail_path);
-    photos.push({ id: row.id, destinationId: row.destination_id, caption: row.caption || '', blob: cached?.blob || await downloadBlob('atlas-media', row.storage_path, authenticated), thumbnail: cached?.thumbnail || await downloadBlob('atlas-media', row.thumbnail_path, authenticated), cloudPath: row.storage_path, cloudThumbPath: row.thumbnail_path });
+    const cached = cachedPhotos.find((p) => p.id === row.id && p.destinationId === row.destination_id && mediaKind(p) === (row.kind || 'image') && p.cloudPath === row.storage_path && p.cloudThumbPath === row.thumbnail_path && (p.cloudMotionPath || null) === (row.motion_path || null));
+    photos.push({ id: row.id, destinationId: row.destination_id, caption: row.caption || '', kind: row.kind || 'image', duration: row.duration,
+      blob: cached?.blob || await downloadBlob('atlas-media', row.storage_path, authenticated), thumbnail: cached?.thumbnail || await downloadBlob('atlas-media', row.thumbnail_path, authenticated),
+      ...(row.motion_path ? { motionBlob: cached?.motionBlob || await downloadBlob('atlas-media', row.motion_path, authenticated) } : {}),
+      cloudPath: row.storage_path, cloudThumbPath: row.thumbnail_path, cloudMotionPath: row.motion_path || null });
   }
   return { destinations, photos };
 }
@@ -223,26 +235,28 @@ export async function publicProfile(username) {
   return { profile, publishedTrips, ...await readCollection(profile.id, { publicOnly: true }) };
 }
 export async function saveCloudDestination(destination, photos) {
+  if (photos.some(p => mediaKind(p) !== 'image')) await ensureMediaSupport();
   const existingPhotos = await rows('photos', { owner_id: `eq.${currentUser().id}`, destination_id: `eq.${destination.id}` }, true);
   const prepared = [];
   const staged = [];
   try {
     for (const photo of photos) {
       const original = existingPhotos.find((p) => p.id === photo.id);
-      let path = photo.cloudPath, thumbPath = photo.cloudThumbPath;
-      if (!original || original.storage_path !== path || original.thumbnail_path !== thumbPath) {
+      let path = photo.cloudPath, thumbPath = photo.cloudThumbPath, motionPath = photo.cloudMotionPath || null;
+      if (!original || original.storage_path !== path || original.thumbnail_path !== thumbPath || (original.kind || 'image') !== mediaKind(photo) || (original.motion_path || null) !== motionPath) {
         const folder = `${currentUser().id}/${await hash(destination.id)}/${crypto.randomUUID()}`;
-        path = `${folder}.jpg`; thumbPath = `${folder}-thumb.jpg`;
+        path = `${folder}.${mediaExtension(photo.blob)}`; thumbPath = `${folder}-thumb.jpg`; motionPath = null;
         await upload('atlas-media', path, photo.blob); staged.push(path);
         await upload('atlas-media', thumbPath, photo.thumbnail); staged.push(thumbPath);
+        if (photo.motionBlob) { motionPath = `${folder}-motion.${mediaExtension(photo.motionBlob)}`; await upload('atlas-media', motionPath, photo.motionBlob); staged.push(motionPath); }
       }
-      prepared.push({ id: photo.id, storage_path: path, thumbnail_path: thumbPath, caption: photo.caption });
+      prepared.push({ id: photo.id, storage_path: path, thumbnail_path: thumbPath, caption: photo.caption, kind: mediaKind(photo), motion_path: motionPath, duration: photo.duration || null });
     }
     const { cloudRevision, cloudDirty, localVersion, ...data } = destination;
     const revision = await request('/rest/v1/rpc/save_destination', { method: 'POST', authenticated: true, body: { p_id: destination.id, p_data: data, p_visibility: destination.visibility || 'private', p_expected_revision: cloudRevision || null, p_photos: prepared } });
     // Object cleanup is best effort after metadata committed. Never undo a successful save.
-    const retained = new Set(prepared.flatMap((p) => [p.storage_path, p.thumbnail_path]));
-    await deleteObjects('atlas-media', existingPhotos.flatMap((p) => [p.storage_path, p.thumbnail_path]).filter((p) => !retained.has(p))).catch(() => {});
+    const retained = new Set(prepared.flatMap((p) => [p.storage_path, p.thumbnail_path, p.motion_path]));
+    await deleteObjects('atlas-media', existingPhotos.flatMap((p) => [p.storage_path, p.thumbnail_path, p.motion_path]).filter((p) => p && !retained.has(p))).catch(() => {});
     return { revision, photos: prepared };
   } catch (error) {
     // Do not remove staged objects after an ambiguous network error: the RPC may have committed.

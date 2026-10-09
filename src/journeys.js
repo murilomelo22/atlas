@@ -59,7 +59,7 @@ export function initializeJourneys(callbacks) {
     return member?.status==='accepted' && (member[`can_${action}`] ?? (['edit_itinerary','edit_description'].includes(action) && member.role==='editor'));
   };
   const canEdit=()=>permission('edit_itinerary') || permission('edit_description');
-  const permissionFields=[['edit_itinerary','Editar roteiro, nome e capa'],['edit_description','Escrever descrições e planos'],['add_photos','Adicionar fotos'],['publish_profile','Publicar no próprio perfil (roteiro público)']];
+  const permissionFields=[['edit_itinerary','Editar roteiro, nome e capa'],['edit_description','Escrever descrições e planos'],['add_photos','Adicionar fotos e vídeos / Live Photos'],['publish_profile','Publicar no próprio perfil (roteiro público)']];
   const checks=(member={})=>permissionFields.map(([key,label])=>`<label class="manual-toggle"><input type="checkbox" data-permission="${key}" ${(member[`can_${key}`] ?? (key.startsWith('edit_') && member.role==='editor'))?'checked':''}> ${label}</label>`).join('');
   const permissionBody=(container)=>Object.fromEntries(permissionFields.map(([key])=>[`p_${({edit_itinerary:'itinerary',edit_description:'description',add_photos:'photos',publish_profile:'publish'})[key]}`,container.querySelector(`[data-permission="${key}"]`).checked]));
   const fail=(error)=>{

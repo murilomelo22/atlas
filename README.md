@@ -101,3 +101,11 @@ Atlas escuro, Atlas claro e Atlas sem tiles usam o mapa local, sem marcas de um 
 A suíte verifica os fluxos locais e contratos HTTP simulados em desktop/celular; as políticas SQL precisam ser verificadas no projeto real com os scripts de verificação. Nenhuma dependência nova foi instalada.
 
 Verificação desta atualização: **86 testes passaram** em desktop e celular, com endpoints Supabase simulados. A conferência visual das duas telas não mostrou transbordamento ou erros de JavaScript. As migrações e verificações PostgreSQL estão prontas para execução pelo proprietário no Supabase; não foram executadas neste ambiente.
+
+## Vídeos e Live Photos
+
+Destinos pessoais e galerias de trips aceitam vídeos MP4/WebM/MOV compatíveis, com controles e áudio preservado. Uma foto e um vídeo com o mesmo nome, selecionados juntos, formam uma Live Photo. O seletor do iPhone pode entregar só a foto; exporte o movimento pelo app Fotos quando necessário.
+
+**Para salvar na nuvem:** execute [media.sql](supabase/media.sql) depois das migrações anteriores e confira com [verify-media.sql](supabase/verify-media.sql). Fotos existentes são preservadas. Vídeos têm limite de 50 MB, e o backup pessoal versão 2 inclui os novos formatos e continua importando backups antigos. Veja o [guia de ativação e uso](docs/MEDIA.md), incluindo os limites de codecs, Storage e backup.
+
+Verificação desta atualização: **108 testes passaram** em desktop e celular, com Supabase simulado, incluindo reprodução real de MP4/MOV/WebM, Live Photos, backup, migração de dados locais, permissões, perda de resposta e limpeza da conta. A revisão visual não encontrou transbordamento ou erros de JavaScript. Os scripts SQL não foram executados neste ambiente; execute a verificação no seu projeto.

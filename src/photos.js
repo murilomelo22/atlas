@@ -1,8 +1,18 @@
 export async function processPhoto(file, destinationId) {
-  if (!file.type.startsWith('image/')) throw new Error(`“${file.name}” não é uma imagem.`);
+  if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|heic|heif)$/i.test(file.name)) throw new Error(`“${file.name}” não é uma imagem.`);
   if (file.size > 40 * 1024 * 1024) throw new Error(`“${file.name}” excede o limite de 40 MB por imagem.`);
-  let bitmap;
-  try { bitmap = await createImageBitmap(file); } catch { throw new Error(`Não foi possível ler “${file.name}”. Use JPEG, PNG ou WebP.`); }
+  let bitmap, imageURL;
+  try {
+    try { bitmap = await createImageBitmap(file); }
+    catch {
+      // Some Safari versions decode HEIC in <img>, but not in createImageBitmap.
+      imageURL = URL.createObjectURL(file); bitmap = new Image(); bitmap.src = imageURL;
+      await bitmap.decode();
+    }
+  } catch {
+    if (imageURL) URL.revokeObjectURL(imageURL);
+    throw new Error(`Não foi possível ler “${file.name}”. Use JPEG, PNG ou WebP. Se a foto estiver em HEIC/HEIF, exporte como JPEG no app Fotos.`);
+  }
   try {
     if (!bitmap.width || !bitmap.height || bitmap.width * bitmap.height > 100000000) throw new Error('A imagem excede o limite de 100 megapixels.');
     const resize = async (maxSide, quality) => {
@@ -19,7 +29,7 @@ export async function processPhoto(file, destinationId) {
       return blob;
     };
     return { id: crypto.randomUUID(), destinationId, blob: await resize(1600, 0.85), thumbnail: await resize(240, 0.85), caption: '' };
-  } finally { bitmap.close(); }
+  } finally { bitmap.close?.(); if (imageURL) URL.revokeObjectURL(imageURL); }
 }
 export const blobAsDataURL = (blob) => new Promise((resolve, reject) => {
   const reader = new FileReader();

@@ -1,6 +1,7 @@
 import { countryAt, normalizeCoordinates } from './geography.js';
 import { validateVisits } from './dates.js';
-import { blobAsDataURL, photoFromBackup } from './photos.js';
+import { blobAsDataURL } from './photos.js';
+import { mediaFromBackup } from './media.js';
 let database;
 let accountId = null;
 export const currentAccountId = () => accountId;
@@ -67,7 +68,12 @@ function examples() {
   }));
 }
 export const getDestinations = () => requestValue(database.transaction('destinations').objectStore('destinations').getAll());
-export const getPhotos = (id) => requestValue(database.transaction('photos').objectStore('photos').index('destinationId').getAll(id));
+export async function getPhotos(id) {
+  const tx = database.transaction(['destinations', 'photos']);
+  const [destination, photos] = await Promise.all([requestValue(tx.objectStore('destinations').get(id)), requestValue(tx.objectStore('photos').index('destinationId').getAll(id))]);
+  const order = destination?.photoIds || [];
+  return photos.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+}
 export const getAllPhotos = () => requestValue(database.transaction('photos').objectStore('photos').getAll());
 export const getMeta = (key) => requestValue(database.transaction('meta').objectStore('meta').get(key)).then((row) => row?.value);
 export const setMeta = (key, value) => writeTransaction(['meta'], (tx) => tx.objectStore('meta').put({ key, value }));
@@ -89,7 +95,7 @@ export async function removeDestinations(ids) {
     if (accountId) {
       for (const id of ids) {
         const destination = destinations.find((d) => d.id === id);
-        if (destination) pending.push({ id, cloudRevision: destination.cloudRevision || null, paths: photos.filter((p) => p.destinationId === id).flatMap((p) => [p.cloudPath, p.cloudThumbPath]).filter(Boolean) });
+        if (destination) pending.push({ id, cloudRevision: destination.cloudRevision || null, paths: photos.filter((p) => p.destinationId === id).flatMap((p) => [p.cloudPath, p.cloudThumbPath, p.cloudMotionPath]).filter(Boolean) });
       }
       tx.objectStore('meta').put({ key: 'deleted', value: pending });
     }
@@ -103,7 +109,7 @@ export async function exportBackup() {
     requestValue(tx.objectStore('destinations').getAll()),
     requestValue(tx.objectStore('photos').getAll()),
   ]);
-  return { format: 'atlas-pessoal', version: 1, exportedAt: new Date().toISOString(), destinations, photos: await Promise.all(photos.map(async (p) => ({ id: p.id, destinationId: p.destinationId, caption: p.caption, data: await blobAsDataURL(p.blob) }))) };
+  return { format: 'atlas-pessoal', version: 2, exportedAt: new Date().toISOString(), destinations, photos: await Promise.all(photos.map(async (p) => ({ id: p.id, destinationId: p.destinationId, caption: p.caption, kind: p.kind || 'image', data: await blobAsDataURL(p.blob), ...(p.motionBlob ? { motion: await blobAsDataURL(p.motionBlob) } : {}) }))) };
 }
 const identity = (d) => `${d.name.trim().toLocaleLowerCase('pt-BR')}|${d.lat.toFixed(5)}|${d.lng.toFixed(5)}`;
 export function sanitizeDestination(raw) {
@@ -126,7 +132,7 @@ export async function importBackup(file) {
   if (file.size > 250 * 1024 * 1024) throw new Error('O backup excede 250 MB. Divida sua coleção antes de importar.');
   let raw;
   try { raw = JSON.parse(await file.text()); } catch { throw new Error('Não foi possível ler o JSON. Selecione um backup do Atlas Pessoal.'); }
-  if (!raw || raw.format !== 'atlas-pessoal' || raw.version !== 1 || !Array.isArray(raw.destinations) || !Array.isArray(raw.photos) || raw.destinations.length > 10000 || raw.photos.length > 20000) throw new Error('Formato ou versão de backup não reconhecido.');
+  if (!raw || raw.format !== 'atlas-pessoal' || ![1, 2].includes(raw.version) || !Array.isArray(raw.destinations) || !Array.isArray(raw.photos) || raw.destinations.length > 10000 || raw.photos.length > 20000) throw new Error('Formato ou versão de backup não reconhecido.');
   const existing = await getDestinations(), oldPhotos = await getAllPhotos();
   const byId = new Map(existing.map((d) => [d.id, d]));
   const byIdentity = new Map(existing.map((d) => [identity(d), d]));
@@ -141,7 +147,7 @@ export async function importBackup(file) {
       clean.visibility = 'private'; clean.cloudDirty = true; clean.localVersion = crypto.randomUUID();
     }
     sourceIds.set(String(item.id), clean.id);
-    if (!prepared.has(clean.id)) prepared.set(clean.id, { destination: clean, photos: [], sourceCover: item.coverId });
+    if (!prepared.has(clean.id)) prepared.set(clean.id, { destination: clean, photos: [], sourceCover: item.coverId, sourceOrder: Array.isArray(item.photoIds) ? item.photoIds : [], order: new Map() });
     byIdentity.set(identity(clean), clean);
   }
   const seenPhotoIds = new Set();
@@ -150,13 +156,19 @@ export async function importBackup(file) {
     if (!id || seenPhotoIds.has(String(item.id))) throw new Error('O backup contém fotografias sem destino ou repetidas.');
     seenPhotoIds.add(String(item.id));
     const group = prepared.get(id);
-    const photo = await photoFromBackup(item, id);
+    const photo = await mediaFromBackup(item, id);
     if (photoIds.has(photo.id) && !oldPhotos.some((p) => p.id === photo.id && p.destinationId === id)) photo.id = crypto.randomUUID();
     photoIds.add(photo.id);
     group.photos.push(photo);
+    const position = group.sourceOrder.indexOf(item.id);
+    group.order.set(photo.id, position < 0 ? Infinity : position);
     if (group.sourceCover === item.id) group.destination.coverId = photo.id;
   }
-  // All validation and image work completes before one atomic write transaction.
+  for (const group of prepared.values()) {
+    if (group.photos.length > 100) throw new Error('Use até 100 mídias por destino no backup.');
+    group.photos.sort((a, b) => group.order.get(a.id) - group.order.get(b.id));
+  }
+  // All validation and decoding completes before one atomic write transaction.
   await writeTransaction(['destinations', 'photos'], (tx) => {
     for (const old of oldPhotos) if (prepared.has(old.destinationId)) tx.objectStore('photos').delete(old.id);
     for (const { destination, photos } of prepared.values()) {
@@ -187,7 +199,7 @@ export async function migrateGuest() {
     for (const photo of guest.photos.filter((p) => p.destinationId === destination.id)) {
       const id = usedPhotos.has(photo.id) ? crypto.randomUUID() : photo.id;
       usedPhotos.add(id); photoMap.set(photo.id, id);
-      pictures.push({ id, destinationId: destination.id, blob: photo.blob, thumbnail: photo.thumbnail, caption: photo.caption });
+      pictures.push({ id, destinationId: destination.id, blob: photo.blob, thumbnail: photo.thumbnail, caption: photo.caption, kind: photo.kind || 'image', duration: photo.duration, ...(photo.motionBlob ? { motionBlob: photo.motionBlob } : {}) });
     }
     additions.push({ ...destination, visibility: 'private', cloudRevision: null, cloudDirty: true, localVersion: crypto.randomUUID(), photoIds: destination.photoIds.map((id) => photoMap.get(id)).filter(Boolean), coverId: photoMap.get(destination.coverId) || null });
     ids.add(destination.id); identities.add(identity(destination));
@@ -207,7 +219,7 @@ export async function markCloudSaved(snapshot, revision, remotePhotos) {
     tx.objectStore('destinations').put({ ...current, cloudRevision: revision, cloudDirty: !unchanged });
     if (unchanged) for (const photo of photos) {
       const remote = remotePhotos.find((p) => p.id === photo.id);
-      if (remote) tx.objectStore('photos').put({ ...photo, cloudPath: remote.storage_path, cloudThumbPath: remote.thumbnail_path });
+      if (remote) tx.objectStore('photos').put({ ...photo, cloudPath: remote.storage_path, cloudThumbPath: remote.thumbnail_path, cloudMotionPath: remote.motion_path || null });
     }
   });
 }

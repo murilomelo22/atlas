@@ -70,6 +70,12 @@ export async function mockTrips(page) {
    if(body.p_path!==`${owner}/${trip.id}/${body.p_id}.jpg`||!state.objects.has(`atlas-trip-media/${body.p_path}`))return error('ATLAS_TRIP_INVALID_PHOTO');
    if(!state.tripPhotos.some(p=>p.id===body.p_id))state.tripPhotos.push({id:body.p_id,trip_id:trip.id,uploader_id:owner,storage_path:body.p_path,caption:body.p_caption});return ok(null,204);
   }
+  if(path.endsWith('/atlas_add_trip_media')) {
+   const trip=state.trips.find(t=>t.id===body.p_trip);if(!allowed(trip,'add_photos'))return error('ATLAS_TRIP_FORBIDDEN');
+   const prefix=`${owner}/${trip.id}/${body.p_id}`;
+   if(!['video','live'].includes(body.p_kind)||!body.p_path.startsWith(prefix+'.')||body.p_thumbnail!==prefix+'-thumb.jpg'||body.p_kind==='live'&&!body.p_motion?.startsWith(prefix+'-motion.')||![body.p_path,body.p_thumbnail,body.p_motion].filter(Boolean).every(p=>state.objects.has(`atlas-trip-media/${p}`)))return error('ATLAS_TRIP_INVALID_PHOTO');
+   if(!state.tripPhotos.some(p=>p.id===body.p_id))state.tripPhotos.push({id:body.p_id,trip_id:trip.id,uploader_id:owner,storage_path:body.p_path,caption:body.p_caption,kind:body.p_kind,thumbnail_path:body.p_thumbnail,motion_path:body.p_motion,duration:body.p_duration});return ok(null,204);
+  }
   if(path.endsWith('/atlas_remove_trip_photo')) {
    const photo=state.tripPhotos.find(p=>p.id===body.p_photo),trip=state.trips.find(t=>t.id===photo?.trip_id);
    if(!photo||!(role(trip)==='owner'||photo.uploader_id===owner&&allowed(trip,'add_photos')))return error('ATLAS_TRIP_FORBIDDEN');

@@ -126,9 +126,9 @@ test('duas fotos, compressão, capa, legenda, galeria e edição', async ({ page
   await expect(page.locator('#gallery-dialog')).toBeVisible();
   await expect(page.locator('#gallery-caption')).toHaveText('Uma tarde dourada');
   await page.getByRole('button', { name: 'Próxima foto' }).click();
-  await expect(page.locator('#gallery-counter')).toHaveText('2 / 2');
+  await expect(page.locator('#gallery-counter')).toHaveText('2 / 2 · Foto');
   await page.keyboard.press('ArrowLeft');
-  await expect(page.locator('#gallery-counter')).toHaveText('1 / 2');
+  await expect(page.locator('#gallery-counter')).toHaveText('1 / 2 · Foto');
   await page.keyboard.press('Escape');
   const stored = await page.evaluate(async () => {
     const db = await new Promise((resolve) => { const r = indexedDB.open('atlas-pessoal'); r.onsuccess = () => resolve(r.result); });
@@ -263,9 +263,9 @@ test('arrastar fotos, deslizar na galeria e navegação por teclado', async ({ p
     dialog.dispatchEvent(new TouchEvent('touchstart', { changedTouches: [touch(280)], touches: [touch(280)], bubbles: true }));
     dialog.dispatchEvent(new TouchEvent('touchend', { changedTouches: [touch(80)], touches: [], bubbles: true }));
   });
-  await expect(page.locator('#gallery-counter')).toHaveText('2 / 2');
+  await expect(page.locator('#gallery-counter')).toHaveText('2 / 2 · Foto');
   await page.keyboard.press('ArrowRight');
-  await expect(page.locator('#gallery-counter')).toHaveText('1 / 2');
+  await expect(page.locator('#gallery-counter')).toHaveText('1 / 2 · Foto');
   await page.getByRole('button', { name: 'Fechar galeria' }).click();
   await expect(page.locator('#gallery-dialog')).not.toBeVisible();
 });
