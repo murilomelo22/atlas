@@ -52,7 +52,13 @@ select public.atlas_add_trip_media(current_setting('atlas.test.trip')::uuid,curr
  auth.uid()::text||'/'||current_setting('atlas.test.trip')||'/'||current_setting('atlas.test.live')||'-motion.mp4',2);
 do $$ begin
  if (select count(*) from public.trip_photos where trip_id=current_setting('atlas.test.trip')::uuid)<>1 then raise exception 'FAIL retry';end if;
- delete from storage.objects where bucket_id='atlas-trip-media' and name=auth.uid()::text||'/'||current_setting('atlas.test.trip')||'/'||current_setting('atlas.test.live')||'-motion.mp4';
+ -- Older Storage versions filter linked objects through RLS (zero rows deleted).
+ -- Newer versions also reject direct SQL deletion with SQLSTATE 42501.
+ -- Both outcomes must retain the linked object; never disable protect_delete.
+ begin
+  delete from storage.objects where bucket_id='atlas-trip-media' and name=auth.uid()::text||'/'||current_setting('atlas.test.trip')||'/'||current_setting('atlas.test.live')||'-motion.mp4';
+ exception when insufficient_privilege then null;
+ end;
  if not exists(select 1 from storage.objects where bucket_id='atlas-trip-media' and name=auth.uid()::text||'/'||current_setting('atlas.test.trip')||'/'||current_setting('atlas.test.live')||'-motion.mp4') then raise exception 'FAIL linked motion deleted';end if;
 end $$;
 select set_config('request.jwt.claim.sub',current_setting('atlas.test.member'),true),
