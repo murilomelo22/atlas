@@ -11,10 +11,11 @@ import { initializeSocial } from './social.js';
 import { currentUser } from './cloud.js';
 import { initializeJourneys } from './journeys.js';
 import { initializeRecaps } from './recap.js';
+import { initializeWishlist, publicWishlistHTML } from './wishlist.js';
 import { shareDestination } from './sharing.js';
 
 let destinations = [], allPhotos = [], selectedId = null, mapController;
-let publicView = null, social = null, journeys = null, recaps = null, changingAccount = false;
+let publicView = null, social = null, journeys = null, recaps = null, wishlist = null, changingAccount = false;
 const urls = new Map();
 const gallery = createGallery();
 let editId, editPhotos = [], coverId, editorToken = 0, photoBusy = false, editorURLs = [], saving = false;
@@ -78,6 +79,7 @@ async function refresh() {
   const stats = statistics(destinations);
   for (const [key, value] of Object.entries(stats)) $(`#stat-${key}`).textContent = new Intl.NumberFormat('pt-BR').format(value);
   mapController.update(destinations, urls);
+  await wishlist?.refresh();
 }
 function updateCountry() {
   try {
@@ -272,7 +274,7 @@ function bindEvents() {
 }
 function setViewUI() {
   document.body.classList.toggle('viewing-profile', Boolean(publicView));
-  for (const selector of ['#add-button', '#export-button', '#import-button']) $(selector).hidden = Boolean(publicView);
+  for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button']) $(selector).hidden = Boolean(publicView);
   $('#public-profile-header').hidden = !publicView;
   $('.sidebar-heading .eyebrow').textContent = publicView ? 'VIAGENS PÚBLICAS' : 'SUA COLEÇÃO';
   $('.sidebar-heading h2').firstChild.textContent = publicView ? 'Viagens públicas ' : 'Meus destinos ';
@@ -280,7 +282,7 @@ function setViewUI() {
   $('#list-search').value = ''; $('#country-filter').value = ''; $('#tag-filter').value = '';
   if (publicView) {
     const p = publicView.profile;
-    $('#public-profile-header').innerHTML = `<span id="public-avatar" class="profile-avatar" aria-hidden="true">${escapeHTML(p.display_name.slice(0, 1))}</span><div><p class="eyebrow">@${escapeHTML(p.username)}</p><h2>${escapeHTML(p.display_name)}</h2><p>${escapeHTML(p.bio || 'Um mapa de caminhos e memórias.')}</p></div><span class="tag">Perfil público</span>${publicView.publishedTrips?.length ? `<section class="profile-trips" aria-label="Trips publicadas"><h3>Trips compartilhadas</h3><div>${publicView.publishedTrips.map(t=>`<a class="trip-card" href="#/roteiro/${escapeHTML(t.id)}"><strong>${escapeHTML(t.name)}</strong><small>${t.stops.length} destinos · Ver roteiro</small></a>`).join('')}</div></section>` : ''}`;
+    $('#public-profile-header').innerHTML = `<span id="public-avatar" class="profile-avatar" aria-hidden="true">${escapeHTML(p.display_name.slice(0, 1))}</span><div><p class="eyebrow">@${escapeHTML(p.username)}</p><h2>${escapeHTML(p.display_name)}</h2><p>${escapeHTML(p.bio || 'Um mapa de caminhos e memórias.')}</p></div><span class="tag">Perfil público</span>${publicView.publishedTrips?.length ? `<section class="profile-trips" aria-label="Trips publicadas"><h3>Trips compartilhadas</h3><div>${publicView.publishedTrips.map(t=>`<a class="trip-card" href="#/roteiro/${escapeHTML(t.id)}"><strong>${escapeHTML(t.name)}</strong><small>${t.stops.length} destinos · Ver roteiro</small></a>`).join('')}</div></section>` : ''}${publicWishlistHTML(publicView.wishlist)}`;
   } else {
     $('#public-profile-header').replaceChildren();
   }
@@ -298,12 +300,13 @@ async function init() {
     await refresh(); bindEvents(); buttons.forEach((selector) => { $(selector).disabled = false; });
     journeys = initializeJourneys({ destinations: () => destinations, preview: (stops) => { mapController.itinerary(stops); $('#route-toggle').checked = false; notify('Roteiro no mapa. As linhas unem paradas; não representam estradas.'); } });
     recaps = initializeRecaps(() => destinations);
+    wishlist = initializeWishlist({ available: () => !changingAccount, afterMutation: () => social?.afterMutation() });
     social = await initializeSocial({
       refresh,
       lock(value) { changingAccount = value; },
       async switchAccount(id) {
         changingAccount = true; editorToken++; editor.close(); $('#gallery-dialog').close(); publicView = null; selectedId = null;
-        journeys.reset(); recaps.reset();
+        journeys.reset(); recaps.reset(); wishlist.reset();
         $('#destination-form').reset(); $('#visits-editor').replaceChildren(); $('#photo-editor').replaceChildren();
         editPhotos = []; coverId = null; releaseEditorURLs();
         try { await openDatabase({ accountId: id }); setViewUI(); await refresh(); }

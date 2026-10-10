@@ -8,7 +8,7 @@ export async function mockCloud(page) {
     profiles: [
       { id: ALICE, username: 'alice', display_name: 'Alice Viajante', bio: 'Pelos caminhos do mundo', is_public: true, avatar_path: null },
       { id: BOB, username: 'bob', display_name: 'Bruno', bio: '', is_public: true, avatar_path: null },
-    ], posts: [], photos: [], objects: new Map(), grants: new Map(), failed: false, confirmation: true, recoveries: 0, refreshes: 0, changedPassword: null, requests: [],
+    ], wishlists: [], posts: [], photos: [], objects: new Map(), grants: new Map(), failed: false, confirmation: true, recoveries: 0, refreshes: 0, changedPassword: null, requests: [],
   };
   state.session = (id = ALICE) => ({ access_token: `token-${id}`, refresh_token: `refresh-${id}`, expires_in: 3600, user: { id, email: id === ALICE ? 'alice@example.com' : 'bob@example.com' } });
   state.addPost = (id, name, owner = ALICE, visibility = 'private') => {
@@ -53,6 +53,17 @@ export async function mockCloud(page) {
       const query = url.searchParams.get('username');
       if (query?.startsWith('ilike.')) profiles = profiles.filter((p) => p.username.includes(query.slice(7, -1).replaceAll('\\_', '_')));
       return ok(profiles);
+    }
+    if (path === '/rest/v1/wishlists') return ok(filter(state.wishlists.filter(w => w.owner_id === owner || w.is_public && state.profiles.some(p => p.id === w.owner_id && p.is_public))));
+    if (path === '/rest/v1/rpc/atlas_save_wishlist') {
+      if (!owner) return denied();
+      const old = state.wishlists.find(w => w.owner_id === owner);
+      if ((old?.revision || null) !== body.p_expected_revision) {
+        if (old && old.is_public === body.p_public && JSON.stringify(old.items) === JSON.stringify(body.p_items)) return ok(old.revision);
+        return ok({ code: '40001', message: 'ATLAS_WISHLIST_CONFLICT' }, 409);
+      }
+      const row = { owner_id: owner, items: body.p_items, is_public: body.p_public, revision: randomUUID() };
+      state.wishlists = state.wishlists.filter(w => w !== old); state.wishlists.push(row); return ok(row.revision);
     }
     if (path === '/rest/v1/destinations') return ok(filter(state.posts.filter(canRead)));
     if (path === '/rest/v1/photos') return ok(filter(state.photos.filter((p) => state.posts.some((post) => post.id === p.destination_id && post.owner_id === p.owner_id && canRead(post)))));

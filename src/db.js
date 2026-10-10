@@ -2,6 +2,7 @@ import { countryAt, normalizeCoordinates } from './geography.js';
 import { validateVisits } from './dates.js';
 import { blobAsDataURL } from './photos.js';
 import { mediaFromBackup } from './media.js';
+import { cleanWishlist, emptyWishlist, mergeWishlistItems } from './wishlist-data.js';
 let database;
 let accountId = null;
 export const currentAccountId = () => accountId;
@@ -77,6 +78,24 @@ export async function getPhotos(id) {
 export const getAllPhotos = () => requestValue(database.transaction('photos').objectStore('photos').getAll());
 export const getMeta = (key) => requestValue(database.transaction('meta').objectStore('meta').get(key)).then((row) => row?.value);
 export const setMeta = (key, value) => writeTransaction(['meta'], (tx) => tx.objectStore('meta').put({ key, value }));
+export const getWishlist = async () => await getMeta('wishlist') || emptyWishlist();
+export async function updateWishlistMeta(update) {
+  const tx = database.transaction('meta', 'readwrite'), done = transactionDone(tx);
+  let failure;
+  const read = tx.objectStore('meta').get('wishlist');
+  read.onsuccess = () => {
+    try { const value = update(read.result?.value); if (value) tx.objectStore('meta').put({ key: 'wishlist', value }); }
+    catch (error) { failure = error; tx.abort(); }
+  };
+  try { await done; } catch (error) { throw failure || error; }
+}
+export async function saveWishlist(raw, expectedVersion) {
+  const clean = cleanWishlist(raw);
+  await updateWishlistMeta(previous => {
+    if ((previous?.localVersion || null) !== expectedVersion) throw new Error('Sua wish list mudou durante a edição. Suas alterações continuam neste formulário; copie-as antes de reabrir a lista.');
+    return { ...clean, revision: previous?.revision || null, cloudDirty: Boolean(accountId), localVersion: crypto.randomUUID() };
+  });
+}
 export async function saveDestination(destination, photos) {
   const previous = await getPhotos(destination.id);
   if (accountId) { destination.cloudDirty = true; destination.localVersion = crypto.randomUUID(); }
@@ -104,12 +123,13 @@ export async function removeDestinations(ids) {
   });
 }
 export async function exportBackup() {
-  const tx = database.transaction(['destinations', 'photos']);
-  const [destinations, photos] = await Promise.all([
+  const tx = database.transaction(['destinations', 'photos', 'meta']);
+  const [destinations, photos, wishlist] = await Promise.all([
     requestValue(tx.objectStore('destinations').getAll()),
     requestValue(tx.objectStore('photos').getAll()),
+    requestValue(tx.objectStore('meta').get('wishlist')),
   ]);
-  return { format: 'atlas-pessoal', version: 2, exportedAt: new Date().toISOString(), destinations, photos: await Promise.all(photos.map(async (p) => ({ id: p.id, destinationId: p.destinationId, caption: p.caption, kind: p.kind || 'image', data: await blobAsDataURL(p.blob), ...(p.motionBlob ? { motion: await blobAsDataURL(p.motionBlob) } : {}) }))) };
+  return { ...(wishlist?.value ? { wishlist: cleanWishlist(wishlist.value) } : {}), format: 'atlas-pessoal', version: 2, exportedAt: new Date().toISOString(), destinations, photos: await Promise.all(photos.map(async (p) => ({ id: p.id, destinationId: p.destinationId, caption: p.caption, kind: p.kind || 'image', data: await blobAsDataURL(p.blob), ...(p.motionBlob ? { motion: await blobAsDataURL(p.motionBlob) } : {}) }))) };
 }
 const identity = (d) => `${d.name.trim().toLocaleLowerCase('pt-BR')}|${d.lat.toFixed(5)}|${d.lng.toFixed(5)}`;
 export function sanitizeDestination(raw) {
@@ -133,6 +153,9 @@ export async function importBackup(file) {
   let raw;
   try { raw = JSON.parse(await file.text()); } catch { throw new Error('Não foi possível ler o JSON. Selecione um backup do Atlas Pessoal.'); }
   if (!raw || raw.format !== 'atlas-pessoal' || ![1, 2].includes(raw.version) || !Array.isArray(raw.destinations) || !Array.isArray(raw.photos) || raw.destinations.length > 10000 || raw.photos.length > 20000) throw new Error('Formato ou versão de backup não reconhecido.');
+  const importedWishlist = raw.wishlist == null ? null : cleanWishlist(raw.wishlist);
+  const previousWishlist = importedWishlist ? await getWishlist() : null;
+  const restoredWishlist = importedWishlist ? { items: mergeWishlistItems(previousWishlist.items, importedWishlist.items), is_public: false, revision: previousWishlist.revision || null, cloudDirty: Boolean(accountId), localVersion: crypto.randomUUID() } : null;
   const existing = await getDestinations(), oldPhotos = await getAllPhotos();
   const byId = new Map(existing.map((d) => [d.id, d]));
   const byIdentity = new Map(existing.map((d) => [identity(d), d]));
@@ -169,7 +192,8 @@ export async function importBackup(file) {
     group.photos.sort((a, b) => group.order.get(a.id) - group.order.get(b.id));
   }
   // All validation and decoding completes before one atomic write transaction.
-  await writeTransaction(['destinations', 'photos'], (tx) => {
+  await writeTransaction(['destinations', 'photos', 'meta'], (tx) => {
+    if (restoredWishlist) tx.objectStore('meta').put({ key: 'wishlist', value: restoredWishlist });
     for (const old of oldPhotos) if (prepared.has(old.destinationId)) tx.objectStore('photos').delete(old.id);
     for (const { destination, photos } of prepared.values()) {
       destination.photoIds = photos.map((p) => p.id);
@@ -185,12 +209,15 @@ export async function guestCollection() {
   const db = await requestValue(request);
   try {
     const tx = db.transaction(['destinations', 'photos']);
-    return { destinations: await requestValue(tx.objectStore('destinations').getAll()), photos: await requestValue(db.transaction('photos').objectStore('photos').getAll()) };
+    return { destinations: await requestValue(tx.objectStore('destinations').getAll()), photos: await requestValue(db.transaction('photos').objectStore('photos').getAll()), wishlist: (await requestValue(db.transaction('meta').objectStore('meta').get('wishlist')))?.value || emptyWishlist() };
   } finally { db.close(); }
 }
 export async function migrateGuest() {
   if (!accountId) throw new Error('Entre na conta antes de enviar suas viagens.');
   const guest = await guestCollection(), existing = await getDestinations(), currentPhotos = await getAllPhotos();
+  const currentWish = await getWishlist();
+  const wishItems = mergeWishlistItems(currentWish.items, cleanWishlist(guest.wishlist).items);
+  const wishesAdded = wishItems.length - currentWish.items.length;
   const identities = new Set(existing.map(identity)), ids = new Set(existing.map((d) => d.id)), usedPhotos = new Set(currentPhotos.map((p) => p.id));
   const additions = [], pictures = [];
   for (const destination of guest.destinations.filter((d) => !d.example)) {
@@ -204,11 +231,12 @@ export async function migrateGuest() {
     additions.push({ ...destination, visibility: 'private', cloudRevision: null, cloudDirty: true, localVersion: crypto.randomUUID(), photoIds: destination.photoIds.map((id) => photoMap.get(id)).filter(Boolean), coverId: photoMap.get(destination.coverId) || null });
     ids.add(destination.id); identities.add(identity(destination));
   }
-  await writeTransaction(['destinations', 'photos'], (tx) => {
+  await writeTransaction(['destinations', 'photos', 'meta'], (tx) => {
+    if (wishesAdded) tx.objectStore('meta').put({ key: 'wishlist', value: { items: wishItems, is_public: false, revision: currentWish.revision || null, cloudDirty: true, localVersion: crypto.randomUUID() } });
     for (const destination of additions) tx.objectStore('destinations').put(destination);
     for (const photo of pictures) tx.objectStore('photos').put(photo);
   });
-  return additions.length;
+  return additions.length + wishesAdded;
 }
 export async function markCloudSaved(snapshot, revision, remotePhotos) {
   const current = (await getDestinations()).find((d) => d.id === snapshot.id);

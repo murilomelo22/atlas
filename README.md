@@ -109,3 +109,11 @@ Destinos pessoais e galerias de trips aceitam vídeos MP4/WebM/MOV compatíveis,
 **Para salvar na nuvem:** execute [media.sql](supabase/media.sql) depois das migrações anteriores e confira com [verify-media.sql](supabase/verify-media.sql). Fotos existentes são preservadas. Vídeos têm limite de 50 MB, e o backup pessoal versão 2 inclui os novos formatos e continua importando backups antigos. Veja o [guia de ativação e uso](docs/MEDIA.md), incluindo os limites de codecs, Storage e backup.
 
 Verificação desta atualização: **108 testes passaram** em desktop e celular, com Supabase simulado, incluindo reprodução real de MP4/MOV/WebM, Live Photos, backup, migração de dados locais, permissões, perda de resposta e limpeza da conta. A revisão visual não encontrou transbordamento ou erros de JavaScript. Os scripts SQL não foram executados neste ambiente; execute a verificação no seu projeto.
+
+## Wish list pública ou privada
+
+O menu **Wish list** e **Meu perfil → Gerenciar minha wish list** permitem salvar até 200 lugares com nome, país opcional e notas. A lista começa privada; publicar a lista inteira exibe os desejos no perfil encontrável, sem alterar viagens realizadas, países visitados ou estatísticas. Inclui cache por conta, fila offline, revisões e backup/migração privados.
+
+**Para ativar na nuvem:** execute [wishlist.sql](supabase/wishlist.sql) e [verify-wishlist.sql](supabase/verify-wishlist.sql), depois do `schema.sql` já instalado. Essa atualização não exige reinstalar trips ou mídias. Veja o [guia de uso e ativação](docs/WISHLIST.md).
+
+Verificação da wish list: **130 testes passaram na suíte completa**, em desktop/celular, e **2 testes adicionais** confirmaram compatibilidade do backup sem a migração. A revisão visual não mostrou transbordamento ou erros de JavaScript. Supabase foi simulado nos testes; execute a instalação e a verificação SQL no seu projeto para conferir as políticas reais.

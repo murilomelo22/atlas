@@ -2,6 +2,7 @@ import { supabaseConfig } from '../config.js';
 import { readSession, writeSession } from './session.js';
 import { sanitizeDestination } from './db.js';
 import { mediaKind, mediaExtension } from './media.js';
+import { cleanWishlist, emptyWishlist } from './wishlist-data.js';
 
 function validConfig(config) {
   if (!config.url || !config.publishableKey) return null;
@@ -40,6 +41,7 @@ function apiError(body, status) {
   error.status = status;
   if (error.code === '23505') error.message = 'Este nome de usuário já está em uso. Escolha outro.';
   if (body?.message?.includes('ATLAS_CONFLICT')) { error.code = 'conflict'; error.message = 'Uma viagem foi alterada em outro dispositivo. Suas mudanças locais foram preservadas. Carregue a versão da nuvem ou exporte um backup antes de continuar.'; }
+  if (body?.message?.includes('ATLAS_WISHLIST_CONFLICT')) { error.code = 'conflict'; error.message = 'Sua wish list foi alterada em outro dispositivo. Exporte um backup antes de carregar a versão da nuvem; suas alterações locais foram preservadas.'; }
   const tripErrors = {
     ATLAS_TRIP_CONFLICT: 'Outra pessoa alterou o roteiro. Exporte seu JSON para preservar as mudanças e reabra a trip antes de editar novamente.',
     ATLAS_TRIP_FORBIDDEN: 'Você não tem permissão para esta ação. O convite precisa ser aceito para editar; só quem organiza gerencia o grupo.',
@@ -232,7 +234,21 @@ export async function publicProfile(username) {
     // Profiles already in use keep working before the additive migration is installed.
     if (!['42P01', 'PGRST205', 'PGRST200'].includes(error.code)) throw error;
   }
-  return { profile, publishedTrips, ...await readCollection(profile.id, { publicOnly: true }) };
+  let wishlist = null;
+  try { wishlist = await readCloudWishlist(profile.id, false); }
+  catch (error) { if (!wishlistMigrationMissing(error)) throw error; }
+  return { profile, publishedTrips, wishlist: wishlist?.is_public ? wishlist : null, ...await readCollection(profile.id, { publicOnly: true }) };
+}
+export const wishlistMigrationMissing = error => ['42P01', 'PGRST205', 'PGRST202'].includes(error?.code);
+export async function readCloudWishlist(ownerId, authenticated = true) {
+  const query = new URLSearchParams({ select: '*', owner_id: `eq.${ownerId}`, limit: '1', ...(!authenticated ? { is_public: 'eq.true' } : {}) });
+  const result = await request(`/rest/v1/wishlists?${query}`, { authenticated });
+  if (!Array.isArray(result)) throw new Error('A nuvem retornou uma wish list inválida. Seus dados locais foram preservados.');
+  const row = result.find(r => r.owner_id === ownerId && (authenticated || r.is_public));
+  return row ? { ...cleanWishlist(row), revision: row.revision } : { ...emptyWishlist(), revision: null };
+}
+export async function saveCloudWishlist(wishlist) {
+  return request('/rest/v1/rpc/atlas_save_wishlist', { method: 'POST', authenticated: true, body: { p_items: cleanWishlist(wishlist).items, p_public: wishlist.is_public, p_expected_revision: wishlist.revision || null } });
 }
 export async function saveCloudDestination(destination, photos) {
   if (photos.some(p => mediaKind(p) !== 'image')) await ensureMediaSupport();

@@ -144,19 +144,19 @@ export async function initializeSocial(callbacks) {
   $('#account-dialog').addEventListener('cancel', (event) => { if (submitting) event.preventDefault(); });
   $('#sync-button').onclick = () => runSync();
   $('#cloud-reload-button').onclick = async () => {
-    if (!await confirmAction('Carregar a versão da nuvem?', 'Alterações ainda não enviadas nesta conta serão substituídas. Exporte um backup antes se quiser preservá-las. Os dados do atlas local não serão alterados.', 'Carregar versão da nuvem')) return;
+    if (!await confirmAction('Carregar a versão da nuvem?', 'Alterações de viagens e wish list ainda não enviadas nesta conta serão substituídas. Exporte um backup antes se quiser preservá-las. Os dados do atlas local não serão alterados.', 'Carregar versão da nuvem')) return;
     await runSync(true);
   };
   $('#migrate-button').onclick = async () => {
     if (syncRunning()) return;
-    if (!await confirmAction('Enviar suas viagens locais?', 'Uma cópia será salva na sua conta como privada. Exemplos não editados e viagens já existentes serão ignorados. A coleção local será mantida.', 'Enviar para minha conta')) return;
-    try { const count = await migrateGuest(); await callbacks.refresh(); notify(`${count} novas viagens copiadas para sua conta neste dispositivo. ${count ? 'Sincronizando com a nuvem…' : 'Não há novas viagens locais para enviar.'}`); if (count) await runSync(); }
+    if (!await confirmAction('Enviar suas viagens locais?', 'Uma cópia das viagens e da wish list será salva na sua conta como privada. Exemplos não editados e viagens já existentes serão ignorados. A coleção local será mantida.', 'Enviar para minha conta')) return;
+    try { const count = await migrateGuest(); await callbacks.refresh(); notify(`${count} novos itens copiados para sua conta neste dispositivo. ${count ? 'Sincronizando com a nuvem…' : 'Não há novos itens locais para enviar.'}`); if (count) await runSync(); }
     catch (error) { notify(error.message, true); }
   };
   $('#logout-button').onclick = async () => {
     if (syncRunning() || submitting) return;
-    const pending = (await getDestinations()).some((d) => d.cloudDirty) || (await getMeta('deleted') || []).length;
-    if (pending && !await confirmAction('Sair com alterações pendentes?', 'Há viagens ainda não enviadas. Exporte um backup ou sincronize antes de sair. Ao sair, a cópia desta conta será removida do navegador.', 'Sair e remover cópia local')) return;
+    const pending = (await getDestinations()).some((d) => d.cloudDirty) || (await getMeta('deleted') || []).length || (await getMeta('wishlist'))?.cloudDirty;
+    if (pending && !await confirmAction('Sair com alterações pendentes?', 'Há viagens ou itens da wish list ainda não enviados. Exporte um backup ou sincronize antes de sair. Ao sair, a cópia desta conta será removida do navegador.', 'Sair e remover cópia local')) return;
     $('#logout-button').disabled = true;
     try { await signOut(); await change; notify('Você saiu da conta. A coleção local está disponível.'); }
     finally { $('#logout-button').disabled = false; }
