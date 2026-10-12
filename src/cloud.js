@@ -41,6 +41,9 @@ function apiError(body, status) {
   const error = new Error(status === 401 ? 'Sua sessão expirou. Entre novamente para sincronizar.' : status === 429 ? 'Muitas tentativas. Aguarde um pouco e tente novamente.' : status >= 500 ? 'A nuvem está indisponível. Seus dados locais foram preservados.' : 'Não foi possível concluir a operação.');
   error.code = body?.code || body?.error_code;
   error.status = status;
+  if (error.code === '57014') error.message = 'O banco demorou demais e cancelou a operação. Seus dados continuam neste dispositivo. Tente sincronizar novamente quando o Supabase se recuperar.';
+  if (error.code === '42501' || status === 403) error.message = 'O banco recusou a operação por falta de permissão. Seus dados locais foram preservados. É necessário verificar as permissões no Supabase.';
+  if (error.code === '22023') error.message = 'O banco recusou os dados enviados. Suas alterações locais foram preservadas.';
   if (error.code === '23505') error.message = 'Este nome de usuário já está em uso. Escolha outro.';
   if (body?.message?.includes('ATLAS_CONFLICT')) { error.code = 'conflict'; error.message = 'Uma viagem foi alterada em outro dispositivo. Suas mudanças locais foram preservadas. Carregue a versão da nuvem ou exporte um backup antes de continuar.'; }
   if (body?.message?.includes('ATLAS_WISHLIST_CONFLICT')) { error.code = 'conflict'; error.message = 'Sua wish list foi alterada em outro dispositivo. Exporte um backup antes de carregar a versão da nuvem; suas alterações locais foram preservadas.'; }
@@ -59,6 +62,10 @@ function apiError(body, status) {
   if (body?.error_code === 'email_not_confirmed') error.message = 'Confirme seu e-mail antes de entrar.';
   if (body?.error_code === 'weak_password') error.message = 'A senha não atende à política de segurança. Use ao menos 8 caracteres.';
   if (error.code === '42P01' || error.code === 'PGRST202') error.message = 'O banco do Atlas ainda não foi configurado. Execute o schema.sql conforme o guia de ativação.';
+  if (error.message === 'Não foi possível concluir a operação.') {
+    const code = /^[a-zA-Z0-9_]{1,40}$/.test(error.code || '') ? ` · ${error.code}` : '';
+    error.message = `A nuvem recusou a operação (HTTP ${status}${code}). Seus dados locais foram preservados.`;
+  }
   return error;
 }
 export async function request(path, { method = 'GET', body, authenticated = false, headers = {}, retry = true } = {}) {

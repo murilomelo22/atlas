@@ -122,7 +122,29 @@ test('edição durante envio conserva mudanças locais e usa a revisão confirma
   let release; const gate = new Promise(resolve => { release = resolve; }); let pending = false;
   await page.route('**/rpc/atlas_save_wishlist', async route => { if (pending) return route.fallback(); pending = true; await gate; return route.fallback(); });
   await open(page); await add(page, 'Primeiro desejo'); await save(page); await expect.poll(() => pending).toBe(true);
-  await add(page, 'Segundo desejo'); await save(page); release(); await expect.poll(() => cloud.wishlists.length).toBe(1); await expect(page.locator('#sync-status')).toHaveText('Há alterações locais aguardando sincronização.');
+  await add(page, 'Segundo desejo'); await save(page);
+  // Let the edit debounce fire while the previous upload is still running.
+  await page.waitForTimeout(1200); release(); await expect.poll(() => cloud.wishlists.length).toBe(1); await expect(page.locator('#sync-status')).toHaveText('Há alterações locais aguardando sincronização.');
   expect(cloud.wishlists[0].items).toHaveLength(1); const backup = await page.evaluate(async () => (await import('/src/db.js')).exportBackup()); expect(backup.wishlist.items).toHaveLength(2);
-  await page.locator('#wishlist-close').click(); await page.locator('#account-button').click(); await page.locator('#sync-button').click(); await expect(page.locator('#sync-status')).toHaveText('Tudo salvo na sua conta.'); expect(cloud.wishlists[0].items).toHaveLength(2);
+  await expect(page.locator('#sync-status')).toHaveText('Tudo salvo na sua conta.'); expect(cloud.wishlists[0].items).toHaveLength(2);
 });
+
+for (const failure of [{ status: 403, code: '42501', message: 'permissão' }, { status: 500, code: '57014', message: 'demorou demais' }, { status: 400, code: 'XX123', message: 'HTTP 400 · XX123' }]) {
+  test(`falha ${failure.code} mantém lista local, atualiza mapa e mostra motivo sem repetir escrita`, async ({ page }) => {
+    const cloud = await mockTrips(page); await ready(page); await login(page);
+    let writes = 0;
+    await page.route('**/rpc/atlas_save_wishlist', route => {
+      writes++; return route.fulfill({ status: failure.status, contentType: 'application/json', body: JSON.stringify({ code: failure.code, message: 'private database detail' }) });
+    });
+    cloud.addPost('remote-arrival', 'Viagem do outro dispositivo');
+    await open(page); await add(page, 'Desejo preservado'); await save(page);
+    await expect(page.locator('#sync-status')).toContainText(failure.message);
+    await expect(page.locator('#wishlist-message')).toContainText(failure.message);
+    await expect(page.locator('#wishlist-message')).not.toContainText('private database detail');
+    const local = await page.evaluate(async () => (await import('/src/db.js')).getWishlist());
+    expect(local.cloudDirty).toBe(true); expect(local.items[0].name).toBe('Desejo preservado');
+    await page.locator('#wishlist-close').click();
+    await expect(page.getByRole('button', { name: 'Abrir destino Viagem do outro dispositivo' })).toBeVisible();
+    await page.waitForTimeout(1500); expect(writes).toBe(1);
+  });
+}

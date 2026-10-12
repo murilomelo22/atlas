@@ -34,6 +34,18 @@ O backup continua sendo um JSON pessoal completo. A exportação pode demorar qu
 
 ## Verificação e limites
 
+### Falhas ao salvar e CPU em 100%
+
+CPU é capacidade de processamento, diferente de armazenamento. Desativar confirmação de email não libera espaço relevante nem corrige consultas lentas. Para poucos usuários, investigue consultas, bloqueios e erros antes de remover funcionalidades ou migrar o serviço. O aviso de CPU, sozinho, não prova a causa de uma gravação recusada.
+
+As mensagens de sincronização distinguem cancelamento por demora (`57014`), falta de permissão (`42501`/HTTP 403), conflito de revisão e migração ausente. Erros sem tradução mostram apenas HTTP/código, sem expor detalhes internos do banco. A wish list aberta acompanha a falha em vez de permanecer indefinidamente em “Aguardando sincronização”. Sua falha não impede que os destinos recebidos sejam incorporados ao mapa.
+
+Edições feitas durante uma sincronização agendam outra passagem depois dela. Uma falha sem novas edições não inicia um ciclo de repetição de gravações, para evitar carga adicional no projeto. A confirmação “Tudo salvo na sua conta” exige sucesso; alterações pendentes continuam locais.
+
+Para diagnóstico real, correlacione o horário de uma tentativa com os logs Postgres/API e a tela Query Performance do projeto. Identifique consultas de maior tempo acumulado e bloqueios; confirme o código HTTP/SQL da gravação antes de alterar políticas ou aplicar SQL. Esses dados exigem acesso administrativo conectado e não são disponíveis pela chave pública do site.
+
+Enquanto houver dados pendentes, exporte um backup e mantenha o navegador da conta. Sair da conta remove o cache privado desse navegador. “Carregar versão da nuvem” substitui alterações locais após confirmação; não é uma correção para uma nuvem indisponível.
+
 Os testes de `tests/light-sync.spec.js` simulam Supabase e cobrem uma coleção de 100 fotos, sincronização por revisões, exclusões em outro dispositivo, original indisponível, repetição na galeria, vídeo e Live Photo sob demanda, backup completo, retomada, cancelamento, cache atualizado durante uma resposta atrasada e isolamento entre contas.
 
 No cenário de 100 fotos, a sincronização inicial recebe 100 referências sem baixar nenhum original. As miniaturas visíveis são carregadas separadamente. Isso evita o fluxo anterior de aproximadamente 400 requisições de assinatura/download para os 100 originais e suas miniaturas; a quantidade atual depende de quais prévias e galerias o usuário abre.

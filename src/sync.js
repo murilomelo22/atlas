@@ -25,10 +25,13 @@ export async function synchronize(onStatus = () => {}, { discardLocal = false } 
       }
     }
     verifyAccount();
-    await synchronizeWishlist(verifyAccount, discardLocal);
+    let wishlistError;
+    try { await synchronizeWishlist(verifyAccount, discardLocal); }
+    catch (error) { verifyAccount(); wishlistError = error; }
     verifyAccount();
     const collection = await readCollection(owner, { cachedPhotos: await getAllPhotos(), cachedDestinations: discardLocal ? [] : await getDestinations() });
     verifyAccount(); await mergeCloudCollection(collection, discardLocal);
+    if (wishlistError) throw wishlistError;
     const pending = (await getDestinations()).some((d) => d.cloudDirty) || (await getMeta('wishlist'))?.cloudDirty;
     onStatus(pending ? 'Há alterações locais aguardando sincronização.' : 'Tudo salvo na sua conta.');
   })();

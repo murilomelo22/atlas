@@ -8,6 +8,7 @@ import { shareText, appLink } from './sharing.js';
 export async function initializeSocial(callbacks) {
   let profile = null, mode = 'login', change = Promise.resolve(), syncTimer, routeToken = 0, avatarFile = null, submitting = false;
   let ownStatus = 'Coleção neste dispositivo';
+  let mutationVersion = 0;
   function status(message, viewingProfile = false) {
     $('#sync-status').textContent = message;
     if (!viewingProfile) { ownStatus = message; $('#account-sync-message').textContent = message; }
@@ -37,11 +38,19 @@ export async function initializeSocial(callbacks) {
   async function runSync(discardLocal = false) {
     if (!currentUser() || syncRunning()) return;
     clearTimeout(syncTimer);
+    const owner = currentUser().id, startedVersion = mutationVersion;
     if (discardLocal) callbacks.lock(true);
     for (const id of ['#sync-button', '#migrate-button', '#logout-button', '#cloud-reload-button']) $(id).disabled = true;
     try { await synchronize(status, { discardLocal }); await callbacks.refresh(); }
-    catch (error) { status(error.message); notify(error.message, true); }
-    finally { if (discardLocal) callbacks.lock(false); for (const id of ['#sync-button', '#migrate-button', '#logout-button', '#cloud-reload-button']) $(id).disabled = false; }
+    catch (error) { status(error.message); notify(error.message, true); await callbacks.refresh(); }
+    finally {
+      if (discardLocal) callbacks.lock(false);
+      for (const id of ['#sync-button', '#migrate-button', '#logout-button', '#cloud-reload-button']) $(id).disabled = false;
+      // Only new edits schedule another pass. A failed request alone never loops.
+      if (currentUser()?.id === owner && mutationVersion !== startedVersion) {
+        clearTimeout(syncTimer); syncTimer = setTimeout(() => runSync(), 1000);
+      }
+    }
   }
   async function handleAccount() {
     const previous = currentAccountId(), user = currentUser();
@@ -205,6 +214,7 @@ export async function initializeSocial(callbacks) {
   return {
     afterMutation() {
       if (!currentUser()) return;
+      mutationVersion++;
       status('Modificações salvas neste dispositivo. Envio pendente.');
       clearTimeout(syncTimer); syncTimer = setTimeout(() => runSync(), 1000);
     },
