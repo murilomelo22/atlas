@@ -1239,6 +1239,7 @@ body.map-focused{overflow:hidden}
 .clean-place-no-photos{font-size:12px;color:#aab7a6;margin:0}
 .review-photo-picker{margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--raised)}
 .review-photo-picker h4{margin:0 0 8px;font-size:16px}
+.review-photo-tools{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:12px}
 .review-photo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-height:360px;overflow:auto;margin:16px 0;padding:2px}
 .review-photo-option{position:relative;display:block!important;min-width:0;padding:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--bg);cursor:pointer}
 .review-photo-option:has(input:checked){border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}

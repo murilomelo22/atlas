@@ -32,7 +32,7 @@ async function releaseServer({ modern = false } = {}) {
           <p id="places"></p><footer><small id="version">${state.version}</small><button data-app-update>Atualizar site</button><p id="app-update-status" hidden></p></footer>
           <section id="app-update-banner" hidden>Nova versão disponível <button data-app-update>Atualizar agora</button></section>
           <dialog><form method="dialog"><input aria-label="Notas da viagem"><button>Fechar formulário</button></form></dialog></body></html>`;
-      } else if (path === 'sw.js') { cache = 'no-store'; body = state.modern ? worker.replace("const VERSION = '17';", `const VERSION = '${state.version}';`) : oldWorker; }
+      } else if (path === 'sw.js') { cache = 'no-store'; body = state.modern ? worker.replace(/const VERSION = '[^']+';/, `const VERSION = '${state.version}';`) : oldWorker; }
       else if (path === 'styles.css') { type = 'text/css'; body = `[hidden]{display:none!important} #places{color:${state.assets === 1 ? 'rgb(200, 0, 0)' : 'rgb(0, 120, 0)'}}`; }
       else if (path === 'src/main.js') body = "import { render } from './map.js'; render();";
       else if (path === 'src/map.js') body = `export function render(){document.getElementById('places').textContent=${JSON.stringify(state.assets === 1 ? 'Marcadores antigos' : 'Memórias, avaliações e fotos')};}`;

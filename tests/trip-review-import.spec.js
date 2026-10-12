@@ -86,3 +86,58 @@ test('trocar de conta durante uma cópia interrompe a importação antes de comp
   release(); await expect(page.locator('#trips-dialog')).not.toBeVisible(); await page.waitForTimeout(300);
   expect(cloud.tripPhotos).toHaveLength(0); expect(cloud.requests.some(r => r.path.endsWith('/atlas_add_trip_photo'))).toBe(false);
 });
+
+test('seleciona todas por destino da trip, mantém escolhas entre lugares e ignora fotos já importadas e lugares futuros', async ({ page }) => {
+  const { cloud, post } = await setup(page, ['image', 'image']);
+  const places = [
+    { id: 'spain', name: 'Espanha', lat: 40.4168, lng: -3.7038, photos: 2 },
+    { id: 'italy', name: 'Itália', lat: 41.9028, lng: 12.4964, photos: 1 },
+    { id: 'greece', name: 'Grécia', lat: 37.9838, lng: 23.7275, photos: 2 },
+    { id: 'portugal', name: 'Portugal fora da trip', lat: 38.7223, lng: -9.1393, photos: 1 },
+    { id: 'future', name: 'Visita futura', lat: 50, lng: 10, photos: 1, future: true },
+  ];
+  await page.evaluate(async places => {
+    const db = await import('/src/db.js'), canvas = document.createElement('canvas'); canvas.width = 60; canvas.height = 40; canvas.getContext('2d').fillRect(0, 0, 60, 40);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
+    for (const place of places) {
+      const photos = Array.from({ length: place.photos }, (_, index) => ({ id: `${place.id}-${index}`, destinationId: place.id, blob, thumbnail: blob, caption: `${place.name} · foto ${index + 1}` }));
+      const destination = db.sanitizeDestination({ ...place, rating: 5, notes: 'Avaliação original', tags: [], visits: [{ id: `${place.id}-visit`, arrival: place.future ? '2999-01-01' : '2024-05-01', departure: place.future ? '2999-01-02' : '2024-05-04' }] });
+      destination.photoIds = photos.map(photo => photo.id); destination.coverId = photos[0].id; await db.saveDestination(destination, photos);
+    }
+  }, places);
+  const trip = { id: '50000000-0000-4000-8000-000000000010', owner_id: post.owner_id, revision: '50000000-0000-4000-8000-000000000011', name: 'Espanha, Itália e Grécia', is_public: false, notes: '', stops: [
+    { id: 's1', name: 'Espanha', lat: 40, lng: -3, completed: true, sourceDestinationId: 'spain', sourceVisitId: 'spain-visit', date: '2024-05-01', departure: '2024-05-04' },
+    { id: 's2', name: 'Itália', lat: 41.9028, lng: 12.4964, date: '', notes: '' },
+    { id: 's3', name: 'Grécia', lat: 37.9838, lng: 23.7275, completed: true, sourceDestinationId: 'greece', date: '', notes: '' },
+    { id: 's4', name: 'Visita futura', lat: 50, lng: 10, date: '2999-01-01', notes: '' },
+  ] };
+  cloud.trips.push(trip);
+  const copiedID = await page.evaluate(async ({ owner, trip }) => (await import('/src/trip-media-import.js')).importedPhotoId(owner, trip, { id: 'spain-0', destinationId: 'spain' }), { owner: post.owner_id, trip: trip.id });
+  const copyPath = `${post.owner_id}/${trip.id}/${copiedID}.jpg`;
+  cloud.tripPhotos.push({ id: copiedID, trip_id: trip.id, uploader_id: post.owner_id, storage_path: copyPath, caption: 'Espanha · foto 1' });
+  cloud.objects.set(`atlas-trip-media/${copyPath}`, cloud.objects.get(`atlas-media/${cloud.photos[0].storage_path}`));
+  await page.locator('#trips-button').click(); await page.getByRole('button', { name: /Espanha, Itália e Grécia/ }).click();
+  await expect(page.locator('.trip-gallery figure')).toHaveCount(1); await page.locator('[data-import-reviews]').click();
+  const select = page.locator('[data-review-destination]'); await expect(select).toHaveValue('__trip__');
+  await expect(page.locator('[data-review-photo]')).toHaveCount(5);
+  await expect(page.locator('optgroup[label="Destinos desta trip"] option')).toHaveText(['Espanha', 'Grécia', 'Itália']);
+  await expect(page.locator('[data-review-photo="spain-0"]')).toBeDisabled();
+  await select.selectOption('spain'); await page.getByRole('button', { name: 'Selecionar todas deste lugar' }).click();
+  await expect(page.locator('[data-review-photo="spain-1"]')).toBeChecked(); await expect(page.locator('[data-review-photo="spain-0"]')).not.toBeChecked();
+  await expect(page.locator('[data-review-status]')).toHaveText('1 selecionada no total');
+  await select.selectOption('italy'); await page.getByRole('button', { name: 'Selecionar todas deste lugar' }).click();
+  await select.selectOption('greece'); await page.getByRole('button', { name: 'Selecionar todas deste lugar' }).click();
+  await expect(page.locator('[data-review-status]')).toHaveText('4 selecionadas no total');
+  await select.selectOption('spain'); await page.getByRole('button', { name: 'Desmarcar deste lugar' }).click();
+  await expect(page.locator('[data-review-status]')).toHaveText('3 selecionadas no total');
+  await select.selectOption('greece'); for (const input of await page.locator('[data-review-photo]').all()) await expect(input).toBeChecked();
+  await select.selectOption('__trip__'); await page.getByRole('button', { name: 'Selecionar todas da trip' }).click();
+  await expect(page.locator('[data-review-select-all]')).toBeDisabled(); await expect(page.locator('[data-review-status]')).toHaveText('4 selecionadas no total');
+  await page.locator('[data-review-import]').click(); await expect(page.locator('.trip-gallery figure')).toHaveCount(5);
+  expect(cloud.tripPhotos.map(photo => photo.caption).sort()).toEqual(['Espanha · foto 1', 'Espanha · foto 2', 'Grécia · foto 1', 'Grécia · foto 2', 'Itália · foto 1'].sort());
+  await page.locator('[data-import-reviews]').click(); await expect(select).toHaveValue('__trip__');
+  for (const input of await page.locator('[data-review-photo]').all()) await expect(input).toBeDisabled();
+  await expect(page.locator('[data-review-select-all]')).toBeDisabled(); await expect(page.locator('[data-review-import]')).toBeDisabled();
+  const original = await page.evaluate(async () => { const db = await import('/src/db.js'); return { rating: (await db.getDestinations()).find(destination => destination.id === 'spain').rating, photo: (await db.getPhoto('spain-1')).blob instanceof Blob }; });
+  expect(original).toEqual({ rating: 5, photo: true });
+});
