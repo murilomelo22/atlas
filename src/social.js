@@ -1,4 +1,4 @@
-import { cloudEnabled, cloudConfigError, currentUser, restoreAuth, onAuthChange, signIn, signUp, recoverPassword, changePassword, signOut, myProfile, saveProfile, searchProfiles, publicProfile, avatarURL, uploadAvatar, deleteObjects } from './cloud.js';
+import { cloudEnabled, cloudConfigError, currentUser, needsReconnect, reconnectMessage, restoreAuth, onAuthChange, signIn, signUp, recoverPassword, changePassword, signOut, myProfile, saveProfile, searchProfiles, publicProfile, avatarURL, uploadAvatar, deleteObjects } from './cloud.js';
 import { getDestinations, getMeta, setMeta, migrateGuest, purgeAccount, currentAccountId } from './db.js';
 import { synchronize, syncRunning } from './sync.js';
 import { processPhoto } from './photos.js';
@@ -12,8 +12,10 @@ export async function initializeSocial(callbacks) {
   let mutationVersion = 0;
   let syncDiagnostic = '';
   $('#account-sync-message').insertAdjacentHTML('afterend', diagnosticHTML('account-sync-diagnostic'));
+  $('#sync-button').insertAdjacentHTML('beforebegin', '<button type="button" id="reconnect-button" class="primary" hidden>Entrar novamente</button>');
   function diagnostic(text = '') { syncDiagnostic = text; showDiagnostic($('#account-sync-diagnostic'), text); }
   function status(message, viewingProfile = false) {
+    $('#reconnect-button').hidden = !needsReconnect();
     $('#sync-status').textContent = message;
     if (!viewingProfile) { ownStatus = message; $('#account-sync-message').textContent = message; }
   }
@@ -31,14 +33,20 @@ export async function initializeSocial(callbacks) {
     $('#auth-password-field').hidden = recover; $('#auth-password').required = !recover; $('#auth-password').disabled = recover;
     $('#auth-password').minLength = signup || reset ? 8 : 1;
     $('#auth-password').autocomplete = signup || reset ? 'new-password' : 'current-password';
-    document.querySelectorAll('[data-auth-mode]').forEach((button) => { button.hidden = reset || (signup || recover ? button.dataset.authMode !== 'login' : button.dataset.authMode === 'login'); });
+    document.querySelectorAll('[data-auth-mode]').forEach((button) => { button.hidden = reset || (needsReconnect() && button.dataset.authMode === 'signup') || (signup || recover ? button.dataset.authMode !== 'login' : button.dataset.authMode === 'login'); });
   }
   function openAuth(value = 'login') {
     $('#auth-form').reset(); authMode(value);
     $('#cloud-not-configured').hidden = cloudEnabled; $('#auth-form').hidden = !cloudEnabled;
     if (cloudConfigError) $('#cloud-not-configured>p').textContent = `${cloudConfigError} A coleção local continua disponível.`;
+    if (needsReconnect()) {
+      $('#auth-email').value = currentUser().email;
+      $('#auth-message').textContent = 'Entre na mesma conta para enviar suas alterações pendentes. Os dados deste dispositivo serão mantidos.';
+    }
     $('#auth-dialog').showModal();
   }
+  function reconnect() { $('#account-dialog').close(); openAuth(); }
+  $('#reconnect-button').onclick = reconnect;
   async function runSync(discardLocal = false) {
     if (!currentUser() || syncRunning()) return;
     clearTimeout(syncTimer);
@@ -59,7 +67,11 @@ export async function initializeSocial(callbacks) {
   }
   async function handleAccount() {
     const previous = currentAccountId(), user = currentUser();
-    if (user?.id === previous) return;
+    if (user?.id === previous) {
+      $('#reconnect-button').hidden = !needsReconnect();
+      if (needsReconnect()) { status(reconnectMessage); await callbacks.refresh(); }
+      return;
+    }
     diagnostic();
     clearTimeout(syncTimer);
     profile = null; avatarFile = null; $('#account-dialog').close();
@@ -132,8 +144,11 @@ export async function initializeSocial(callbacks) {
       else if (mode === 'new-password') { await changePassword(password); $('#auth-dialog').close(); notify('Senha atualizada.'); }
       else if (mode === 'signup' && !await signUp(email, password, $('#signup-name').value)) $('#auth-message').textContent = 'Confira seu e-mail e abra o link de confirmação para concluir o cadastro.';
       else {
-        if (mode === 'login') await signIn(email, password);
-        await change; $('#auth-dialog').close(); notify('Você entrou na sua conta. Sua coleção local foi preservada.');
+        const recoveringAccount = mode === 'login' && needsReconnect() ? currentAccountId() : null;
+        if (mode === 'login') await signIn(email, password, { expectedUserId: recoveringAccount });
+        await change; $('#auth-dialog').close();
+        if (recoveringAccount) await runSync();
+        notify('Você entrou na sua conta. Sua coleção local foi preservada.');
       }
     } catch (error) { $('#auth-message').textContent = error.message; }
     finally { submitting = false; $('#auth-submit').disabled = false; $('#auth-password').value = ''; }
@@ -218,6 +233,7 @@ export async function initializeSocial(callbacks) {
   renderAuth(); await queueAccountChange(); await route();
   if (restored?.recovery) openAuth('new-password');
   return {
+    reconnect,
     diagnostic: () => syncDiagnostic,
     afterMutation() {
       if (!currentUser()) return;

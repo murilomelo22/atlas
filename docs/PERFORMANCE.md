@@ -48,6 +48,16 @@ Quando houver falha, abra **Detalhes da falha** na wish list ou no perfil. O dia
 
 Enquanto houver dados pendentes, exporte um backup e mantenha o navegador da conta. Sair da conta remove o cache privado desse navegador. “Carregar versão da nuvem” substitui alterações locais após confirmação; não é uma correção para uma nuvem indisponível.
 
+### Refresh token inválido e recuperação da conta
+
+`POST /auth/v1/token` com `Invalid Refresh Token: Refresh Token Not Found` identifica uma falha na renovação da sessão, anterior ao envio da wish list. O site reconhece tanto essa resposta antiga (`400`/`msg`) quanto os códigos atuais do Auth. A sessão passa a exigir login, remove os tokens inválidos e conserva a identidade e o cache da conta. Recarregar o site não repete a renovação rejeitada. Use **Entrar novamente** na wish list ou no perfil; entrar na mesma conta retoma a sincronização dos dados pendentes. Senha errada ou outra conta não substituem o cache em recuperação. A saída explícita continua removendo o cache após a confirmação de alterações pendentes.
+
+Renovações de uma mesma origem usam Web Locks quando disponíveis, relendo a sessão armazenada depois de adquirir a exclusão entre abas. Falhas temporárias de rede/servidor mantêm o token para uma tentativa posterior. Uma resposta atrasada de renovação não reinstala uma conta que já foi desconectada ou trocada.
+
+CPU sustentada em 100% com o Atlas fechado requer diagnóstico separado. Consulte o painel Query Performance e os processos do banco. [`supabase/diagnose-cpu.sql`](../supabase/diagnose-cpu.sql) oferece uma consulta somente de leitura, com limite de cinco segundos, sobre conexões ativas, bloqueios e progresso de vacuum, sem mostrar o texto das consultas. Ela não foi executada no projeto real nesta alteração. O script não instala uma migração nem cancela processos. Compare também CPU de usuário/sistema e IO na saúde do banco; o percentual de CPU, sozinho, não identifica qual carga está consumindo recursos.
+
+Referências: [CPU alta](https://supabase.com/docs/guides/troubleshooting/high-cpu-usage) e [serviços sem saúde](https://supabase.com/docs/guides/troubleshooting/project-status-reports-unhealthy-services). Reiniciar o banco pelo painel pode recuperar um serviço indisponível temporariamente, mas não elimina uma carga que volta a ocorrer.
+
 Os testes de `tests/light-sync.spec.js` simulam Supabase e cobrem uma coleção de 100 fotos, sincronização por revisões, exclusões em outro dispositivo, original indisponível, repetição na galeria, vídeo e Live Photo sob demanda, backup completo, retomada, cancelamento, cache atualizado durante uma resposta atrasada e isolamento entre contas.
 
 No cenário de 100 fotos, a sincronização inicial recebe 100 referências sem baixar nenhum original. As miniaturas visíveis são carregadas separadamente. Isso evita o fluxo anterior de aproximadamente 400 requisições de assinatura/download para os 100 originais e suas miniaturas; a quantidade atual depende de quais prévias e galerias o usuário abre.

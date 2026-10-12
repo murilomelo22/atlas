@@ -27,6 +27,9 @@ const signedCache = new Map(), signing = new Map();
 const listeners = new Set();
 const channel = 'BroadcastChannel' in window ? new BroadcastChannel('atlas-auth') : null;
 export const currentUser = () => session?.user || null;
+export const needsReconnect = () => Boolean(session?.needsLogin);
+export const reconnectMessage = 'Sua sessão precisa ser renovada. Use “Entrar novamente” com a mesma conta; suas alterações locais foram preservadas.';
+const reconnectError = () => Object.assign(new Error(reconnectMessage), { code: 'reauth_required' });
 export const onAuthChange = (listener) => { listeners.add(listener); return () => listeners.delete(listener); };
 function announce() { for (const listener of listeners) listener(currentUser()); }
 async function keepSession(raw, broadcast = true) {
@@ -53,6 +56,9 @@ function apiError(body, status, path, method) {
   if (error.code === '42501' || status === 403) error.message = 'O banco recusou a operação por falta de permissão. Seus dados locais foram preservados. É necessário verificar as permissões no Supabase.';
   if (error.code === '22023') error.message = 'O banco recusou os dados enviados. Suas alterações locais foram preservadas.';
   const providerMessage = String(body?.message || body?.msg || body?.error_description || '');
+  if (path?.startsWith('/auth/v1/token') && (['refresh_token_not_found', 'refresh_token_already_used', 'session_not_found'].some(code => code === error.code || code === body?.error_code) || /invalid refresh token|refresh token (?:not found|already used)/i.test(providerMessage))) {
+    error.code = 'reauth_required'; error.message = reconnectError().message;
+  }
   if (/statement timeout|query timeout|connection acquisition timeout/i.test(providerMessage)) error.message = 'O Supabase não concluiu a operação a tempo. Seus dados continuam neste dispositivo. Aguarde a recuperação do banco antes de sincronizar novamente.';
   if (error.code === '23505') error.message = 'Este nome de usuário já está em uso. Escolha outro.';
   if (body?.message?.includes('ATLAS_CONFLICT')) { error.code = 'conflict'; error.message = 'Uma viagem foi alterada em outro dispositivo. Suas mudanças locais foram preservadas. Carregue a versão da nuvem ou exporte um backup antes de continuar.'; }
@@ -81,6 +87,7 @@ function apiError(body, status, path, method) {
 export async function request(path, { method = 'GET', body, authenticated = false, headers = {}, retry = true } = {}) {
   if (!config) throw new Error('O login ainda não foi ativado. A coleção local continua disponível.');
   if (authenticated && !session) throw new Error('Entre na sua conta para continuar.');
+  if (authenticated && needsReconnect()) throw reconnectError();
   if (authenticated && session.expires_at < Date.now() / 1000 + 30 && retry) await refreshSession();
   const token = authenticated ? session.access_token : config.key.startsWith('ey') ? config.key : null;
   const controller = new AbortController();
@@ -94,7 +101,7 @@ export async function request(path, { method = 'GET', body, authenticated = fals
     if (!response.ok) {
       const errorText = await response.text();
       let raw; try { raw = JSON.parse(errorText); } catch { raw = { message: errorText }; }
-      if (response.status === 401 && authenticated && retry) { await refreshSession(); return request(path, { method, body, authenticated, headers, retry: false }); }
+      if (response.status === 401 && authenticated && retry) { await refreshSession(true); return request(path, { method, body, authenticated, headers, retry: false }); }
       throw apiError(raw, response.status, path, method);
     }
     if (response.status === 204 || response.headers.get('content-length') === '0') return null;
@@ -109,18 +116,38 @@ export async function request(path, { method = 'GET', body, authenticated = fals
     throw error;
   } finally { clearTimeout(timeout); }
 }
-async function refreshSession() {
+async function refreshSession(force = false) {
   if (!session) throw new Error('Entre novamente para sincronizar.');
-  if (!refreshing) refreshing = (async () => {
+  if (needsReconnect()) throw reconnectError();
+  const owner = session.user.id, requestedToken = session.refresh_token;
+  const refresh = async () => {
+    const stored = await readSession();
+    if (session?.user?.id !== owner || stored?.user?.id !== owner) throw new Error('A conta mudou durante a renovação da sessão.');
+    session = stored;
+    if (needsReconnect()) throw reconnectError();
+    if (session.expires_at > Date.now() / 1000 + 30 && (!force || session.refresh_token !== requestedToken)) return;
+    const token = session.refresh_token;
     try {
-      const raw = await request('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: session.refresh_token }, retry: false });
+      const raw = await request('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: token }, retry: false });
+      const latest = await readSession();
+      if (session?.user?.id !== owner || latest?.user?.id !== owner || raw.user?.id !== owner) throw new Error('A conta mudou durante a renovação da sessão.');
+      if (latest.refresh_token !== token) { session = latest; return; }
       await keepSession(raw);
     } catch (error) {
-      // Offline failures retain the cache and refresh token; invalid sessions do not.
-      if (['refresh_token_not_found', 'refresh_token_already_used', 'session_not_found'].includes(error.code)) await keepSession(null);
+      if (error.code === 'reauth_required') {
+        const latest = await readSession();
+        if (session?.user?.id === owner && latest?.user?.id === owner) {
+          // Another tab may have already renewed this token while the request ran.
+          if (latest.refresh_token !== token && !latest.needsLogin) { session = latest; return; }
+          // Keep the account identity/cache. This is not a user-requested logout.
+          session = { user: latest.user, needsLogin: true }; signedCache.clear();
+          await writeSession(session); channel?.postMessage('changed'); announce();
+        }
+      }
       throw error;
-    } finally { refreshing = null; }
-  })();
+    }
+  };
+  if (!refreshing) refreshing = (navigator.locks ? navigator.locks.request('atlas-session-refresh', refresh) : refresh()).finally(() => { refreshing = null; });
   return refreshing;
 }
 const redirectURL = () => new URL('./', location.href).href;
@@ -141,8 +168,9 @@ export async function restoreAuth() {
   }
   return { recovery: false };
 }
-export async function signIn(email, password) {
+export async function signIn(email, password, { expectedUserId = null } = {}) {
   const raw = await request('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: email.trim(), password } });
+  if (expectedUserId && raw.user?.id !== expectedUserId) throw new Error('Entre na mesma conta para recuperar as alterações pendentes. A conta anterior e seus dados locais foram preservados.');
   await keepSession(raw);
 }
 export async function signUp(email, password, name) {
