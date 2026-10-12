@@ -404,7 +404,7 @@ async function init() {
     mapFocus = initializeMapFocus(mapController);
     journeys = initializeJourneys({ destinations: () => destinations, preview: (stops) => { mapController.itinerary(stops); $('#route-toggle').checked = false; notify('Roteiro no mapa. As linhas unem paradas; não representam estradas.'); } });
     recaps = initializeRecaps(() => destinations);
-    wishlist = initializeWishlist({ available: () => !changingAccount, afterMutation: () => social?.afterMutation() });
+    wishlist = initializeWishlist({ available: () => !changingAccount, afterMutation: () => social?.afterMutation(), diagnostic: () => social?.diagnostic() });
     social = await initializeSocial({
       refresh,
       lock: setAccountLoading,

@@ -3,6 +3,7 @@ import { readSession, writeSession } from './session.js';
 import { sanitizeDestination } from './db.js';
 import { mediaKind, mediaExtension } from './media.js';
 import { cleanWishlist, emptyWishlist } from './wishlist-data.js';
+import { cloudDiagnostic } from './cloud-diagnostics.js';
 
 function validConfig(config) {
   if (!config.url || !config.publishableKey) return null;
@@ -37,10 +38,11 @@ async function keepSession(raw, broadcast = true) {
   announce();
 }
 if (channel) channel.onmessage = async () => { const next = await readSession() || null; if (next?.user?.id !== session?.user?.id) signedCache.clear(); session = next; announce(); };
-function apiError(body, status, path) {
+function apiError(body, status, path, method) {
   const error = new Error(status === 401 ? 'Sua sessão expirou. Entre novamente para sincronizar.' : status === 429 ? 'Muitas tentativas. Aguarde um pouco e tente novamente.' : status >= 500 ? 'A nuvem está indisponível. Seus dados locais foram preservados.' : 'Não foi possível concluir a operação.');
   error.code = body?.code || body?.error_code;
   error.status = status;
+  error.diagnostic = cloudDiagnostic({ status, code: error.code, path, method, message: body?.message || body?.msg || body?.error_description || (typeof body?.error === 'string' ? body.error : '') });
   if (error.code === '40001') {
     error.code = 'conflict';
     error.message = path?.endsWith('/atlas_save_wishlist')
@@ -50,6 +52,8 @@ function apiError(body, status, path) {
   if (error.code === '57014') error.message = 'O banco demorou demais e cancelou a operação. Seus dados continuam neste dispositivo. Tente sincronizar novamente quando o Supabase se recuperar.';
   if (error.code === '42501' || status === 403) error.message = 'O banco recusou a operação por falta de permissão. Seus dados locais foram preservados. É necessário verificar as permissões no Supabase.';
   if (error.code === '22023') error.message = 'O banco recusou os dados enviados. Suas alterações locais foram preservadas.';
+  const providerMessage = String(body?.message || body?.msg || body?.error_description || '');
+  if (/statement timeout|query timeout|connection acquisition timeout/i.test(providerMessage)) error.message = 'O Supabase não concluiu a operação a tempo. Seus dados continuam neste dispositivo. Aguarde a recuperação do banco antes de sincronizar novamente.';
   if (error.code === '23505') error.message = 'Este nome de usuário já está em uso. Escolha outro.';
   if (body?.message?.includes('ATLAS_CONFLICT')) { error.code = 'conflict'; error.message = 'Uma viagem foi alterada em outro dispositivo. Suas mudanças locais foram preservadas. Carregue a versão da nuvem ou exporte um backup antes de continuar.'; }
   if (body?.message?.includes('ATLAS_WISHLIST_CONFLICT')) { error.code = 'conflict'; error.message = 'Sua wish list mudou em outro dispositivo. Abra a wish list e use “Revisar e combinar listas”. Suas alterações locais foram preservadas.'; }
@@ -88,15 +92,20 @@ export async function request(path, { method = 'GET', body, authenticated = fals
       body: body instanceof Blob ? body : body == null ? undefined : JSON.stringify(body),
     });
     if (!response.ok) {
-      let raw; try { raw = await response.json(); } catch { raw = {}; }
+      const errorText = await response.text();
+      let raw; try { raw = JSON.parse(errorText); } catch { raw = { message: errorText }; }
       if (response.status === 401 && authenticated && retry) { await refreshSession(); return request(path, { method, body, authenticated, headers, retry: false }); }
-      throw apiError(raw, response.status, path);
+      throw apiError(raw, response.status, path, method);
     }
     if (response.status === 204 || response.headers.get('content-length') === '0') return null;
     const text = await response.text();
     return text ? JSON.parse(text) : null;
   } catch (error) {
-    if (error instanceof TypeError || error.name === 'AbortError') throw new Error('Sem conexão com a nuvem. As alterações continuam salvas neste dispositivo e serão enviadas quando você sincronizar.');
+    if (error instanceof TypeError || error.name === 'AbortError') {
+      const failure = new Error('Sem conexão com a nuvem. As alterações continuam salvas neste dispositivo e serão enviadas quando você sincronizar.');
+      failure.diagnostic = cloudDiagnostic({ path, method, code: error.name === 'AbortError' ? 'CLIENT_TIMEOUT' : 'NETWORK_ERROR', message: error.name === 'AbortError' ? 'A requisição excedeu o tempo limite do navegador.' : 'O navegador não conseguiu receber uma resposta da API.' });
+      throw failure;
+    }
     throw error;
   } finally { clearTimeout(timeout); }
 }

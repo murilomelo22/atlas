@@ -2,6 +2,7 @@ import { currentUser, readCloudWishlist } from './cloud.js';
 import { getWishlist, saveWishlist } from './db.js';
 import { emptyWishlist, cleanWishlist, combineWishlistForReview } from './wishlist-data.js';
 import { escapeHTML as esc, notify } from './ui.js';
+import { diagnosticHTML, showDiagnostic } from './cloud-diagnostics.js';
 
 export function publicWishlistHTML(wishlist) {
   if (!wishlist?.is_public || !wishlist.items.length) return '';
@@ -11,6 +12,7 @@ export function initializeWishlist(callbacks) {
   const dialog = document.createElement('dialog'); dialog.id = 'wishlist-dialog'; dialog.className = 'wide-dialog'; dialog.setAttribute('aria-labelledby', 'wishlist-title');
   dialog.innerHTML = `<header class="dialog-header"><div><p class="eyebrow">LUGARES QUE QUERO CONHECER</p><h2 id="wishlist-title">Minha wish list</h2></div><button type="button" class="icon-button" id="wishlist-close" aria-label="Fechar wish list">×</button></header><div class="account-scroll"><section class="account-body"><label>Visibilidade da wish list<select id="wishlist-visibility"><option value="private">Privada · somente eu</option><option value="public">Pública · mostrar no perfil</option></select></label><p id="wishlist-privacy-hint" class="field-hint"></p><p id="wishlist-draft-state" class="field-hint" role="status"></p><ol id="wishlist-items" class="wishlist-editor-items"></ol><form id="wishlist-entry-form"><div class="form-row"><label>Lugar que quero conhecer<input id="wishlist-name" maxlength="120" required placeholder="ex.: Kyoto"></label><label>País (opcional)<input id="wishlist-country" maxlength="80" placeholder="ex.: Japão"></label></div><label>Notas do desejo<textarea id="wishlist-notes" maxlength="2000" rows="3" placeholder="O que quero fazer por lá…"></textarea></label><div class="account-actions"><button type="submit" id="wishlist-entry-save" class="quiet">Adicionar à lista</button><button type="button" id="wishlist-edit-cancel" class="text-button" hidden>Cancelar edição do lugar</button></div></form><div class="account-actions wishlist-save-actions"><button type="button" id="wishlist-save" class="primary">Salvar wish list</button><button type="button" id="wishlist-resolve" class="quiet" hidden>Revisar e combinar listas</button></div><p id="wishlist-message" class="field-hint" role="status"></p></section></div>`;
   document.body.append(dialog);
+  dialog.querySelector('#wishlist-message').insertAdjacentHTML('afterend', diagnosticHTML('wishlist-diagnostic'));
   const $ = selector => dialog.querySelector(selector);
   let epoch = 0, draft = emptyWishlist(), version = null, editId = null, edited = false, busy = false, resolution = null;
   const available = () => callbacks.available();
@@ -42,6 +44,7 @@ export function initializeWishlist(callbacks) {
       draft = cleanWishlist(saved); version = saved.localVersion || null; $('#wishlist-visibility').value = draft.is_public ? 'public' : 'private'; render(); privacyHint();
     }
     $('#wishlist-resolve').hidden = !currentUser() || !saved.conflict || Boolean(resolution);
+    showDiagnostic($('#wishlist-diagnostic'), currentUser() && saved.cloudDirty ? callbacks.diagnostic() : '');
     $('#wishlist-message').textContent = currentUser() ? saved.cloudDirty ? document.querySelector('#sync-status').textContent : saved.revision ? 'Wish list salva na sua conta.' : 'Sua lista começa privada. Salve para sincronizar.' : 'A lista salva fica neste navegador e entra no backup do seu atlas.';
   }
   async function open() {
@@ -96,7 +99,7 @@ export function initializeWishlist(callbacks) {
     } catch (error) { if (token === epoch) $('#wishlist-message').textContent = error.message; }
     finally { if (token === epoch) { busy = false; dialog.querySelectorAll('input,textarea,select,button').forEach(control => { control.disabled = false; }); privacyHint(); } }
   };
-  function clear() { dialog.querySelectorAll('input,textarea,select,button').forEach(control => { control.disabled = false; }); epoch++; resolution = null; $('#wishlist-resolve').hidden = true; draft = emptyWishlist(); version = null; edited = false; busy = false; resetEntry(); $('#wishlist-items').replaceChildren(); $('#wishlist-message').textContent = ''; $('#wishlist-draft-state').textContent = ''; $('#wishlist-privacy-hint').textContent = ''; $('#wishlist-visibility').value = 'private'; $('#wishlist-save').disabled = false; }
+  function clear() { dialog.querySelectorAll('input,textarea,select,button').forEach(control => { control.disabled = false; }); epoch++; showDiagnostic($('#wishlist-diagnostic'), ''); resolution = null; $('#wishlist-resolve').hidden = true; draft = emptyWishlist(); version = null; edited = false; busy = false; resetEntry(); $('#wishlist-items').replaceChildren(); $('#wishlist-message').textContent = ''; $('#wishlist-draft-state').textContent = ''; $('#wishlist-privacy-hint').textContent = ''; $('#wishlist-visibility').value = 'private'; $('#wishlist-save').disabled = false; }
   dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
   $('#wishlist-close').onclick = () => dialog.close(); dialog.addEventListener('close', clear);
   document.querySelector('#wishlist-button').onclick = () => open().catch(error => notify(error.message, true));

@@ -4,11 +4,15 @@ import { synchronize, syncRunning } from './sync.js';
 import { processPhoto } from './photos.js';
 import { $, notify, confirmAction, escapeHTML } from './ui.js';
 import { shareText, appLink } from './sharing.js';
+import { diagnosticHTML, showDiagnostic } from './cloud-diagnostics.js';
 
 export async function initializeSocial(callbacks) {
   let profile = null, mode = 'login', change = Promise.resolve(), syncTimer, routeToken = 0, avatarFile = null, submitting = false;
   let ownStatus = 'Coleção neste dispositivo';
   let mutationVersion = 0;
+  let syncDiagnostic = '';
+  $('#account-sync-message').insertAdjacentHTML('afterend', diagnosticHTML('account-sync-diagnostic'));
+  function diagnostic(text = '') { syncDiagnostic = text; showDiagnostic($('#account-sync-diagnostic'), text); }
   function status(message, viewingProfile = false) {
     $('#sync-status').textContent = message;
     if (!viewingProfile) { ownStatus = message; $('#account-sync-message').textContent = message; }
@@ -39,10 +43,11 @@ export async function initializeSocial(callbacks) {
     if (!currentUser() || syncRunning()) return;
     clearTimeout(syncTimer);
     const owner = currentUser().id, startedVersion = mutationVersion;
+    diagnostic();
     if (discardLocal) callbacks.lock(true);
     for (const id of ['#sync-button', '#migrate-button', '#logout-button', '#cloud-reload-button']) $(id).disabled = true;
     try { await synchronize(status, { discardLocal }); await callbacks.refresh(); }
-    catch (error) { status(error.message); notify(error.message, true); await callbacks.refresh(); }
+    catch (error) { diagnostic(error.diagnostic); status(error.message); notify(error.message, true); await callbacks.refresh(); }
     finally {
       if (discardLocal) callbacks.lock(false);
       for (const id of ['#sync-button', '#migrate-button', '#logout-button', '#cloud-reload-button']) $(id).disabled = false;
@@ -55,6 +60,7 @@ export async function initializeSocial(callbacks) {
   async function handleAccount() {
     const previous = currentAccountId(), user = currentUser();
     if (user?.id === previous) return;
+    diagnostic();
     clearTimeout(syncTimer);
     profile = null; avatarFile = null; $('#account-dialog').close();
     $('#profile-form').reset(); $('#my-avatar').textContent = '◇'; $('#profile-message').textContent = '';
@@ -63,7 +69,7 @@ export async function initializeSocial(callbacks) {
     renderAuth();
     if (user) {
       try { profile = await myProfile(); await setMeta('profile', profile); await runSync(); }
-      catch (error) { status(error.message); notify(error.message, true); }
+      catch (error) { diagnostic(error.diagnostic); status(error.message); notify(error.message, true); }
     }
     if (location.hash.startsWith('#/perfil/')) await route();
     if (location.hash.startsWith('#/roteiro/')) await callbacks.showTrip?.();
@@ -212,6 +218,7 @@ export async function initializeSocial(callbacks) {
   renderAuth(); await queueAccountChange(); await route();
   if (restored?.recovery) openAuth('new-password');
   return {
+    diagnostic: () => syncDiagnostic,
     afterMutation() {
       if (!currentUser()) return;
       mutationVersion++;

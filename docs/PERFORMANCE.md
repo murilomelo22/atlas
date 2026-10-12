@@ -44,6 +44,8 @@ Edições feitas durante uma sincronização agendam outra passagem depois dela.
 
 Para diagnóstico real, correlacione o horário de uma tentativa com os logs Postgres/API e a tela Query Performance do projeto. Identifique consultas de maior tempo acumulado e bloqueios; confirme o código HTTP/SQL da gravação antes de alterar políticas ou aplicar SQL. Esses dados exigem acesso administrativo conectado e não são disponíveis pela chave pública do site.
 
+Quando houver falha, abra **Detalhes da falha** na wish list ou no perfil. O diagnóstico informa horário UTC, operação, HTTP/código e mensagem do servidor. Ele não inclui o conteúdo enviado, headers ou a sessão, remove padrões conhecidos de credenciais/URLs/emails e fica somente em memória. **Copiar detalhes** permite compartilhá-lo para investigação. Um HTTP 400 com código `400` é genérico e não identifica sozinho conflito de revisão nem CPU esgotada. Uma falha pode ocorrer na renovação da sessão antes de chegar à gravação; a operação exibida permite distinguir isso. O diagnóstico é limpo ao trocar a conta e ao iniciar outra sincronização.
+
 Enquanto houver dados pendentes, exporte um backup e mantenha o navegador da conta. Sair da conta remove o cache privado desse navegador. “Carregar versão da nuvem” substitui alterações locais após confirmação; não é uma correção para uma nuvem indisponível.
 
 Os testes de `tests/light-sync.spec.js` simulam Supabase e cobrem uma coleção de 100 fotos, sincronização por revisões, exclusões em outro dispositivo, original indisponível, repetição na galeria, vídeo e Live Photo sob demanda, backup completo, retomada, cancelamento, cache atualizado durante uma resposta atrasada e isolamento entre contas.
