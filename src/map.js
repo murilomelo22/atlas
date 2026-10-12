@@ -145,6 +145,15 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
     markersVisible: () => markersVisible,
     setHeatMode,
     getHeatMode: () => heatMode,
+    refreshPhotos(photoURLs) {
+      for (const destination of allDestinations) {
+        const url = photoURLs.get(destination.coverId), marker = allMarkers.get(destination.id);
+        if (!url || !marker || destination.kind === 'home') continue;
+        const face = document.createElement('span'); face.className = 'pin-face';
+        const img = document.createElement('img'); img.src = url; img.alt = ''; face.append(img);
+        marker.setIcon(L.divIcon({ className: 'atlas-pin', html: face, iconSize: [42, 42], iconAnchor: [21, 21] }));
+      }
+    },
     setCleanMode,
     fitVisited: () => fit(visitedDestinations(allDestinations)),
     update(destinations, photoURLs) {

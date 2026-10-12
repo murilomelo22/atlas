@@ -76,6 +76,19 @@ export async function getPhotos(id) {
   return photos.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 }
 export const getAllPhotos = () => requestValue(database.transaction('photos').objectStore('photos').getAll());
+export const getPhoto = (id) => requestValue(database.transaction('photos').objectStore('photos').get(id));
+export async function cachePhotoParts(photo, expectedAccount) {
+  if (!expectedAccount || expectedAccount !== accountId) return;
+  const tx = database.transaction('photos', 'readwrite'), done = transactionDone(tx), store = tx.objectStore('photos');
+  const read = store.get(photo.id);
+  read.onsuccess = () => {
+    const current = read.result;
+    if (!current || current.destinationId !== photo.destinationId || current.cloudPath !== photo.cloudPath || current.cloudThumbPath !== photo.cloudThumbPath || (current.cloudMotionPath || null) !== (photo.cloudMotionPath || null)) return;
+    const parts = Object.fromEntries(['blob', 'thumbnail', 'motionBlob'].filter(key => photo[key] instanceof Blob).map(key => [key, photo[key]]));
+    store.put({ ...current, ...parts });
+  };
+  await done;
+}
 export const getMeta = (key) => requestValue(database.transaction('meta').objectStore('meta').get(key)).then((row) => row?.value);
 export const setMeta = (key, value) => writeTransaction(['meta'], (tx) => tx.objectStore('meta').put({ key, value }));
 export const getWishlist = async () => await getMeta('wishlist') || emptyWishlist();
@@ -122,14 +135,27 @@ export async function removeDestinations(ids) {
     for (const photo of photos) if (selected.has(photo.destinationId)) tx.objectStore('photos').delete(photo.id);
   });
 }
-export async function exportBackup() {
+export async function exportBackup(onProgress = () => {}) {
+  const snapshotAccount = accountId;
   const tx = database.transaction(['destinations', 'photos', 'meta']);
   const [destinations, photos, wishlist] = await Promise.all([
     requestValue(tx.objectStore('destinations').getAll()),
     requestValue(tx.objectStore('photos').getAll()),
     requestValue(tx.objectStore('meta').get('wishlist')),
   ]);
-  return { ...(wishlist?.value ? { wishlist: cleanWishlist(wishlist.value) } : {}), format: 'atlas-pessoal', version: 2, exportedAt: new Date().toISOString(), destinations, photos: await Promise.all(photos.map(async (p) => ({ id: p.id, destinationId: p.destinationId, caption: p.caption, kind: p.kind || 'image', data: await blobAsDataURL(p.blob), ...(p.motionBlob ? { motion: await blobAsDataURL(p.motionBlob) } : {}) }))) };
+  const encoded = [];
+  for (let i = 0; i < photos.length; i++) {
+    let p = photos[i];
+    if (!(p.blob instanceof Blob) || (p.kind === 'live' && !(p.motionBlob instanceof Blob))) {
+      const { loadCloudMedia } = await import('./cloud-media.js');
+      p = await loadCloudMedia(p, { parts: ['blob', ...(p.kind === 'live' ? ['motionBlob'] : [])], valid: () => accountId === snapshotAccount });
+    }
+    if (accountId !== snapshotAccount) throw new Error('A conta mudou. Exporte o backup novamente.');
+    onProgress(i + 1, photos.length);
+    encoded.push({ id: p.id, destinationId: p.destinationId, caption: p.caption, kind: p.kind || 'image', data: await blobAsDataURL(p.blob), ...(p.motionBlob ? { motion: await blobAsDataURL(p.motionBlob) } : {}) });
+  }
+  if (accountId !== snapshotAccount) throw new Error('A conta mudou. Exporte o backup novamente.');
+  return { ...(wishlist?.value ? { wishlist: cleanWishlist(wishlist.value) } : {}), format: 'atlas-pessoal', version: 2, exportedAt: new Date().toISOString(), destinations, photos: encoded };
 }
 const identity = (d) => `${d.name.trim().toLocaleLowerCase('pt-BR')}|${d.lat.toFixed(5)}|${d.lng.toFixed(5)}`;
 export function sanitizeDestination(raw) {
@@ -253,12 +279,25 @@ export async function markCloudSaved(snapshot, revision, remotePhotos) {
 }
 export async function mergeCloudCollection(collection, force = false) {
   const current = await getDestinations(), photos = await getAllPhotos(), tombstones = await getMeta('deleted') || [];
+  const currentById = new Map(current.map(d => [d.id, d])), receivedDestinations = new Set(collection.destinations.map(d => d.id));
   const preserve = new Set(force ? [] : [...current.filter((d) => d.cloudDirty).map((d) => d.id), ...tombstones.map((d) => d.id)]);
   await writeTransaction(['destinations', 'photos', 'meta'], (tx) => {
-    for (const d of current) if (!preserve.has(d.id)) tx.objectStore('destinations').delete(d.id);
-    for (const photo of photos) if (!preserve.has(photo.destinationId)) tx.objectStore('photos').delete(photo.id);
-    for (const d of collection.destinations) if (!preserve.has(d.id)) tx.objectStore('destinations').put({ ...d, localVersion: crypto.randomUUID() });
-    for (const photo of collection.photos) if (!preserve.has(photo.destinationId)) tx.objectStore('photos').put(photo);
+    for (const d of current) if (!preserve.has(d.id) && !receivedDestinations.has(d.id)) tx.objectStore('destinations').delete(d.id);
+    const received = new Set(collection.photos.map(p => p.id));
+    for (const photo of photos) if (!preserve.has(photo.destinationId) && !received.has(photo.id)) tx.objectStore('photos').delete(photo.id);
+    for (const d of collection.destinations) if (!preserve.has(d.id) && (force || currentById.get(d.id)?.cloudRevision !== d.cloudRevision)) tx.objectStore('destinations').put({ ...d, localVersion: crypto.randomUUID() });
+    for (const photo of collection.photos) if (!preserve.has(photo.destinationId)) {
+      const store = tx.objectStore('photos'), read = store.get(photo.id);
+      read.onsuccess = () => {
+        const cached = read.result;
+        const same = cached && cached.destinationId === photo.destinationId && cached.cloudPath === photo.cloudPath && cached.cloudThumbPath === photo.cloudThumbPath && (cached.cloudMotionPath || null) === (photo.cloudMotionPath || null);
+        const sameMetadata = same && cached.caption === photo.caption && (cached.kind || 'image') === (photo.kind || 'image') && (cached.duration ?? null) === (photo.duration ?? null);
+        const newParts = ['blob', 'thumbnail', 'motionBlob'].some(key => photo[key] instanceof Blob && !(cached?.[key] instanceof Blob));
+        if (sameMetadata && !newParts) return;
+        const parts = same ? Object.fromEntries(['blob', 'thumbnail', 'motionBlob'].filter(key => cached[key] instanceof Blob && !(photo[key] instanceof Blob)).map(key => [key, cached[key]])) : {};
+        store.put({ ...photo, ...parts });
+      };
+    }
     if (force) tx.objectStore('meta').put({ key: 'deleted', value: [] });
   });
 }

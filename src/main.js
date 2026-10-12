@@ -9,7 +9,8 @@ import { groupMediaFiles, processMedia, mediaLabel } from './media.js';
 import { createGallery } from './gallery.js';
 import { $, escapeHTML, notify, confirmAction, renderList, renderFilterOptions, renderDetail } from './ui.js';
 import { initializeSocial } from './social.js';
-import { currentUser } from './cloud.js';
+import { currentUser, signedURL } from './cloud.js';
+import { loadCloudMedia, sameCloudMedia, downloadOffline, cancelMediaDownloads } from './cloud-media.js';
 import { initializeJourneys } from './journeys.js';
 import { initializeRecaps } from './recap.js';
 import { initializeWishlist, publicWishlistHTML } from './wishlist.js';
@@ -18,6 +19,16 @@ import { shareDestination } from './sharing.js';
 let destinations = [], allPhotos = [], selectedId = null, mapController, mapFocus;
 let publicView = null, social = null, journeys = null, recaps = null, wishlist = null, changingAccount = false, initializing = true;
 const urls = new Map();
+let mediaEpoch = 0, previewTimer, offlineToken = 0, offlineActive = 0, previewPaintTimer;
+const previewQueue = new Set(), previewPending = new Set(), failedPreviews = new Set();
+const previews = new IntersectionObserver(entries => {
+  for (const entry of entries) if (entry.isIntersecting) {
+    previews.unobserve(entry.target);
+    const id = entry.target.dataset.mediaId;
+    if (!urls.has(id) && !previewPending.has(id) && !failedPreviews.has(id)) previewQueue.add(id);
+  }
+  if (previewQueue.size) { clearTimeout(previewTimer); previewTimer = setTimeout(loadPreviews, 80); }
+}, { rootMargin: '60px' });
 const gallery = createGallery();
 let editId, editPhotos = [], coverId, editorToken = 0, photoBusy = false, editorURLs = [], saving = false;
 const editor = $('#editor-dialog');
@@ -43,6 +54,60 @@ function photosFor(destination) {
   const byId = new Map(allPhotos.filter((p) => p.destinationId === destination.id).map((p) => [p.id, p]));
   return destination.photoIds.map((id) => byId.get(id)).filter(Boolean);
 }
+function observePreviews() {
+  previews.disconnect();
+  document.querySelectorAll('[data-media-id]').forEach(element => { if (element.dataset.mediaId && !urls.has(element.dataset.mediaId)) previews.observe(element); });
+}
+function rememberMedia(photo) {
+  const index = allPhotos.findIndex(p => sameCloudMedia(p, photo));
+  if (index < 0) return;
+  allPhotos[index] = { ...allPhotos[index], ...Object.fromEntries(['blob', 'thumbnail', 'motionBlob'].filter(key => photo[key] instanceof Blob).map(key => [key, photo[key]])) };
+  if (photo.thumbnail instanceof Blob && !urls.has(photo.id)) urls.set(photo.id, URL.createObjectURL(photo.thumbnail));
+  for (const item of editPhotos) if (sameCloudMedia(item, photo)) for (const key of ['thumbnail', 'blob', 'motionBlob']) if (photo[key] instanceof Blob) item[key] = photo[key];
+}
+async function loadPreviews() {
+  const epoch = mediaEpoch, authenticated = !publicView, ids = [...previewQueue]; previewQueue.clear();
+  ids.forEach(id => previewPending.add(id));
+  let next = 0;
+  async function worker() {
+    while (next < ids.length && epoch === mediaEpoch) {
+      const id = ids[next++], photo = allPhotos.find(p => p.id === id) || editPhotos.find(p => p.id === id);
+      try {
+        if (!photo?.cloudThumbPath) continue;
+        const loaded = await loadCloudMedia(photo, { authenticated, persist: authenticated, valid: () => epoch === mediaEpoch });
+        if (epoch !== mediaEpoch) return;
+        rememberMedia(loaded);
+        clearTimeout(previewPaintTimer); previewPaintTimer = setTimeout(() => {
+          if (epoch !== mediaEpoch) return;
+          updateList(); renderSelected(); mapController.refreshPhotos(urls);
+          document.querySelectorAll('#photo-editor [data-media-id]').forEach(element => {
+            const url = urls.get(element.dataset.mediaId);
+            if (url) { const img = document.createElement('img'); img.src = url; img.alt = 'Prévia da mídia'; element.replaceChildren(img); }
+          });
+        }, 80);
+      } catch (error) { if (epoch === mediaEpoch && error.name !== 'AbortError') failedPreviews.add(id); }
+      finally { if (epoch === mediaEpoch) previewPending.delete(id); }
+    }
+  }
+  await Promise.all([worker(), worker()]);
+}
+function resetMediaView() {
+  mediaEpoch++; offlineToken++; previews.disconnect(); previewQueue.clear(); previewPending.clear(); failedPreviews.clear(); clearTimeout(previewTimer); clearTimeout(previewPaintTimer);
+  cancelMediaDownloads(); offlineActive = 0; $('#download-media-button').disabled = changingAccount || initializing; $('#cancel-media-download').hidden = true;
+}
+function openGallery(photos, index) {
+  const epoch = mediaEpoch, authenticated = !publicView;
+  gallery.open(photos, index, { load: async (photo, { motion = false } = {}) => {
+    const latest = allPhotos.find(p => sameCloudMedia(p, photo)) || photo;
+    const valid = () => epoch === mediaEpoch;
+    if (!valid()) throw new DOMException('Operação cancelada.', 'AbortError');
+    if (latest.kind === 'video' && !(latest.blob instanceof Blob)) return { ...latest, url: await signedURL('atlas-media', latest.cloudPath, authenticated) };
+    if (motion && !(latest.motionBlob instanceof Blob)) return { ...latest, motionURL: await signedURL('atlas-media', latest.cloudMotionPath, authenticated) };
+    const loaded = await loadCloudMedia(latest, { parts: ['blob'], authenticated, persist: authenticated, valid });
+    if (valid()) rememberMedia(loaded);
+    return loaded;
+  } });
+}
 function renderSelected() {
   const destination = destinations.find((d) => d.id === selectedId);
   if (!destination) { selectedId = null; $('#list-panel').hidden = false; $('#detail-panel').hidden = true; return; }
@@ -56,9 +121,10 @@ function renderSelected() {
       try { await removeDestinations([destination.id]); selectedId = null; await refresh(); social?.afterMutation(); notify('Destino excluído.'); }
       catch (error) { notify(storageMessage(error), true); }
     },
-    gallery: (index) => gallery.open(photos, index),
+    gallery: (index) => openGallery(photos, index),
     share: () => shareDestination(destination, publicView?.profile),
   });
+  observePreviews();
 }
 function selectDestination(id) {
   const destination = destinations.find((d) => d.id === id);
@@ -67,14 +133,15 @@ function selectDestination(id) {
   if (matchMedia('(max-width: 700px)').matches) $('#destinations-panel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   $('#destinations-panel').scrollTop = 0;
 }
-function updateList() { renderList(destinations, urls, selectDestination, () => openEditor(), Boolean(publicView)); }
+function updateList() { renderList(destinations, urls, selectDestination, () => openEditor(), Boolean(publicView)); observePreviews(); }
 function clearFilters() {
   $('#list-search').value = ''; $('#country-filter').value = ''; $('#tag-filter').value = '';
   document.querySelectorAll('[data-collection-filter]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.collectionFilter === 'all')));
 }
 function setAccountLoading(value) {
   changingAccount = value;
-  for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button', '#clean-map-button']) $(selector).disabled = value || initializing;
+  if (value && offlineActive) { offlineToken++; offlineActive = 0; cancelMediaDownloads(); $('#cancel-media-download').hidden = true; $('#offline-media-status').textContent = 'Download interrompido. As mídias já baixadas foram preservadas.'; }
+  for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button', '#clean-map-button', '#download-media-button']) $(selector).disabled = value || initializing;
 }
 async function refresh() {
   destinations = publicView ? publicView.destinations : await getDestinations();
@@ -82,7 +149,8 @@ async function refresh() {
   allPhotos = publicView ? publicView.photos : await getAllPhotos();
   for (const url of urls.values()) URL.revokeObjectURL(url);
   urls.clear();
-  for (const photo of allPhotos) urls.set(photo.id, URL.createObjectURL(photo.thumbnail));
+  for (const photo of allPhotos) if (photo.thumbnail instanceof Blob) urls.set(photo.id, URL.createObjectURL(photo.thumbnail));
+  failedPreviews.clear();
   renderFilterOptions(destinations); updateList(); renderSelected();
   if (publicView) $('#examples-banner').hidden = true;
   const stats = statistics(destinations);
@@ -134,9 +202,9 @@ function renderPhotoEditor() {
   const container = $('#photo-editor');
   container.replaceChildren();
   editPhotos.forEach((photo, index) => {
-    const url = URL.createObjectURL(photo.thumbnail); editorURLs.push(url);
+    const url = photo.thumbnail instanceof Blob ? URL.createObjectURL(photo.thumbnail) : null; if (url) editorURLs.push(url);
     const card = document.createElement('div'); card.className = 'photo-edit-card';
-    card.innerHTML = `<img src="${url}" alt="Prévia da foto ${index + 1}"><span class="media-badge">${mediaLabel(photo)}</span><label>Legenda da foto ${index + 1}<input type="text" maxlength="1000" data-caption value="${escapeHTML(photo.caption)}"></label><div class="photo-controls"><label><input type="radio" name="cover" data-cover ${coverId === photo.id ? 'checked' : ''}> Capa</label><button type="button" data-remove-photo aria-label="Remover foto ${index + 1}">Remover</button></div>`;
+    card.innerHTML = `<div class="photo-edit-preview" data-media-id="${escapeHTML(photo.id)}">${url ? `<img src="${url}" alt="Prévia da foto ${index + 1}">` : '<span class="media-placeholder" aria-hidden="true">◇</span>'}</div><span class="media-badge">${mediaLabel(photo)}</span><label>Legenda da foto ${index + 1}<input type="text" maxlength="1000" data-caption value="${escapeHTML(photo.caption)}"></label><div class="photo-controls"><label><input type="radio" name="cover" data-cover ${coverId === photo.id ? 'checked' : ''}> Capa</label><button type="button" data-remove-photo aria-label="Remover foto ${index + 1}">Remover</button></div>`;
     $('[data-caption]', card).oninput = (e) => { photo.caption = e.target.value; };
     $('[data-cover]', card).onchange = () => { coverId = photo.id; };
     $('[data-remove-photo]', card).onclick = () => {
@@ -146,6 +214,7 @@ function renderPhotoEditor() {
     };
     container.append(card);
   });
+  observePreviews();
 }
 async function openEditor(destination, coords = {}) {
   if (changingAccount) return notify('Aguarde a atualização da sua coleção.');
@@ -267,16 +336,33 @@ function bindEvents() {
     catch (error) { notify(storageMessage(error), true); }
   };
   $('#export-button').onclick = async () => {
-    const button = $('#export-button'); button.disabled = true;
+    const button = $('#export-button'), label = button.innerHTML; button.disabled = true;
     try {
-      const backup = await exportBackup();
+      notify('Preparando backup completo. Mídias que faltam neste dispositivo serão baixadas…');
+      const backup = await exportBackup((done, total) => { button.textContent = `Backup ${done}/${total}`; });
       const url = URL.createObjectURL(new Blob([JSON.stringify(backup)], { type: 'application/json' }));
       const link = document.createElement('a'); link.href = url; link.download = `atlas-pessoal-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
       notify('Backup exportado com todos os destinos e fotografias.');
     } catch (error) { notify(storageMessage(error), true); }
-    finally { button.disabled = false; }
+    finally { button.disabled = false; button.innerHTML = label; }
   };
+  $('#download-media-button').onclick = async () => {
+    const token = ++offlineToken, button = $('#download-media-button'), status = $('#offline-media-status');
+    offlineActive = token;
+    button.disabled = true; $('#cancel-media-download').hidden = false;
+    status.textContent = 'Preparando suas mídias para uso offline…';
+    try {
+      const result = await downloadOffline(await getAllPhotos(), { valid: () => token === offlineToken && !changingAccount && !publicView,
+        onProgress: (done, total, failed) => { if (token === offlineToken) status.textContent = `Mídias verificadas: ${done}/${total}${failed ? ` · ${failed} para tentar novamente` : ''}.`; } });
+      if (token !== offlineToken) return;
+      if (result.cancelled) { status.textContent = 'Download interrompido. As mídias já baixadas foram preservadas.'; return; }
+      status.textContent = result.failed ? `${result.failed} ${result.failed === 1 ? 'mídia não pôde ser baixada' : 'mídias não puderam ser baixadas'}. As demais estão salvas; tente novamente para completar.` : 'Suas mídias estão disponíveis neste dispositivo para uso offline.';
+      await refresh();
+    } catch (error) { if (token === offlineToken) status.textContent = storageMessage(error); }
+    finally { if (offlineActive === token) { offlineActive = 0; button.disabled = false; $('#cancel-media-download').hidden = true; } }
+  };
+  $('#cancel-media-download').onclick = () => { offlineToken++; offlineActive = 0; cancelMediaDownloads(); $('#download-media-button').disabled = changingAccount || initializing; $('#cancel-media-download').hidden = true; $('#offline-media-status').textContent = 'Download interrompido. As mídias já baixadas foram preservadas.'; };
   $('#import-button').onclick = () => $('#import-input').click();
   $('#import-input').onchange = async (e) => {
     const file = e.target.files[0]; if (!file) return;
@@ -289,6 +375,7 @@ function bindEvents() {
   window.addEventListener('pagehide', (event) => { if (!event.persisted) { for (const url of urls.values()) URL.revokeObjectURL(url); releaseEditorURLs(); } });
 }
 function setViewUI() {
+  resetMediaView();
   mapFocus?.exit();
   document.body.classList.toggle('viewing-profile', Boolean(publicView));
   for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button']) $(selector).hidden = Boolean(publicView);
@@ -322,6 +409,7 @@ async function init() {
       refresh,
       lock: setAccountLoading,
       async switchAccount(id) {
+        resetMediaView(); $('#offline-media-status').textContent = ''; $('#cancel-media-download').hidden = true;
         mapFocus.exit();
         setAccountLoading(true); editorToken++; editor.close(); $('#gallery-dialog').close(); publicView = null; selectedId = null;
         journeys.reset(); recaps.reset(); wishlist.reset();

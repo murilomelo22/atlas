@@ -13,6 +13,20 @@ A inicialização aguarda a restauração da conta antes de liberar a wish list,
 
 Verificação: **82 testes passaram** em computador e celular para o atlas local, mapa limpo, filtros, contas e wish list, incluindo tela cheia nativa, fallback, restauração das preferências e carregamento lento. A aparência das duas telas foi conferida com Chromium; os endpoints Supabase foram simulados.
 
+## Uso pessoal e sincronização leve
+
+O Atlas sincroniza primeiro os destinos e os metadados das mídias. Em um dispositivo novo, os originais não são baixados durante o login: as miniaturas aparecem conforme entram na tela, a foto original carrega ao abrir a galeria, vídeos usam o player sob demanda e o movimento de uma Live Photo só carrega ao reproduzir. Uma mídia indisponível não bloqueia o mapa nem os demais destinos. A galeria oferece **Tentar novamente**.
+
+Depois da primeira sincronização, uma lista compacta de IDs e revisões identifica viagens alteradas e excluídas. Apenas as viagens alteradas e seus registros de mídia são consultados por completo. Arquivos já baixados continuam no cache quando seus caminhos imutáveis são os mesmos; sincronizar metadados não apaga downloads concluídos. Links temporários são reutilizados por até quatro minutos e leituras com falhas temporárias têm no máximo duas novas tentativas espaçadas, sem repetir gravações automaticamente.
+
+**Meu perfil → Baixar mídias para uso offline** baixa os originais, miniaturas e movimentos com até dois arquivos simultâneos. É possível interromper e retomar; cada parte concluída é salva, e a retomada busca somente o que falta. Ao sair da conta, a cópia privada do navegador é removida, incluindo esses downloads. Perfis públicos continuam usando somente as mídias permitidas, sem salvar os arquivos de visitantes no banco pessoal.
+
+**Exportar** continua produzindo um backup completo: arquivos que ainda estão apenas na nuvem são baixados durante a exportação. Se algum arquivo falhar, nenhum JSON incompleto é entregue; as partes já baixadas são preservadas para a próxima tentativa. Um backup de mídias ainda não baixadas precisa de conexão com a nuvem.
+
+Essa atualização não exige migração SQL, plano pago ou serviço novo. O teste com 100 fotos confirma zero downloads de originais ao sincronizar um dispositivo novo. A redução de CPU no projeto real depende do volume, das consultas e dos limites do Supabase; deve ser medida no painel. Consulte [o guia de desempenho](docs/PERFORMANCE.md).
+
+Verificação: **162 testes passaram na suíte completa**, em computador e celular. Depois do limite compartilhado de transferências, **18 testes específicos de sincronização leve passaram**, incluindo 15 pedidos simultâneos, interrupção, retomada e isolamento de contas. As duas interfaces foram conferidas com Chromium, sem erros de JavaScript ou transbordamento. Os endpoints Supabase foram simulados.
+
 ## Backups
 
 **Exportar** produz um único JSON com todos os destinos, visitas, legendas, capa e imagens em base64. **Importar** valida o arquivo e as imagens antes de gravar tudo em uma transação. Destinos com o mesmo ID, ou o mesmo nome e coordenadas arredondadas a cinco casas, são atualizados sem duplicação. Outros destinos locais são preservados. Os metadados e fotos dos destinos presentes no backup substituem os correspondentes locais; reimportar o mesmo arquivo é idempotente. O país é recalculado pelas coordenadas na importação. Miniaturas são reconstruídas.

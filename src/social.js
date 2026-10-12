@@ -206,7 +206,7 @@ export async function initializeSocial(callbacks) {
     afterMutation() {
       if (!currentUser()) return;
       status('Modificações salvas neste dispositivo. Envio pendente.');
-      clearTimeout(syncTimer); syncTimer = setTimeout(() => runSync(), 400);
+      clearTimeout(syncTimer); syncTimer = setTimeout(() => runSync(), 1000);
     },
   };
 }

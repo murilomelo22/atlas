@@ -27,7 +27,7 @@ export async function synchronize(onStatus = () => {}, { discardLocal = false } 
     verifyAccount();
     await synchronizeWishlist(verifyAccount, discardLocal);
     verifyAccount();
-    const collection = await readCollection(owner, { cachedPhotos: await getAllPhotos() });
+    const collection = await readCollection(owner, { cachedPhotos: await getAllPhotos(), cachedDestinations: discardLocal ? [] : await getDestinations() });
     verifyAccount(); await mergeCloudCollection(collection, discardLocal);
     const pending = (await getDestinations()).some((d) => d.cloudDirty) || (await getMeta('wishlist'))?.cloudDirty;
     onStatus(pending ? 'Há alterações locais aguardando sincronização.' : 'Tudo salvo na sua conta.');

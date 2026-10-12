@@ -22,19 +22,21 @@ try { config = validConfig(supabaseConfig); }
 catch (error) { cloudConfigError = error.message; }
 export const cloudEnabled = Boolean(config);
 let session = null, refreshing = null;
+const signedCache = new Map(), signing = new Map();
 const listeners = new Set();
 const channel = 'BroadcastChannel' in window ? new BroadcastChannel('atlas-auth') : null;
 export const currentUser = () => session?.user || null;
 export const onAuthChange = (listener) => { listeners.add(listener); return () => listeners.delete(listener); };
 function announce() { for (const listener of listeners) listener(currentUser()); }
 async function keepSession(raw, broadcast = true) {
+  if (raw?.user?.id !== session?.user?.id) signedCache.clear();
   if (raw && (!raw.access_token || !raw.refresh_token || !/^[0-9a-f-]{36}$/i.test(raw.user?.id || ''))) throw new Error('A sessão recebida é inválida. Entre novamente.');
   session = raw ? { access_token: raw.access_token, refresh_token: raw.refresh_token, expires_at: raw.expires_at || Math.floor(Date.now() / 1000) + (raw.expires_in || 3600), user: { id: raw.user.id, email: raw.user.email || '' } } : null;
   await writeSession(session);
   if (broadcast) channel?.postMessage('changed');
   announce();
 }
-if (channel) channel.onmessage = async () => { session = await readSession() || null; announce(); };
+if (channel) channel.onmessage = async () => { const next = await readSession() || null; if (next?.user?.id !== session?.user?.id) signedCache.clear(); session = next; announce(); };
 function apiError(body, status) {
   const error = new Error(status === 401 ? 'Sua sessão expirou. Entre novamente para sincronizar.' : status === 429 ? 'Muitas tentativas. Aguarde um pouco e tente novamente.' : status >= 500 ? 'A nuvem está indisponível. Seus dados locais foram preservados.' : 'Não foi possível concluir a operação.');
   error.code = body?.code || body?.error_code;
@@ -142,7 +144,7 @@ async function rows(table, parameters, authenticated = false) {
   const result = [];
   for (let offset = 0; ; offset += 1000) {
     const query = new URLSearchParams({ select: '*', ...parameters, limit: '1000', offset: String(offset) });
-    const page = await request(`/rest/v1/${table}?${query}`, { authenticated });
+    const page = await readWithRetry(() => request(`/rest/v1/${table}?${query}`, { authenticated }));
     if (!Array.isArray(page)) throw new Error('A nuvem retornou dados inesperados. Tente novamente.');
     result.push(...page); if (page.length < 1000) return result;
   }
@@ -163,17 +165,40 @@ export async function searchProfiles(query) {
   return request(`/rest/v1/profiles?${new URLSearchParams({ select: 'id,username,display_name,bio,avatar_path', is_public: 'eq.true', username: `ilike.*${safe.replace(/_/g, '\\_')}*`, order: 'username', limit: '20' })}`);
 }
 const objectPath = (path) => path.split('/').map(encodeURIComponent).join('/');
-export async function signedURL(bucket, path, authenticated = false) {
-  const result = await request(`/storage/v1/object/sign/${bucket}/${objectPath(path)}`, { method: 'POST', body: { expiresIn: 300 }, authenticated });
-  const signed = result.signedURL || result.signedUrl;
-  if (!signed || !signed.startsWith('/object/sign/')) throw new Error('Não foi possível abrir a fotografia.');
-  return `${config.url}/storage/v1${signed}`;
+export async function readWithRetry(operation, valid = () => true) {
+  for (let attempt = 0; ; attempt++) {
+    if (!valid()) throw new DOMException('Operação cancelada.', 'AbortError');
+    try { const result = await operation(); if (!valid()) throw new DOMException('Operação cancelada.', 'AbortError'); return result; }
+    catch (error) {
+      const temporary = error instanceof TypeError || error.status === 429 || [502, 503, 504].includes(error.status) || error.message?.startsWith('Sem conexão');
+      if (!valid() || !temporary || attempt >= 2 || navigator.onLine === false) throw error;
+      await new Promise(resolve => setTimeout(resolve, 500 * 2 ** attempt));
+    }
+  }
 }
-async function downloadBlob(bucket, path, authenticated) {
+export async function signedURL(bucket, path, authenticated = false) {
+  const actor = authenticated ? currentUser()?.id : 'public', key = `${actor}:${bucket}:${path}`;
+  const cached = signedCache.get(key);
+  if (cached?.expires > Date.now()) return cached.url;
+  if (!signing.has(key)) signing.set(key, (async () => {
+    const result = await readWithRetry(() => request(`/storage/v1/object/sign/${bucket}/${objectPath(path)}`, { method: 'POST', body: { expiresIn: 300 }, authenticated }), () => !authenticated || currentUser()?.id === actor);
+    const signed = result.signedURL || result.signedUrl;
+    if (!signed || !signed.startsWith('/object/sign/')) throw new Error('Não foi possível abrir a fotografia.');
+    const url = `${config.url}/storage/v1${signed}`;
+    if (signedCache.size > 1000) signedCache.clear();
+    signedCache.set(key, { url, expires: Date.now() + 240000 });
+    return url;
+  })().finally(() => signing.delete(key)));
+  return signing.get(key);
+}
+export async function downloadBlob(bucket, path, authenticated, { signal } = {}) {
   const url = await signedURL(bucket, path, authenticated);
   const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 120000);
-  try { const response = await fetch(url, { signal: controller.signal, credentials: 'omit' }); if (!response.ok) throw new Error('Não foi possível baixar uma fotografia. Os dados locais foram preservados.'); return await response.blob(); }
-  finally { clearTimeout(timeout); }
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort(); else signal?.addEventListener('abort', abort, { once: true });
+  try { const response = await fetch(url, { signal: controller.signal, credentials: 'omit' }); if (!response.ok) { const error = new Error('Não foi possível baixar esta mídia. Tente novamente; seus dados continuam salvos.'); error.status = response.status; throw error; } return await response.blob(); }
+  catch (error) { if (error.name === 'AbortError' && !signal?.aborted) throw new Error('O download demorou a responder. Tente novamente; as mídias já baixadas continuam salvas.'); throw error; }
+  finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
 }
 export async function avatarURL(profile, authenticated = false) {
   return profile.avatar_path ? signedURL('atlas-avatars', profile.avatar_path, authenticated) : null;
@@ -206,21 +231,43 @@ function cleanRemote(row) {
   const clean = sanitizeDestination(data);
   return { ...clean, photoIds: data.photoIds.filter((id) => typeof id === 'string'), coverId: typeof data.coverId === 'string' ? data.coverId : null, id: row.id, visibility: row.visibility, cloudRevision: row.revision, cloudDirty: false, example: false };
 }
-export async function readCollection(ownerId, { publicOnly = false, cachedPhotos = [] } = {}) {
+export async function readCollection(ownerId, { publicOnly = false, cachedPhotos = [], cachedDestinations = [] } = {}) {
   const authenticated = !publicOnly;
-  const destinations = (await rows('destinations', { owner_id: `eq.${ownerId}`, ...(publicOnly ? { visibility: 'eq.public' } : {}) }, authenticated)).filter((r) => r.owner_id === ownerId && (!publicOnly || r.visibility === 'public')).map(cleanRemote);
+  const parameters = { owner_id: `eq.${ownerId}`, ...(publicOnly ? { visibility: 'eq.public' } : {}), order: 'id' };
+  let destinations, changed;
+  if (cachedDestinations.length && !publicOnly) {
+    const cached = new Map(cachedDestinations.map(d => [d.id, d]));
+    const manifest = (await rows('destinations', { ...parameters, select: 'owner_id,id,revision,visibility' }, authenticated)).filter(r => r.owner_id === ownerId);
+    changed = new Set(manifest.filter(r => !cached.has(r.id) || cached.get(r.id).cloudRevision !== r.revision).map(r => r.id));
+    const received = new Map();
+    for (const batch of idBatches([...changed])) {
+      for (const row of await rows('destinations', { ...parameters, id: inFilter(batch) }, authenticated)) if (row.owner_id === ownerId && changed.has(row.id)) received.set(row.id, cleanRemote(row));
+    }
+    if (manifest.some(r => changed.has(r.id) && !received.has(r.id))) throw new Error('A coleção mudou durante a sincronização. Tente novamente; seus dados locais foram preservados.');
+    destinations = manifest.map(r => changed.has(r.id) ? received.get(r.id) : cached.get(r.id));
+  } else {
+    destinations = (await rows('destinations', parameters, authenticated)).filter(r => r.owner_id === ownerId && (!publicOnly || r.visibility === 'public')).map(cleanRemote);
+    changed = new Set(destinations.map(d => d.id));
+  }
   const visible = new Set(destinations.map((d) => d.id));
-  const photoRows = (await rows('photos', { owner_id: `eq.${ownerId}` }, authenticated)).filter((p) => p.owner_id === ownerId && visible.has(p.destination_id));
-  const photos = [];
+  const photoRows = [];
+  for (const batch of idBatches([...changed].filter(id => visible.has(id)))) {
+    photoRows.push(...(await rows('photos', { owner_id: `eq.${ownerId}`, destination_id: inFilter(batch), order: 'id' }, authenticated)).filter(p => p.owner_id === ownerId && batch.includes(p.destination_id)));
+  }
+  const photos = cachedPhotos.filter(p => visible.has(p.destinationId) && !changed.has(p.destinationId));
+  const cachedById = new Map(cachedPhotos.map(p => [`${p.destinationId}:${p.id}`, p]));
   for (const row of photoRows) {
-    const cached = cachedPhotos.find((p) => p.id === row.id && p.destinationId === row.destination_id && mediaKind(p) === (row.kind || 'image') && p.cloudPath === row.storage_path && p.cloudThumbPath === row.thumbnail_path && (p.cloudMotionPath || null) === (row.motion_path || null));
+    let cached = cachedById.get(`${row.destination_id}:${row.id}`);
+    if (cached && !(mediaKind(cached) === (row.kind || 'image') && cached.cloudPath === row.storage_path && cached.cloudThumbPath === row.thumbnail_path && (cached.cloudMotionPath || null) === (row.motion_path || null))) cached = null;
     photos.push({ id: row.id, destinationId: row.destination_id, caption: row.caption || '', kind: row.kind || 'image', duration: row.duration,
-      blob: cached?.blob || await downloadBlob('atlas-media', row.storage_path, authenticated), thumbnail: cached?.thumbnail || await downloadBlob('atlas-media', row.thumbnail_path, authenticated),
-      ...(row.motion_path ? { motionBlob: cached?.motionBlob || await downloadBlob('atlas-media', row.motion_path, authenticated) } : {}),
+      blob: cached?.blob || null, thumbnail: cached?.thumbnail || null,
+      ...(row.motion_path ? { motionBlob: cached?.motionBlob || null } : {}),
       cloudPath: row.storage_path, cloudThumbPath: row.thumbnail_path, cloudMotionPath: row.motion_path || null });
   }
   return { destinations, photos };
 }
+function idBatches(ids) { return Array.from({ length: Math.ceil(ids.length / 40) }, (_, i) => ids.slice(i * 40, (i + 1) * 40)); }
+function inFilter(ids) { return `in.(${ids.map(id => JSON.stringify(id)).join(',')})`; }
 export async function publicProfile(username) {
   if (!/^[a-z0-9_]{3,30}$/.test(username)) throw new Error('Nome de usuário inválido.');
   const profiles = await rows('profiles', { username: `eq.${username}`, is_public: 'eq.true' });
@@ -260,6 +307,7 @@ export async function saveCloudDestination(destination, photos) {
       const original = existingPhotos.find((p) => p.id === photo.id);
       let path = photo.cloudPath, thumbPath = photo.cloudThumbPath, motionPath = photo.cloudMotionPath || null;
       if (!original || original.storage_path !== path || original.thumbnail_path !== thumbPath || (original.kind || 'image') !== mediaKind(photo) || (original.motion_path || null) !== motionPath) {
+        if (!(photo.blob instanceof Blob) || !(photo.thumbnail instanceof Blob) || mediaKind(photo) === 'live' && !(photo.motionBlob instanceof Blob)) throw new Error('Esta mídia mudou na nuvem. Sincronize antes de editar novamente; suas alterações locais continuam salvas.');
         const folder = `${currentUser().id}/${await hash(destination.id)}/${crypto.randomUUID()}`;
         path = `${folder}.${mediaExtension(photo.blob)}`; thumbPath = `${folder}-thumb.jpg`; motionPath = null;
         await upload('atlas-media', path, photo.blob); staged.push(path);
