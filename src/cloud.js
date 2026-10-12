@@ -37,16 +37,22 @@ async function keepSession(raw, broadcast = true) {
   announce();
 }
 if (channel) channel.onmessage = async () => { const next = await readSession() || null; if (next?.user?.id !== session?.user?.id) signedCache.clear(); session = next; announce(); };
-function apiError(body, status) {
+function apiError(body, status, path) {
   const error = new Error(status === 401 ? 'Sua sessão expirou. Entre novamente para sincronizar.' : status === 429 ? 'Muitas tentativas. Aguarde um pouco e tente novamente.' : status >= 500 ? 'A nuvem está indisponível. Seus dados locais foram preservados.' : 'Não foi possível concluir a operação.');
   error.code = body?.code || body?.error_code;
   error.status = status;
+  if (error.code === '40001') {
+    error.code = 'conflict';
+    error.message = path?.endsWith('/atlas_save_wishlist')
+      ? 'Sua wish list mudou em outro dispositivo. Abra a wish list e use “Revisar e combinar listas”. Suas alterações locais foram preservadas.'
+      : 'Uma viagem foi alterada em outro dispositivo. Suas mudanças locais foram preservadas. Carregue a versão da nuvem ou exporte um backup antes de continuar.';
+  }
   if (error.code === '57014') error.message = 'O banco demorou demais e cancelou a operação. Seus dados continuam neste dispositivo. Tente sincronizar novamente quando o Supabase se recuperar.';
   if (error.code === '42501' || status === 403) error.message = 'O banco recusou a operação por falta de permissão. Seus dados locais foram preservados. É necessário verificar as permissões no Supabase.';
   if (error.code === '22023') error.message = 'O banco recusou os dados enviados. Suas alterações locais foram preservadas.';
   if (error.code === '23505') error.message = 'Este nome de usuário já está em uso. Escolha outro.';
   if (body?.message?.includes('ATLAS_CONFLICT')) { error.code = 'conflict'; error.message = 'Uma viagem foi alterada em outro dispositivo. Suas mudanças locais foram preservadas. Carregue a versão da nuvem ou exporte um backup antes de continuar.'; }
-  if (body?.message?.includes('ATLAS_WISHLIST_CONFLICT')) { error.code = 'conflict'; error.message = 'Sua wish list foi alterada em outro dispositivo. Exporte um backup antes de carregar a versão da nuvem; suas alterações locais foram preservadas.'; }
+  if (body?.message?.includes('ATLAS_WISHLIST_CONFLICT')) { error.code = 'conflict'; error.message = 'Sua wish list mudou em outro dispositivo. Abra a wish list e use “Revisar e combinar listas”. Suas alterações locais foram preservadas.'; }
   const tripErrors = {
     ATLAS_TRIP_CONFLICT: 'Outra pessoa alterou o roteiro. Exporte seu JSON para preservar as mudanças e reabra a trip antes de editar novamente.',
     ATLAS_TRIP_FORBIDDEN: 'Você não tem permissão para esta ação. O convite precisa ser aceito para editar; só quem organiza gerencia o grupo.',
@@ -84,7 +90,7 @@ export async function request(path, { method = 'GET', body, authenticated = fals
     if (!response.ok) {
       let raw; try { raw = await response.json(); } catch { raw = {}; }
       if (response.status === 401 && authenticated && retry) { await refreshSession(); return request(path, { method, body, authenticated, headers, retry: false }); }
-      throw apiError(raw, response.status);
+      throw apiError(raw, response.status, path);
     }
     if (response.status === 204 || response.headers.get('content-length') === '0') return null;
     const text = await response.text();

@@ -102,11 +102,13 @@ export async function updateWishlistMeta(update) {
   };
   try { await done; } catch (error) { throw failure || error; }
 }
-export async function saveWishlist(raw, expectedVersion) {
+export async function saveWishlist(raw, expectedVersion, resolution = null) {
   const clean = cleanWishlist(raw);
   await updateWishlistMeta(previous => {
     if ((previous?.localVersion || null) !== expectedVersion) throw new Error('Sua wish list mudou durante a edição. Suas alterações continuam neste formulário; copie-as antes de reabrir a lista.');
-    return { ...clean, revision: previous?.revision || null, cloudDirty: Boolean(accountId), localVersion: crypto.randomUUID() };
+    return { ...clean, revision: resolution ? resolution.revision : previous?.revision || null,
+      cloudBase: resolution ? cleanWishlist(resolution.cloudBase) : previous?.cloudBase,
+      cloudDirty: Boolean(accountId), localVersion: crypto.randomUUID() };
   });
 }
 export async function saveDestination(destination, photos) {
@@ -181,7 +183,7 @@ export async function importBackup(file) {
   if (!raw || raw.format !== 'atlas-pessoal' || ![1, 2].includes(raw.version) || !Array.isArray(raw.destinations) || !Array.isArray(raw.photos) || raw.destinations.length > 10000 || raw.photos.length > 20000) throw new Error('Formato ou versão de backup não reconhecido.');
   const importedWishlist = raw.wishlist == null ? null : cleanWishlist(raw.wishlist);
   const previousWishlist = importedWishlist ? await getWishlist() : null;
-  const restoredWishlist = importedWishlist ? { items: mergeWishlistItems(previousWishlist.items, importedWishlist.items), is_public: false, revision: previousWishlist.revision || null, cloudDirty: Boolean(accountId), localVersion: crypto.randomUUID() } : null;
+  const restoredWishlist = importedWishlist ? { items: mergeWishlistItems(previousWishlist.items, importedWishlist.items), is_public: false, revision: previousWishlist.revision || null, cloudBase: previousWishlist.cloudBase, cloudDirty: Boolean(accountId), localVersion: crypto.randomUUID() } : null;
   const existing = await getDestinations(), oldPhotos = await getAllPhotos();
   const byId = new Map(existing.map((d) => [d.id, d]));
   const byIdentity = new Map(existing.map((d) => [identity(d), d]));
@@ -258,7 +260,7 @@ export async function migrateGuest() {
     ids.add(destination.id); identities.add(identity(destination));
   }
   await writeTransaction(['destinations', 'photos', 'meta'], (tx) => {
-    if (wishesAdded) tx.objectStore('meta').put({ key: 'wishlist', value: { items: wishItems, is_public: false, revision: currentWish.revision || null, cloudDirty: true, localVersion: crypto.randomUUID() } });
+    if (wishesAdded) tx.objectStore('meta').put({ key: 'wishlist', value: { items: wishItems, is_public: false, revision: currentWish.revision || null, cloudBase: currentWish.cloudBase, cloudDirty: true, localVersion: crypto.randomUUID() } });
     for (const destination of additions) tx.objectStore('destinations').put(destination);
     for (const photo of pictures) tx.objectStore('photos').put(photo);
   });

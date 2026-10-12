@@ -40,7 +40,7 @@ CPU é capacidade de processamento, diferente de armazenamento. Desativar confir
 
 As mensagens de sincronização distinguem cancelamento por demora (`57014`), falta de permissão (`42501`/HTTP 403), conflito de revisão e migração ausente. Erros sem tradução mostram apenas HTTP/código, sem expor detalhes internos do banco. A wish list aberta acompanha a falha em vez de permanecer indefinidamente em “Aguardando sincronização”. Sua falha não impede que os destinos recebidos sejam incorporados ao mapa.
 
-Edições feitas durante uma sincronização agendam outra passagem depois dela. Uma falha sem novas edições não inicia um ciclo de repetição de gravações, para evitar carga adicional no projeto. A confirmação “Tudo salvo na sua conta” exige sucesso; alterações pendentes continuam locais.
+Edições feitas durante uma sincronização agendam outra passagem depois dela. Conflitos de revisão da wish list (`40001`) permitem uma tentativa adicional após comparar a última versão confirmada com as mudanças locais e remotas. Alterações independentes são combinadas; casos ambíguos oferecem revisão na wish list, preservando ambas as versões. Uma falha não inicia um ciclo ilimitado de gravações. A confirmação “Tudo salvo na sua conta” exige sucesso; alterações pendentes continuam locais.
 
 Para diagnóstico real, correlacione o horário de uma tentativa com os logs Postgres/API e a tela Query Performance do projeto. Identifique consultas de maior tempo acumulado e bloqueios; confirme o código HTTP/SQL da gravação antes de alterar políticas ou aplicar SQL. Esses dados exigem acesso administrativo conectado e não são disponíveis pela chave pública do site.
 

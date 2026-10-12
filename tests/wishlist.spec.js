@@ -84,11 +84,53 @@ test('backup e migração local preservam a lista sem duplicar e sem publicar', 
   await page.locator('#migrate-button').click(); await page.locator('#confirm-ok').click(); await expect.poll(() => cloud.wishlists.length).toBe(1); await expect(page.locator('#sync-status')).toHaveText('Tudo salvo na sua conta.'); expect(cloud.wishlists[0].is_public).toBe(false); expect(cloud.wishlists[0].items).toHaveLength(1);
 });
 
-test('conflito entre dispositivos mantém alterações locais e exige escolha explícita', async ({ page }) => {
-  const cloud = await mockTrips(page); cloud.wishlists.push({ owner_id: ALICE, items: [item()], is_public: false, revision: randomUUID() }); await ready(page); await login(page); await open(page); await expect(page.locator('[data-wish-id]')).toHaveCount(1);
-  cloud.wishlists[0].items.push(item('Osaka remota')); cloud.wishlists[0].revision = randomUUID(); await add(page, 'Sapporo local'); await save(page); await expect(page.locator('#sync-status')).toContainText('outro dispositivo');
-  const backup = await page.evaluate(async () => (await import('/src/db.js')).exportBackup()); expect(backup.wishlist.items.map(i => i.name)).toContain('Sapporo local'); expect(cloud.wishlists[0].items.map(i => i.name)).not.toContain('Sapporo local');
-  await page.locator('#wishlist-close').click(); await page.locator('#account-button').click(); await page.locator('#cloud-reload-button').click(); await page.locator('#confirm-ok').click(); await expect(page.locator('#sync-status')).toHaveText('Tudo salvo na sua conta.'); await page.getByRole('button', { name: 'Fechar perfil' }).click(); await open(page); await expect(page.locator('#wishlist-items')).toContainText('Osaka remota'); await expect(page.locator('#wishlist-items')).not.toContainText('Sapporo local');
+test('lugares adicionados em dispositivos diferentes são combinados e salvos automaticamente', async ({ page }) => {
+  const cloud = await mockTrips(page); cloud.wishlists.push({ owner_id: ALICE, items: [item()], is_public: false, revision: randomUUID() }); await ready(page); await login(page); await open(page);
+  cloud.wishlists[0].items.push(item('Osaka remota')); cloud.wishlists[0].revision = randomUUID(); await add(page, 'Sapporo local'); await save(page, true);
+  expect(cloud.wishlists[0].items.map(i => i.name)).toEqual(['Kyoto', 'Sapporo local', 'Osaka remota']);
+  await expect(page.locator('[data-wish-id]')).toHaveCount(3);
+  await page.reload(); await open(page); await expect(page.locator('#wishlist-items')).toContainText('Sapporo local'); await expect(page.locator('#wishlist-items')).toContainText('Osaka remota');
+});
+
+test('edições incompatíveis preservam as duas versões para revisar e salvar sem descartar dados', async ({ page }) => {
+  const cloud = await mockTrips(page); cloud.wishlists.push({ owner_id: ALICE, items: [item()], is_public: true, revision: randomUUID() }); await ready(page); await login(page); await open(page);
+  cloud.wishlists[0].items[0].notes = 'Notas do outro dispositivo'; cloud.wishlists[0].revision = randomUUID();
+  await page.getByRole('button', { name: 'Editar lugar Kyoto' }).click(); await page.locator('#wishlist-notes').fill('Notas deste dispositivo'); await page.locator('#wishlist-entry-save').click(); await save(page);
+  await expect(page.locator('#sync-status')).toContainText('outro dispositivo'); await expect(page.locator('#wishlist-resolve')).toBeVisible();
+  expect(cloud.wishlists[0].items[0].notes).toBe('Notas do outro dispositivo');
+  await page.locator('#wishlist-resolve').click(); await expect(page.locator('[data-wish-id]')).toHaveCount(2); await expect(page.locator('#wishlist-visibility')).toHaveValue('private');
+  // Reviewing alone does not modify the cloud or the saved local version.
+  expect(cloud.wishlists[0].items).toHaveLength(1);
+  const local = await page.evaluate(async () => (await import('/src/db.js')).getWishlist()); expect(local.items[0].notes).toBe('Notas deste dispositivo');
+  await save(page, true); expect(cloud.wishlists[0].is_public).toBe(false);
+  expect(cloud.wishlists[0].items.map(i => i.notes)).toEqual(['Notas deste dispositivo', 'Notas do outro dispositivo']);
+});
+
+test('HTTP 400/40001 ao reabrir uma lista antiga oferece recuperação sem mensagem interna', async ({ page }) => {
+  const cloud = await mockTrips(page); cloud.wishlists.push({ owner_id: ALICE, items: [item('Kyoto na nuvem')], is_public: false, revision: randomUUID() }); await ready(page); await login(page);
+  await page.evaluate(async () => {
+    const db = await import('/src/db.js');
+    await db.updateWishlistMeta(current => ({ ...current, cloudBase: undefined, revision: crypto.randomUUID(), items: [{ id: crypto.randomUUID(), name: 'Osaka local', country: '', notes: '' }], cloudDirty: true }));
+  });
+  let bareConflict = true;
+  await page.route('**/rpc/atlas_save_wishlist', route => bareConflict ? route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: '40001' }) }) : route.fallback());
+  await page.reload(); await expect(page.locator('#sync-status')).toContainText('Revisar e combinar listas'); await open(page);
+  await expect(page.locator('#wishlist-items')).toContainText('Osaka local'); await page.locator('#wishlist-resolve').click(); await expect(page.locator('#wishlist-items')).toContainText('Kyoto na nuvem');
+  bareConflict = false; await save(page, true); expect(cloud.wishlists[0].items.map(i => i.name)).toEqual(['Osaka local', 'Kyoto na nuvem']);
+});
+
+test('conflito persistente tem só duas tentativas e mantém a revisão local para recuperação', async ({ page }) => {
+  await mockTrips(page); await ready(page); await login(page);
+  let writes = 0;
+  await page.route('**/rpc/atlas_save_wishlist', route => {
+    writes++; return route.fulfill({ status: 400, contentType: 'application/json', body: '{"code":"40001"}' });
+  });
+  await open(page); await add(page, 'Desejo pendente'); await save(page);
+  await expect(page.locator('#wishlist-resolve')).toBeVisible();
+  await expect(page.locator('#sync-status')).toContainText('outro dispositivo');
+  await page.waitForTimeout(1500); expect(writes).toBe(2);
+  const local = await page.evaluate(async () => (await import('/src/db.js')).getWishlist());
+  expect(local.cloudDirty).toBe(true); expect(local.items[0].name).toBe('Desejo pendente');
 });
 
 test('envio com resposta perdida pode ser repetido sem duplicar a lista', async ({ page }) => {

@@ -22,3 +22,41 @@ export function mergeWishlistItems(current, incoming) {
   if (result.length > 200) throw new Error('A wish list pode ter até 200 lugares. Reduza a lista antes de importar.');
   return result;
 }
+
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// Use the last confirmed cloud snapshot to distinguish additions, edits and deletions.
+// An ambiguous edit/delete or two different edits to one field require review.
+export function reconcileWishlist(base, local, remote) {
+  if (!base) return same(cleanWishlist(local), cleanWishlist(remote)) ? cleanWishlist(remote) : null;
+  const original = cleanWishlist(base), mine = cleanWishlist(local), theirs = cleanWishlist(remote);
+  const byId = list => new Map(list.map(item => [item.id, item]));
+  const before = byId(original.items), left = byId(mine.items), right = byId(theirs.items);
+  const items = [];
+  for (const id of new Set([...left.keys(), ...right.keys(), ...before.keys()])) {
+    const old = before.get(id), a = left.get(id), b = right.get(id);
+    if (same(a, b)) { if (a) items.push(a); continue; }
+    if (same(a, old)) { if (b) items.push(b); continue; }
+    if (same(b, old)) { if (a) items.push(a); continue; }
+    if (!old || !a || !b) return null;
+    const item = { id };
+    for (const field of ['name', 'country', 'notes']) {
+      if (a[field] === b[field] || b[field] === old[field]) item[field] = a[field];
+      else if (a[field] === old[field]) item[field] = b[field];
+      else return null;
+    }
+    items.push(item);
+  }
+  if (items.length > 200) return null;
+  const is_public = mine.is_public === original.is_public ? theirs.is_public : mine.is_public;
+  return cleanWishlist({ items, is_public });
+}
+
+// Explicit review for older caches or genuinely conflicting edits: keep both versions.
+export function combineWishlistForReview(local, remote) {
+  const items = cleanWishlist(local).items.slice();
+  for (const item of cleanWishlist(remote).items) {
+    if (items.some(mine => mine.name === item.name && mine.country === item.country && mine.notes === item.notes)) continue;
+    items.push({ ...item, id: items.some(mine => mine.id === item.id) ? crypto.randomUUID() : item.id });
+  }
+  return cleanWishlist({ items, is_public: false });
+}
