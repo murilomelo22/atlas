@@ -1,7 +1,9 @@
 import { totalDays, visitedDestinations } from './dates.js';
 import { chronologicalStops } from './stats.js';
 import { createHeatLayer, heatPoints } from './heatmap.js';
-export function createMap(countries, onSelect, onAdd, onTileError) {
+const memoryGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h10a2 2 0 0 1 2 2v13H5V7a2 2 0 0 1 2-2Z"/><path d="m7 15 3-3 3 3 2-2 2 3M8 8h.01"/></svg>';
+const visitedGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6 7-12A7 7 0 1 0 5 9c0 6 7 12 7 12Z"/><path d="m9 9 2 2 4-4"/></svg>';
+export function createMap(countries, onSelect, onAdd, onTileError, memories = {}) {
   const map = L.map('map', { zoomControl: false, minZoom: 2, maxZoom: 18, worldCopyJump: true }).setView([28, 15], 3);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   map.attributionControl.setPrefix(false);
@@ -48,7 +50,12 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
     try { localStorage.setItem('atlas-map-style', theme); } catch {}
   }
   try { setStyle(localStorage.getItem('atlas-map-style') || 'dark'); } catch { setStyle('dark'); }
-  const markers = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 48, spiderfyOnMaxZoom: true, iconCreateFunction: (cluster) => L.divIcon({ className: 'atlas-cluster', html: `<span>${cluster.getChildCount()}</span>`, iconSize: [42, 42] }) }).addTo(map);
+  const markers = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 48, spiderfyOnMaxZoom: true, iconCreateFunction: (cluster) => {
+    const face = document.createElement('span'); face.className = 'cluster-memory'; face.innerHTML = memoryGlyph;
+    face.setAttribute('role', 'img'); face.setAttribute('aria-label', `${cluster.getChildCount()} lugares próximos. Aproxime para explorar.`);
+    face.title = `${cluster.getChildCount()} lugares próximos`;
+    return L.divIcon({ className: 'atlas-cluster', html: face, iconSize: [46, 46] });
+  } }).addTo(map);
   const routes = L.layerGroup();
   const planned = L.layerGroup();
   const cleanMarkers = L.layerGroup();
@@ -60,6 +67,7 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
     try { localStorage.setItem('atlas-show-markers', String(markersVisible)); } catch {}
   }
   const allMarkers = new Map();
+  let currentPhotoURLs = new Map();
   let allDestinations = [];
   function setHeatMode(value) {
     heatMode = ['visits', 'days'].includes(value) ? value : 'off';
@@ -81,10 +89,28 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
       const name = document.createElement('strong'); name.textContent = d.name;
       const country = document.createElement('small'); country.textContent = d.countryName || 'País não identificado';
       popup.append(name, country);
+      const rating = document.createElement('p'); rating.className = 'clean-place-rating';
+      rating.setAttribute('aria-label', d.rating ? `Minha avaliação: ${d.rating} de 5` : 'Ainda sem avaliação');
+      rating.textContent = d.rating ? `${'★'.repeat(d.rating)}${'☆'.repeat(5 - d.rating)} · ${d.rating}/5` : 'Ainda sem avaliação'; popup.append(rating);
+      if (d.notes) { const notes = document.createElement('p'); notes.className = 'clean-place-notes'; notes.textContent = d.notes; popup.append(notes); }
+      const photos = memories.photos?.(d.id) || [];
+      if (photos.length) {
+        const grid = document.createElement('div'); grid.className = 'clean-place-gallery';
+        photos.forEach((photo, index) => {
+          const button = document.createElement('button'); button.type = 'button'; button.setAttribute('aria-label', `Abrir memória ${index + 1} de ${d.name}`);
+          const preview = document.createElement('span'); preview.dataset.mediaId = photo.id; preview.className = 'clean-place-thumbnail';
+          const url = currentPhotoURLs.get(photo.id);
+          if (url) { const image = document.createElement('img'); image.src = url; image.alt = photo.caption || `Foto de ${d.name}`; preview.append(image); }
+          else preview.textContent = '◇';
+          button.append(preview); button.onclick = () => memories.gallery?.(d.id, index); grid.append(button);
+        });
+        popup.append(grid);
+      } else { const empty = document.createElement('p'); empty.className = 'clean-place-no-photos'; empty.textContent = 'Ainda sem fotos nesta memória.'; popup.append(empty); }
       L.marker([d.lat, d.lng], { title: d.name, alt: d.name,
-        icon: L.divIcon({ className: 'atlas-visited-pin', html: '<span aria-hidden="true"></span>', iconSize: [28, 28], iconAnchor: [14, 14] }) })
+        icon: L.divIcon({ className: 'atlas-visited-pin', html: visitedGlyph, iconSize: [32, 38], iconAnchor: [16, 34] }) })
         .bindTooltip(document.createTextNode(d.name), { direction: 'top', offset: [0, -8] })
-        .bindPopup(popup, { maxWidth: 240, autoPanPadding: [48, 48] }).addTo(cleanMarkers);
+        .bindPopup(popup, { maxWidth: 320, minWidth: 220, autoPanPaddingTopLeft: [20, 80], autoPanPaddingBottomRight: [20, 30] })
+        .on('popupopen', () => memories.previews?.()).addTo(cleanMarkers);
     }
     document.getElementById('clean-map-empty').hidden = !cleanMode || visited.length > 0;
     document.getElementById('map').dataset.visitedCount = String(visited.length);
@@ -146,6 +172,11 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
     setHeatMode,
     getHeatMode: () => heatMode,
     refreshPhotos(photoURLs) {
+      currentPhotoURLs = photoURLs;
+      document.querySelectorAll('.clean-place-thumbnail[data-media-id]').forEach(preview => {
+        const url = photoURLs.get(preview.dataset.mediaId);
+        if (url && !preview.querySelector('img')) { const image = document.createElement('img'); image.src = url; image.alt = 'Foto da memória'; preview.replaceChildren(image); }
+      });
       for (const destination of allDestinations) {
         const url = photoURLs.get(destination.coverId), marker = allMarkers.get(destination.id);
         if (!url || !marker || destination.kind === 'home') continue;
@@ -159,6 +190,7 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
     update(destinations, photoURLs) {
       plannedVisible = false; planned.clearLayers(); map.removeLayer(planned);
       allDestinations = destinations;
+      currentPhotoURLs = photoURLs;
       if (cleanMode) updateCleanPlaces();
       heat.update(heatPoints(destinations, heatMode));
       durations = new Map();
@@ -173,7 +205,7 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
         const photo = photoURLs.get(d.coverId);
         if (d.kind === 'home') { container.textContent = '⌂'; container.classList.add('home-pin'); }
         else if (photo) { const img = document.createElement('img'); img.src = photo; img.alt = ''; container.append(img); }
-        else container.textContent = '◇';
+        else container.innerHTML = visitedGlyph;
         const marker = L.marker([d.lat, d.lng], { title: d.name, alt: d.name, icon: L.divIcon({ className: 'atlas-pin', html: container, iconSize: [42, 42], iconAnchor: [21, 21] }) });
         marker.on('click', () => onSelect(d.id));
         marker.bindTooltip(document.createTextNode(d.name), { direction: 'top' });

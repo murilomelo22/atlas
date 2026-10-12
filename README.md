@@ -146,3 +146,9 @@ O menu **Wish list** e **Meu perfil → Gerenciar minha wish list** permitem sal
 **Para ativar na nuvem:** execute [wishlist.sql](supabase/wishlist.sql) e [verify-wishlist.sql](supabase/verify-wishlist.sql), depois do `schema.sql` já instalado. Essa atualização não exige reinstalar trips ou mídias. Veja o [guia de uso e ativação](docs/WISHLIST.md).
 
 Verificação da wish list: **130 testes passaram na suíte completa**, em desktop/celular, e **2 testes adicionais** confirmaram compatibilidade do backup sem a migração. A revisão visual não mostrou transbordamento ou erros de JavaScript. Supabase foi simulado nos testes; execute a instalação e a verificação SQL no seu projeto para conferir as políticas reais.
+
+### Memórias no mapa e fotos nas trips
+
+No mapa em tela cheia, clique em um lugar visitado para ver sua avaliação, notas e fotos. A galeria abre sem sair da tela cheia. Grupos de lugares usam um ícone de memórias; a quantidade permanece no rótulo acessível.
+
+Nas trips salvas, **Importar fotos das avaliações** permite escolher mídias da sua coleção. Ao usar **Adicionar viagens já feitas**, a opção **Incluir fotos e mídias das avaliações** copia também as fotos desses lugares quando você salva o roteiro. As cópias seguem a visibilidade da trip e preservam os originais. Veja [o guia das trips](docs/TRIPS.md).

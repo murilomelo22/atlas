@@ -3,11 +3,15 @@ export function initializeMapFocus(controller) {
   const open = document.getElementById('clean-map-button');
   const close = document.getElementById('clean-map-close');
   const controls = area.querySelector('.clean-map-controls');
+  const gallery = document.getElementById('gallery-dialog');
+  let galleryParent, galleryNext;
   let active = false, previousView, previousFocus, blocked = [], generation = 0;
 
   function exit() {
     if (!active) return;
     active = false; generation++;
+    if (gallery.open) gallery.close();
+    if (galleryParent) galleryParent.insertBefore(gallery, galleryNext?.parentElement === galleryParent ? galleryNext : null);
     if (document.fullscreenElement === area) document.exitFullscreen().catch(() => {});
     area.classList.remove('is-focused'); document.body.classList.remove('map-focused');
     controls.hidden = true;
@@ -25,6 +29,7 @@ export function initializeMapFocus(controller) {
     const token = ++generation;
     previousFocus = document.activeElement;
     previousView = { center: controller.map.getCenter(), zoom: controller.map.getZoom() };
+    galleryParent = gallery.parentElement; galleryNext = gallery.nextSibling; area.append(gallery);
     area.classList.add('is-focused'); document.body.classList.add('map-focused');
     controls.hidden = false;
     area.setAttribute('role', 'dialog'); area.setAttribute('aria-modal', 'true');
@@ -54,6 +59,7 @@ export function initializeMapFocus(controller) {
   });
   document.addEventListener('keydown', (event) => {
     if (!active) return;
+    if (gallery.open) return;
     if (event.key === 'Escape') { event.preventDefault(); exit(); }
     if (event.key === 'Tab') {
       const focusable = [...area.querySelectorAll('button, a[href], [tabindex="0"]')]

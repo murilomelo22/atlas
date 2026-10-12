@@ -51,6 +51,7 @@ const geocoder = createGeocoder((results) => {
 }, (message) => { $('#geocode-status').textContent = message; });
 
 function photosFor(destination) {
+  if (!destination) return [];
   const byId = new Map(allPhotos.filter((p) => p.destinationId === destination.id).map((p) => [p.id, p]));
   return destination.photoIds.map((id) => byId.get(id)).filter(Boolean);
 }
@@ -399,6 +400,10 @@ async function init() {
     await openDatabase();
     mapController = createMap(countries, selectDestination, (coords) => openEditor(null, coords), () => {
       $('#map-status').textContent = 'Tiles indisponíveis. Seus países e destinos continuam acessíveis.';
+    }, {
+      photos: id => photosFor(destinations.find(d => d.id === id)),
+      gallery: (id, index) => { const destination = destinations.find(d => d.id === id); if (destination) openGallery(photosFor(destination), index); },
+      previews: observePreviews,
     });
     await refresh(); bindEvents();
     mapFocus = initializeMapFocus(mapController);

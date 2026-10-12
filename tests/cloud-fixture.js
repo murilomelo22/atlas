@@ -96,6 +96,15 @@ export async function mockCloud(page) {
       const token = randomUUID(); state.grants.set(token, key);
       return ok({ signedURL: `/object/sign/${bucket}/${object}?token=${token}` });
     }
+    if (path === '/storage/v1/object/copy') {
+      const source = `${body.bucketId}/${body.sourceKey}`, target = `${body.destinationBucket}/${body.destinationKey}`;
+      const trip = (state.trips || []).find(t => t.id === body.destinationKey?.split('/')[1]);
+      const member = (state.members || []).find(m => m.trip_id === trip?.id && m.user_id === owner);
+      if (!owner || body.bucketId !== 'atlas-media' || body.destinationBucket !== 'atlas-trip-media' || !body.sourceKey?.startsWith(`${owner}/`) || !body.destinationKey?.startsWith(`${owner}/`) || !trip || trip.owner_id !== owner && !(member?.status === 'accepted' && member.can_add_photos)) return denied();
+      if (!state.objects.has(source)) return ok({ message: 'Source missing' }, 404);
+      if (state.objects.has(target)) return ok({ message: 'Duplicate' }, 409);
+      state.objects.set(target, Buffer.from(state.objects.get(source))); return ok({ Key: target });
+    }
     const storage = path.match(/^\/storage\/v1\/object\/([^/]+)(?:\/(.+))?$/);
     if (storage) {
       const [, bucket, object] = storage;

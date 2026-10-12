@@ -2,41 +2,54 @@ import { request, signedURL, deleteObjects, currentUser, ensureMediaSupport } fr
 import { MEDIA_ACCEPT, groupMediaFiles, processMedia, mediaKind, mediaLabel, mediaExtension } from './media.js';
 import { createGallery } from './gallery.js';
 import { escapeHTML as esc, confirmAction } from './ui.js';
+import { createTripPhotoPicker } from './trip-photo-picker.js';
 
 export function tripGallery({ container, trip, canAdd, owner, valid, mutate }) {
   let staged = null;
+  let items = [], picker;
   container.innerHTML = `<h3>Fotos e vídeos da trip</h3><p class="field-hint">Até 100 mídias, com a privacidade do roteiro. Fotos: até 40 MB; vídeos: até 50 MB. Live Photo: selecione a foto e o vídeo com o mesmo nome juntos. Se o iPhone enviar só a foto, exporte o movimento no app Fotos como vídeo.</p><div class="trip-gallery"></div>${canAdd ? `<form class="trip-photo-form"><label>Adicionar foto, vídeo ou Live Photo<input data-trip-photo type="file" accept="${MEDIA_ACCEPT}" multiple required></label><label>Legenda<input data-trip-caption maxlength="500" placeholder="Uma memória da viagem…"></label><button class="quiet" type="submit">Enviar mídia</button></form>` : ''}`;
   async function load() {
     const photos = await request(`/rest/v1/trip_photos?${new URLSearchParams({ select: '*', trip_id: `eq.${trip.id}`, order: 'created_at', limit: '100' })}`, { authenticated: Boolean(currentUser()) });
     if (!valid()) return;
+    items = photos;
     const grid = container.querySelector('.trip-gallery');
     grid.innerHTML = photos.length ? photos.map(photo => `<figure data-photo="${esc(photo.id)}"><a target="_blank" rel="noopener noreferrer" aria-label="Abrir ${mediaLabel(photo).toLowerCase()} da trip"><img alt="${esc(photo.caption || mediaLabel(photo))}" loading="lazy"></a>${mediaKind(photo) !== 'image' ? `<span class="media-badge">▶ ${mediaLabel(photo)}</span>` : ''}<figcaption>${esc(photo.caption)}</figcaption>${owner || canAdd && photo.uploader_id === currentUser()?.id ? '<button type="button" class="text-button" data-delete-photo>Remover mídia</button>' : ''}</figure>`).join('') : '<p class="field-hint">A primeira foto ou vídeo pode ser sua próxima memória.</p>';
-    await Promise.all(photos.map(async photo => {
-      const figure = [...grid.children].find(f => f.dataset.photo === photo.id);
-      figure.querySelector('[data-delete-photo]')?.addEventListener('click', () => mutate(async () => {
-        if (!await confirmAction('Remover esta mídia?', 'A mídia deixará de aparecer no grupo e no roteiro público.')) return;
-        if (!valid()) return;
-        await request('/rest/v1/rpc/atlas_remove_trip_photo', { method: 'POST', authenticated: true, body: { p_photo: photo.id } });
-        if (photo.uploader_id === currentUser()?.id) await deleteObjects('atlas-trip-media', [photo.storage_path, photo.thumbnail_path, photo.motion_path]).catch(() => {});
-        if (valid()) await load();
-      }));
-      try {
-        const url = await signedURL('atlas-trip-media', photo.thumbnail_path || photo.storage_path, Boolean(currentUser()));
-        if (!valid() || !figure.isConnected) return;
-        figure.querySelector('img').src = url; figure.querySelector('a').href = url;
-        figure.querySelector('a').onclick = e => {
-          e.preventDefault();
-          // Request fresh URLs when opened; large videos load only on demand.
-          mutate(async () => {
-            const [main, motion] = await Promise.all([signedURL('atlas-trip-media', photo.storage_path, Boolean(currentUser())), photo.motion_path ? signedURL('atlas-trip-media', photo.motion_path, Boolean(currentUser())) : null]);
-            if (valid()) createGallery().open([{ ...photo, url: main, thumbnailURL: url, motionURL: motion }]);
-          });
-        };
-      } catch { if (valid()) figure.querySelector('img').alt = 'Não foi possível carregar esta mídia. Reabra a trip para tentar novamente.'; }
-    }));
+    let nextPreview = 0;
+    async function previewWorker() {
+      while (nextPreview < photos.length && valid()) {
+        const photo = photos[nextPreview++];
+        const figure = [...grid.children].find(f => f.dataset.photo === photo.id);
+        if (!figure?.isConnected) continue;
+        figure.querySelector('[data-delete-photo]')?.addEventListener('click', () => mutate(async () => {
+          if (!await confirmAction('Remover esta mídia?', 'A mídia deixará de aparecer no grupo e no roteiro público.')) return;
+          if (!valid()) return;
+          await request('/rest/v1/rpc/atlas_remove_trip_photo', { method: 'POST', authenticated: true, body: { p_photo: photo.id } });
+          if (photo.uploader_id === currentUser()?.id) await deleteObjects('atlas-trip-media', [photo.storage_path, photo.thumbnail_path, photo.motion_path]).catch(() => {});
+          if (valid()) await load();
+        }));
+        try {
+          const url = await signedURL('atlas-trip-media', photo.thumbnail_path || photo.storage_path, Boolean(currentUser()));
+          if (!valid() || !figure.isConnected) return;
+          figure.querySelector('img').src = url; figure.querySelector('a').href = url;
+          figure.querySelector('a').onclick = e => {
+            e.preventDefault();
+            // Request fresh URLs when opened; large videos load only on demand.
+            mutate(async () => {
+              const [main, motion] = await Promise.all([signedURL('atlas-trip-media', photo.storage_path, Boolean(currentUser())), photo.motion_path ? signedURL('atlas-trip-media', photo.motion_path, Boolean(currentUser())) : null]);
+              if (valid()) createGallery().open([{ ...photo, url: main, thumbnailURL: url, motionURL: motion }]);
+            });
+          };
+        } catch { if (valid()) figure.querySelector('img').alt = 'Não foi possível carregar esta mídia. Reabra a trip para tentar novamente.'; }
+      }
+    }
+    await Promise.all([previewWorker(), previewWorker()]);
   }
   const form = container.querySelector('form');
   if (form) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'quiet'; button.dataset.importReviews = ''; button.textContent = 'Importar fotos das avaliações';
+    form.before(button);
+    picker = createTripPhotoPicker({ container, trip, valid, mutate, existing: () => items, reload: load });
+    button.onclick = async () => { await mutate(() => picker.open()); picker.updateControls(); };
     form.querySelector('[data-trip-photo]').onchange = () => { staged = null; };
     form.onsubmit = e => {
       e.preventDefault(); mutate(async () => {
@@ -69,5 +82,5 @@ export function tripGallery({ container, trip, canAdd, owner, valid, mutate }) {
       });
     };
   }
-  return { load };
+  return { load, destroy: () => picker?.destroy() };
 }

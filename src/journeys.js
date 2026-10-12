@@ -2,6 +2,7 @@ import { request, currentUser, signedURL, deleteObjects } from './cloud.js';
 import { getMeta, setMeta, getDestinations } from './db.js';
 import { processPhoto, blobAsDataURL } from './photos.js';
 import { tripGallery } from './trip-gallery.js';
+import { importReviewPhotos } from './trip-media-import.js';
 import { cleanTrip, recordedVisits } from './trip-data.js';
 import { displayDate } from './dates.js';
 import { haversine } from './stats.js';
@@ -20,13 +21,13 @@ export function initializeJourneys(callbacks) {
   dialog.innerHTML='<header class="dialog-header"><div><p class="eyebrow">PRÓXIMOS CAMINHOS</p><h2 id="trips-title">Trips e roteiros</h2></div><button class="icon-button" id="trips-close" aria-label="Fechar trips">×</button></header><div class="account-body"><div id="trip-list-view"><p id="trip-list-status" class="field-hint" role="status"></p><div class="account-actions"><button id="trip-new" class="primary">＋ Criar trip</button><button id="trip-import" class="quiet">Importar roteiro JSON</button><button id="trip-refresh" class="quiet">Atualizar</button><input id="trip-file" type="file" accept="application/json,.json" hidden></div><div id="trip-list" class="trip-list"></div></div><section id="trip-editor-view" hidden></section></div>';
   document.body.append(dialog);
   const completedDialog = document.createElement('dialog'); completedDialog.id='completed-dialog'; completedDialog.className='wide-dialog'; completedDialog.setAttribute('aria-labelledby','completed-title');
-  completedDialog.innerHTML='<header class="dialog-header"><h2 id="completed-title">Adicionar viagens já feitas</h2><button type="button" class="icon-button" aria-label="Fechar viagens realizadas">×</button></header><form id="completed-form" class="account-body"><p class="field-hint">Escolha visitas da sua coleção. Datas e duração são copiadas para o roteiro. Suas fotos continuam na postagem original.</p><div id="completed-list"></div><label class="manual-toggle"><input id="completed-notes" type="checkbox"> Incluir minhas notas</label><p class="field-hint">As notas copiadas poderão ser vistas pelos participantes e, se publicar o roteiro, por qualquer pessoa.</p><p id="completed-status" class="field-hint" role="status"></p><button id="completed-add" class="primary" type="submit">Adicionar selecionadas</button></form>';
+  completedDialog.innerHTML='<header class="dialog-header"><h2 id="completed-title">Adicionar viagens já feitas</h2><button type="button" class="icon-button" aria-label="Fechar viagens realizadas">×</button></header><form id="completed-form" class="account-body"><p class="field-hint">Escolha visitas da sua coleção. Datas e duração são copiadas para o roteiro. Você também pode levar as fotos dessas avaliações para a trip.</p><div id="completed-list"></div><label class="manual-toggle"><input id="completed-notes" type="checkbox"> Incluir minhas notas</label><p class="field-hint">As notas copiadas poderão ser vistas pelos participantes e, se publicar o roteiro, por qualquer pessoa.</p><label class="manual-toggle"><input id="completed-photos" type="checkbox"> Incluir fotos e mídias das avaliações</label><p class="field-hint">As mídias importadas seguem a visibilidade da trip e ficam disponíveis para seus participantes.</p><p id="completed-status" class="field-hint" role="status"></p><button id="completed-add" class="primary" type="submit">Adicionar selecionadas</button></form>';
   document.body.append(completedDialog); $('.icon-button',completedDialog).onclick=()=>completedDialog.close();
   let recorded=[];
   completedDialog.addEventListener('close',()=>{recorded=[];$('#completed-list').replaceChildren();});
   async function chooseRecorded() {
     const token=epoch,who=account();
-    $('#completed-list').replaceChildren(); $('#completed-status').textContent='Buscando suas viagens…'; $('#completed-notes').checked=false; $('#completed-notes').disabled=!permission('edit_description'); $('#completed-add').disabled=true;
+    $('#completed-list').replaceChildren(); $('#completed-status').textContent='Buscando suas viagens…'; $('#completed-notes').checked=false; $('#completed-notes').disabled=!permission('edit_description'); $('#completed-photos').checked=Boolean(account()) && permission('add_photos'); $('#completed-photos').disabled=!account() || !permission('add_photos'); $('#completed-add').disabled=true;
     completedDialog.showModal();
     try {
       const own = await getDestinations(); if(token!==epoch || who!==account() || !completedDialog.open)return;
@@ -44,12 +45,14 @@ export function initializeJourneys(callbacks) {
     const chosen=[...document.querySelectorAll('#completed-list input:checked')].map(input=>recorded[Number(input.value)]);
     if(!chosen.length){$('#completed-status').textContent='Selecione pelo menos uma visita.';return;}
     if(readStops().length+chosen.length>200){$('#completed-status').textContent='O roteiro aceita até 200 destinos.';return;}
+    if($('#completed-photos').checked && account() && permission('add_photos')) chosen.forEach(row=>pendingPhotoDestinations.add(row.destination.id));
     chosen.forEach(row=>addStop({...row.stop,notes:permission('edit_description') && $('#completed-notes').checked?row.destination.notes.slice(0,2000):''}));completedDialog.close();notify('Viagens adicionadas. Salve o roteiro para confirmar.');
   };
-  let trips=[],memberships=[],current=null,people=[],coverFile=null,busy=false,epoch=0;
+  let trips=[],memberships=[],current=null,people=[],coverFile=null,busy=false,epoch=0,activeGallery=null;
+  const pendingPhotoDestinations=new Set();
   let returnHash=location.hash.startsWith('#/roteiro/')?'':location.hash;
-  dialog.addEventListener('close',()=>{if(!dialog.open && location.hash.startsWith('#/roteiro/'))history.replaceState(null,'',location.pathname+location.search+returnHash);});
-  function backToList() { current=null; people=[]; coverFile=null; $('#trip-editor-view').replaceChildren(); $('#trip-editor-view').hidden=true; $('#trip-list-view').hidden=false; return load(); }
+  dialog.addEventListener('close',()=>{activeGallery?.destroy();if(!dialog.open && location.hash.startsWith('#/roteiro/'))history.replaceState(null,'',location.pathname+location.search+returnHash);});
+  function backToList() { activeGallery?.destroy(); activeGallery=null; pendingPhotoDestinations.clear(); current=null; people=[]; coverFile=null; $('#trip-editor-view').replaceChildren(); $('#trip-editor-view').hidden=true; $('#trip-list-view').hidden=false; return load(); }
   const account=()=>currentUser()?.id || null;
   const access=(trip)=> !account() && !trip.owner_id ? 'owner' : trip.owner_id===account() ? 'owner' : memberships.find(m=>m.trip_id===trip.id)?.status==='accepted' ? memberships.find(m=>m.trip_id===trip.id)?.role : 'viewer';
   const permission=(action)=> {
@@ -121,6 +124,7 @@ export function initializeJourneys(callbacks) {
     return Promise.resolve().then(action).catch(error=>{if(token===epoch && who===account())fail(error);}).finally(()=>{if(busy!==key)return;busy=false;if(token===epoch && who===account())buttons.forEach(([b,disabled])=>{if(b.isConnected)b.disabled=disabled;});});
   }
   async function open(trip,options={}) {
+    activeGallery?.destroy(); activeGallery=null; pendingPhotoDestinations.clear();
     const token=++epoch; current=trip?structuredClone(trip):{id:crypto.randomUUID(),name:'',notes:'',stops:[],is_public:false,owner_id:account(),revision:null,cover_path:null}; coverFile=null; people=[];
     $('#trip-list-view').hidden=true; $('#trip-editor-view').hidden=false;
     const editable=canEdit(),itinerary=permission('edit_itinerary'),owner=access(current)==='owner',invited=memberships.find(m=>m.trip_id===current.id)?.status==='invited',saved=Boolean(current.revision || trips.some(t=>t.id===current.id));
@@ -131,7 +135,7 @@ export function initializeJourneys(callbacks) {
     $('#trip-invite-role').onchange=e=>{for(const key of ['edit_itinerary','edit_description'])$('#trip-invite-permissions').querySelector(`[data-permission="${key}"]`).checked=e.target.value==='editor';};
     $('#trip-back').onclick=backToList;
     $('#trip-add-stop').onclick=()=>addStop();
-    const completedButton=document.createElement('button');completedButton.type='button';completedButton.id='trip-add-completed';completedButton.className='quiet';completedButton.textContent='Adicionar viagens já feitas';$('#trip-add-stop').after(completedButton);completedButton.onclick=chooseRecorded;
+    const completedButton=document.createElement('button');completedButton.type='button';completedButton.id='trip-add-completed';completedButton.className='quiet';completedButton.textContent='Adicionar viagens já feitas';$('#trip-add-stop').after(completedButton);completedButton.disabled=!itinerary;completedButton.onclick=chooseRecorded;
     $('#trip-existing').onchange=e=>{const d=callbacks.destinations().find(d=>d.id===e.target.value);if(d)addStop({name:d.name,lat:d.lat,lng:d.lng});e.target.value='';};
     $('#trip-cover').onchange=e=>{coverFile=e.target.files[0] || null;};
     const draft=()=>cleanTrip({...current,name:$('#trip-name').value,notes:$('#trip-notes').value,stops:readStops(),is_public:$('#trip-public').checked});
@@ -152,7 +156,14 @@ export function initializeJourneys(callbacks) {
       const savedTrip=who?await rpc('atlas_save_trip',{p_id:current.id,p_expected_revision:current.revision || null,p_name:clean.name,p_notes:clean.notes,p_cover_path:cover || null,p_public:clean.is_public,p_stops:clean.stops}):{...clean,is_public:false,cover_data:coverData};
       if(who!==account() || saveToken!==epoch)return;
       if(!who) {trips=trips.filter(t=>t.id!==savedTrip.id);trips.unshift(savedTrip);await setMeta('trips',trips);}
+      let mediaError=null;
+      if(who && pendingPhotoDestinations.size) {
+        try { await importReviewPhotos({trip:savedTrip,destinationIds:[...pendingPhotoDestinations],valid:()=>who===account() && saveToken===epoch,progress:message=>{$('#trip-message').textContent=message;}}); }
+        catch(error) {mediaError=error;}
+      }
+      if(who!==account() || saveToken!==epoch)return;
       notify(who?'Roteiro salvo na nuvem.':'Roteiro salvo neste navegador.');await open(savedTrip);
+      if(mediaError && who===account()) { const message=`O roteiro foi salvo, mas a importação de mídias não terminou. Use “Importar fotos das avaliações” para retomar. ${mediaError.message}`;$('#trip-message').textContent=message;notify(message,true); }
     });};
     $('#trip-export').onclick=()=>{try{const clean=draft();downloadText(`atlas-roteiro-${clean.id}.json`,JSON.stringify({format:'atlas-roteiro',version:1,trip:{...clean,is_public:false}},null,2),'application/json');}catch(error){fail(error);}};
     $('#trip-map').onclick=()=>{try{const stops=draft().stops;if(!stops.length)throw new Error('Adicione um destino ao roteiro.');callbacks.preview(stops);dialog.close();}catch(error){fail(error);}};
@@ -173,8 +184,8 @@ export function initializeJourneys(callbacks) {
     if(token!==epoch)return;
     if(!dialog.open)dialog.showModal();
     if(saved && (account() || options.publicVisitor)) {
-      const valid=()=>token===epoch && Boolean(current) && current.id===trip.id;
-      const gallery=tripGallery({container:$('#trip-gallery-section'),trip:current,canAdd:permission('add_photos'),owner,valid,mutate});
+      const valid=()=>dialog.open && token===epoch && Boolean(current) && current.id===trip.id;
+      const gallery=activeGallery=tripGallery({container:$('#trip-gallery-section'),trip:current,canAdd:permission('add_photos'),owner,valid,mutate});
       gallery.load().catch(error=>{if(valid())fail(error);});
       if(account() && !$('#trip-publication-section').hidden) {
         try {
@@ -203,5 +214,5 @@ export function initializeJourneys(callbacks) {
     }catch(error){if(token===epoch)fail(error);}
   }
   window.addEventListener('hashchange',event=>{if(!location.hash.startsWith('#/roteiro/'))dialog.close();else {const previous=new URL(event.oldURL).hash;if(!previous.startsWith('#/roteiro/'))returnHash=previous;route();}});
-  return { route,reset(){epoch++;completedDialog.close();$('#completed-list').replaceChildren();recorded=[];dialog.close();$('#share-dialog')?.close();$('#trip-editor-view').replaceChildren();current=null;trips=[];memberships=[];people=[];coverFile=null;busy=false;} };
+  return { route,reset(){activeGallery?.destroy();activeGallery=null;pendingPhotoDestinations.clear();epoch++;completedDialog.close();$('#completed-list').replaceChildren();recorded=[];dialog.close();$('#share-dialog')?.close();$('#trip-editor-view').replaceChildren();current=null;trips=[];memberships=[];people=[];coverFile=null;busy=false;} };
 }
