@@ -109,7 +109,11 @@ export async function request(path, { method = 'GET', body, authenticated = fals
     return text ? JSON.parse(text) : null;
   } catch (error) {
     if (error instanceof TypeError || error.name === 'AbortError') {
-      const failure = new Error('Sem conexão com a nuvem. As alterações continuam salvas neste dispositivo e serão enviadas quando você sincronizar.');
+      const timedOut = error.name === 'AbortError';
+      const failure = new Error(timedOut
+        ? 'A nuvem não respondeu a tempo. Suas alterações continuam salvas neste dispositivo. Tente sincronizar quando o banco se recuperar.'
+        : 'Sem conexão com a nuvem. As alterações continuam salvas neste dispositivo e serão enviadas quando você sincronizar.');
+      failure.code = timedOut ? 'CLIENT_TIMEOUT' : 'NETWORK_ERROR';
       failure.diagnostic = cloudDiagnostic({ path, method, code: error.name === 'AbortError' ? 'CLIENT_TIMEOUT' : 'NETWORK_ERROR', message: error.name === 'AbortError' ? 'A requisição excedeu o tempo limite do navegador.' : 'O navegador não conseguiu receber uma resposta da API.' });
       throw failure;
     }
@@ -220,7 +224,7 @@ export async function readWithRetry(operation, valid = () => true) {
     if (!valid()) throw new DOMException('Operação cancelada.', 'AbortError');
     try { const result = await operation(); if (!valid()) throw new DOMException('Operação cancelada.', 'AbortError'); return result; }
     catch (error) {
-      const temporary = error instanceof TypeError || error.status === 429 || [502, 503, 504].includes(error.status) || error.message?.startsWith('Sem conexão');
+      const temporary = error.code !== 'CLIENT_TIMEOUT' && (error instanceof TypeError || error.status === 429 || [502, 503, 504].includes(error.status) || error.message?.startsWith('Sem conexão'));
       if (!valid() || !temporary || attempt >= 2 || navigator.onLine === false) throw error;
       await new Promise(resolve => setTimeout(resolve, 500 * 2 ** attempt));
     }
@@ -349,7 +353,7 @@ export async function saveCloudWishlist(wishlist) {
 }
 export async function saveCloudDestination(destination, photos) {
   if (photos.some(p => mediaKind(p) !== 'image')) await ensureMediaSupport();
-  const existingPhotos = await rows('photos', { owner_id: `eq.${currentUser().id}`, destination_id: `eq.${destination.id}` }, true);
+  const existingPhotos = destination.cloudRevision ? await rows('photos', { owner_id: `eq.${currentUser().id}`, destination_id: `eq.${destination.id}` }, true) : [];
   const prepared = [];
   const staged = [];
   try {

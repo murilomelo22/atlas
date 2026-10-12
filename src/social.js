@@ -54,7 +54,7 @@ export async function initializeSocial(callbacks) {
     diagnostic();
     if (discardLocal) callbacks.lock(true);
     for (const id of ['#sync-button', '#migrate-button', '#logout-button', '#cloud-reload-button']) $(id).disabled = true;
-    try { await synchronize(status, { discardLocal }); await callbacks.refresh(); }
+    try { await synchronize(status, { discardLocal, onWishlistSync: callbacks.refreshWishlist }); await callbacks.refresh(); }
     catch (error) { diagnostic(error.diagnostic); status(error.message); notify(error.message, true); await callbacks.refresh(); }
     finally {
       if (discardLocal) callbacks.lock(false);

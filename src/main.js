@@ -407,6 +407,7 @@ async function init() {
     wishlist = initializeWishlist({ available: () => !changingAccount, afterMutation: () => social?.afterMutation(), diagnostic: () => social?.diagnostic(), reconnect: () => social?.reconnect() });
     social = await initializeSocial({
       refresh,
+      refreshWishlist: () => wishlist.refresh(),
       lock: setAccountLoading,
       async switchAccount(id) {
         resetMediaView(); $('#offline-media-status').textContent = ''; $('#cancel-media-download').hidden = true;
