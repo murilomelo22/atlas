@@ -430,8 +430,6 @@ async function init() {
     });
     await journeys.route();
     initializing = false; setAccountLoading(false);
-    // Cache the local shell; remote tiles and geocoding are never required to read saved data.
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => notify('O cache offline não pôde ser ativado. Os dados continuam salvos; mantenha o servidor local disponível.', true));
   } catch (error) {
     notify(storageMessage(error), true);
     $('#destination-list').innerHTML = `<div class="empty-state"><h3>Não foi possível abrir o atlas</h3><p>${escapeHTML(storageMessage(error))}</p><button class="primary" id="retry-init">Tentar novamente</button></div>`;
