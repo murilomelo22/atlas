@@ -1182,3 +1182,29 @@
 @media(max-width:700px){.wishlist-public-items{grid-template-columns:1fr}.wishlist-editor-items li{flex-direction:column}.wishlist-item-actions{align-self:flex-end}}
 .wishlist-public-items,.wishlist-editor-items{max-height:360px;overflow:auto}
 @media(max-width:700px){.wishlist-public-items,.wishlist-editor-items{max-height:280px}}
+
+/* Collection shortcuts and a quiet, full-viewport map. */
+.collection-filters{display:flex;gap:6px;margin-bottom:14px}
+.collection-filters button{flex:1;min-height:36px;padding:7px 9px;border:1px solid var(--line);border-radius:20px;background:transparent;color:var(--muted);font-size:11px;white-space:nowrap}
+.collection-filters button[aria-pressed="true"]{background:#c09a711b;border-color:#c09a7180;color:#dec4a6}
+#clear-filters{padding:8px 0 0;font-size:11px;color:var(--accent)}
+.map-toolbar{padding:10px;background:#141b15ed;border:1px solid #414938;border-radius:12px;max-width:calc(100% - 280px);backdrop-filter:blur(10px)}
+.clean-map-button{position:absolute;right:24px;bottom:114px;z-index:450;display:flex;align-items:center;gap:8px;border:1px solid #c09a7170;background:#1c241cef;color:#e8d7c1;min-height:42px;box-shadow:0 3px 16px #0003}
+.clean-map-button:hover{border-color:var(--accent);background:#293228}
+body.map-focused{overflow:hidden}
+.map-area.is-focused{position:fixed;inset:0;z-index:1100;width:100%;height:100dvh;min-height:0;max-height:none;border:0}
+.map-area.is-focused>.map-title,.map-area.is-focused>.map-toolbar,.map-area.is-focused>.map-status,.map-area.is-focused>.map-legend,.map-area.is-focused>.marker-switch,.map-area.is-focused>.heat-legend,.map-area.is-focused>.clean-map-button,.map-area.is-focused .leaflet-control-zoom{display:none}
+.clean-map-controls{position:absolute;top:max(18px,env(safe-area-inset-top));right:max(18px,env(safe-area-inset-right));z-index:1000;display:flex;gap:8px}
+.clean-map-controls button{display:grid;place-items:center;width:44px;height:44px;padding:0;font-size:25px;border:1px solid #626c5a80;background:#192119df;color:#e5e9dc;border-radius:50%;box-shadow:0 3px 18px #0002;backdrop-filter:blur(10px)}
+.clean-map-controls button:hover{border-color:var(--accent);background:#2a3528}
+.atlas-visited-pin{display:grid;place-items:center;background:transparent;border:0}
+.atlas-visited-pin span{width:12px;height:12px;background:#efc28b;border:2px solid #453523;border-radius:50%;box-shadow:0 0 0 4px #e8b77c28,0 2px 8px #0005}
+.atlas-visited-pin:focus-visible{outline:2px solid #efc28b;border-radius:50%;outline-offset:2px}
+.clean-map-empty{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:450;width:min(340px,calc(100% - 48px));padding:22px;text-align:center;border:1px solid var(--line);border-radius:12px;background:#182016ed;color:var(--text);font-size:14px;line-height:1.7;pointer-events:none}
+.clean-map-empty span{font-size:12px;color:var(--muted)}
+.clean-place-popup{display:grid;gap:5px;padding:4px;font-size:14px;overflow-wrap:anywhere}
+.clean-place-popup small{font-size:12px;color:#aab7a6}
+.is-focused .leaflet-popup-content-wrapper,.is-focused .leaflet-popup-tip{background:#182016;color:#e9e7df}
+.is-focused .leaflet-control-attribution{opacity:.7}
+@media(min-width:701px) and (max-width:1050px){.map-toolbar{top:155px;left:18px;right:18px;max-width:calc(100% - 36px)}}
+@media(max-width:700px){.map-toolbar{max-width:calc(100% - 24px);padding:8px}.clean-map-button{top:18px;right:12px;bottom:auto;min-height:38px;padding:8px 11px;font-size:11px}.heat-legend{top:70px}.clean-map-controls{top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right))}}

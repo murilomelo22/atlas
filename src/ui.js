@@ -1,5 +1,5 @@
 import { mediaLabel, mediaKind } from './media.js';
-import { totalDays, durationLabel, displayDate } from './dates.js';
+import { totalDays, durationLabel, displayDate, visitedDestinations } from './dates.js';
 export const $ = (selector, root = document) => root.querySelector(selector);
 export const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let toastTimer;
@@ -36,19 +36,25 @@ export function renderFilterOptions(destinations) {
   }
 }
 export function renderList(destinations, urls, onSelect, onAdd, readOnly = false) {
-  const query = $('#list-search').value.trim().toLocaleLowerCase('pt-BR');
+  const normalizeSearch = (value) => String(value).normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR');
+  const query = normalizeSearch($('#list-search').value.trim());
   const country = $('#country-filter').value, tag = $('#tag-filter').value;
-  const visible = destinations.filter((d) => (!country || d.countryName === country) && (!tag || d.tags.includes(tag)) && [d.name, d.countryName, d.notes, ...d.tags].some((value) => value.toLocaleLowerCase('pt-BR').includes(query)));
+  const collection = $('[data-collection-filter][aria-pressed="true"]').dataset.collectionFilter;
+  const candidates = collection === 'visited' ? visitedDestinations(destinations) : collection === 'favorites' ? destinations.filter((d) => d.favorite) : destinations;
+  const visible = candidates.filter((d) => (!country || d.countryName === country) && (!tag || d.tags.includes(tag)) && [d.name, d.countryName, d.notes, ...d.tags].some((value) => normalizeSearch(value).includes(query)));
   const sort = $('#sort').value;
   const latest = (d) => d.visits.map((v) => v.arrival).filter(Boolean).sort().at(-1) || '';
   visible.sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || (sort === 'name' ? a.name.localeCompare(b.name, 'pt-BR') : sort === 'duration' ? totalDays(b) - totalDays(a) : sort === 'rating' ? b.rating - a.rating : latest(b).localeCompare(latest(a))) || a.name.localeCompare(b.name, 'pt-BR'));
-  $('#destination-count').textContent = destinations.length;
+  const filtered = Boolean(query || country || tag || collection !== 'all');
+  $('#destination-count').textContent = filtered ? `${visible.length} / ${destinations.length}` : destinations.length;
+  $('#destination-count').setAttribute('aria-label', `${visible.length} de ${destinations.length} destinos`);
+  $('#clear-filters').hidden = !filtered;
   $('#examples-banner').hidden = !destinations.some((d) => d.example);
   const list = $('#destination-list');
   if (!visible.length) {
     list.innerHTML = `<div class="empty-state"><div class="empty-icon" aria-hidden="true">◇</div><h3>${destinations.length ? 'Nenhuma memória por aqui' : 'O mundo está à sua espera'}</h3><p>${destinations.length ? 'Experimente outra busca ou ajuste os filtros.' : 'Comece por um lugar que ficou com você.<br>Clique no mapa ou adicione seu primeiro destino.'}</p>${destinations.length ? '' : '<button class="primary" id="empty-add">Adicionar destino</button>'}</div>`;
     $('#empty-add')?.addEventListener('click', onAdd);
-    if (readOnly) { $('#empty-add')?.remove(); $('.empty-state p', list).textContent = 'Este perfil ainda não tem viagens públicas.'; }
+    if (readOnly && !destinations.length) { $('#empty-add')?.remove(); $('.empty-state p', list).textContent = 'Este perfil ainda não tem viagens públicas.'; }
     return;
   }
   list.innerHTML = visible.map((d) => `<button class="destination-card" data-destination-id="${escapeHTML(d.id)}" aria-label="Abrir destino ${escapeHTML(d.name)}"><span class="destination-thumb">${urls.has(d.coverId) ? `<img src="${urls.get(d.coverId)}" alt="" loading="lazy">` : '◇'}</span><span class="destination-summary"><strong>${escapeHTML(d.name)}</strong><small>${escapeHTML(d.countryName)}${d.rating ? ` · ${'★'.repeat(d.rating)}` : ''}</small><span class="duration">${durationLabel(totalDays(d))} · ${d.visits.length} ${d.visits.length === 1 ? 'visita' : 'visitas'}</span></span><span class="card-chevron" aria-hidden="true">›</span></button>`).join('');

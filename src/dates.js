@@ -11,6 +11,15 @@ export function visitDays(visit) {
   return start == null || end == null ? 0 : Math.max(0, end - start + 1);
 }
 export const totalDays = (destination) => destination.visits.reduce((sum, visit) => sum + visitDays(visit), 0);
+// A saved memory without dates still counts; homes, demos and future-only visits do not.
+export function visitedDestinations(destinations, today) {
+  if (!today) {
+    const now = new Date();
+    today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+  return destinations.filter((d) => d.kind !== 'home' && !d.example &&
+    (!(d.visits?.length) || d.visits.some((v) => v.arrival ? v.arrival <= today : !v.departure || v.departure <= today)));
+}
 export function durationLabel(days) {
   if (!days) return 'Tempo não informado';
   const weeks = Math.floor(days / 7), rest = days % 7;

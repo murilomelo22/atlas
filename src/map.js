@@ -1,4 +1,4 @@
-import { totalDays } from './dates.js';
+import { totalDays, visitedDestinations } from './dates.js';
 import { chronologicalStops } from './stats.js';
 import { createHeatLayer, heatPoints } from './heatmap.js';
 export function createMap(countries, onSelect, onAdd, onTileError) {
@@ -6,7 +6,8 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   map.attributionControl.setPrefix(false);
   map.attributionControl.addAttribution('Países: Natural Earth');
-  let base, theme = 'dark';
+  let base, theme = 'dark', cleanMode = false;
+  let visitedCountries = new Set();
   const themes = {
     dark: null,
     light: null,
@@ -15,6 +16,11 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
   let durations = new Map(), homes = new Set(), max = 1, routeVisible = false, markersVisible = true, plannedVisible = false;
   try { markersVisible = localStorage.getItem('atlas-show-markers') !== 'false'; } catch {}
   const style = (feature) => {
+    if (cleanMode) {
+      const visited = visitedCountries.has(String(feature.id)), light = theme !== 'dark';
+      return { color: visited ? '#b99671' : light ? '#a8b3aa' : '#39483e', weight: 0.7,
+        fillColor: visited ? '#c09a71' : light ? '#e3ede3' : '#202923', fillOpacity: visited ? .5 : .85 };
+    }
     const days = durations.get(String(feature.id));
     const home = homes.has(String(feature.id));
     const light = ['light', 'offline', 'streets'].includes(theme);
@@ -23,7 +29,7 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
   const layer = L.geoJSON(countries, { style, onEachFeature: (feature, country) => {
     country.bindTooltip(document.createTextNode(feature.properties.name), { sticky: true });
     country.on('add', () => { const path = country.getElement(); if (path) { path.dataset.countryId = String(feature.id); path.setAttribute('aria-label', feature.properties.name); } });
-    country.on('mouseover', () => { country.setStyle({ color: '#a5dfc6', weight: 1.8, fillColor: '#6ca78e', fillOpacity: 0.6 }); country.bringToFront(); country.getElement()?.classList.add('country-hover'); });
+    country.on('mouseover', () => { if (cleanMode) return country.closeTooltip(); country.setStyle({ color: '#a5dfc6', weight: 1.8, fillColor: '#6ca78e', fillOpacity: 0.6 }); country.bringToFront(); country.getElement()?.classList.add('country-hover'); });
     country.on('mouseout', () => { layer.resetStyle(country); country.getElement()?.classList.remove('country-hover'); });
   } }).addTo(map);
   const heat = createHeatLayer(map);
@@ -32,23 +38,24 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
   function setStyle(value) {
     theme = value in themes || value === 'offline' ? value : 'dark';
     if (base) { map.removeLayer(base); base = null; }
-    if (themes[theme]) {
+    if (themes[theme] && !cleanMode) {
       const [url, attribution] = themes[theme];
       base = L.tileLayer(url, { attribution, subdomains: 'abcd', maxZoom: theme === 'streets' ? 19 : 20, crossOrigin: true }).addTo(map);
       base.on('tileerror', onTileError);
     }
     layer.setStyle(style);
-    document.getElementById('map').dataset.style = theme;
+    document.getElementById('map').dataset.style = cleanMode && theme === 'streets' ? 'light' : theme;
     try { localStorage.setItem('atlas-map-style', theme); } catch {}
   }
   try { setStyle(localStorage.getItem('atlas-map-style') || 'dark'); } catch { setStyle('dark'); }
   const markers = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 48, spiderfyOnMaxZoom: true, iconCreateFunction: (cluster) => L.divIcon({ className: 'atlas-cluster', html: `<span>${cluster.getChildCount()}</span>`, iconSize: [42, 42] }) }).addTo(map);
   const routes = L.layerGroup();
   const planned = L.layerGroup();
+  const cleanMarkers = L.layerGroup();
   if (!markersVisible) map.removeLayer(markers);
   function setMarkersVisible(value) {
     markersVisible = Boolean(value);
-    if (markersVisible) { markers.addTo(map); if (routeVisible) routes.addTo(map); if (plannedVisible) planned.addTo(map); }
+    if (markersVisible && !cleanMode) { markers.addTo(map); if (routeVisible) routes.addTo(map); if (plannedVisible) planned.addTo(map); }
     else { map.removeLayer(markers); map.removeLayer(routes); map.removeLayer(planned); }
     try { localStorage.setItem('atlas-show-markers', String(markersVisible)); } catch {}
   }
@@ -56,7 +63,7 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
   let allDestinations = [];
   function setHeatMode(value) {
     heatMode = ['visits', 'days'].includes(value) ? value : 'off';
-    heat.update(heatPoints(allDestinations, heatMode)); heat.show(heatMode !== 'off');
+    heat.update(heatPoints(allDestinations, heatMode)); heat.show(heatMode !== 'off' && !cleanMode);
     const legend = document.getElementById('heat-legend');
     legend.hidden = heatMode === 'off';
     legend.querySelector('[data-heat-label]').textContent = heatMode === 'days' ? 'Dias registrados por lugar' : 'Visitas registradas por lugar';
@@ -64,7 +71,54 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
     try { localStorage.setItem('atlas-heat-mode', heatMode); } catch {}
   }
   setHeatMode(heatMode);
-  map.on('click', (e) => onAdd({ lat: Number(e.latlng.lat.toFixed(5)), lng: Number((((e.latlng.lng + 180) % 360 + 360) % 360 - 180).toFixed(5)) }));
+  map.on('click', (e) => { if (!cleanMode) onAdd({ lat: Number(e.latlng.lat.toFixed(5)), lng: Number((((e.latlng.lng + 180) % 360 + 360) % 360 - 180).toFixed(5)) }); });
+  function updateCleanPlaces() {
+    const visited = visitedDestinations(allDestinations);
+    visitedCountries = new Set(visited.map((d) => d.countryId).filter(Boolean));
+    cleanMarkers.clearLayers();
+    for (const d of visited) {
+      const popup = document.createElement('div'); popup.className = 'clean-place-popup';
+      const name = document.createElement('strong'); name.textContent = d.name;
+      const country = document.createElement('small'); country.textContent = d.countryName || 'País não identificado';
+      popup.append(name, country);
+      L.marker([d.lat, d.lng], { title: d.name, alt: d.name,
+        icon: L.divIcon({ className: 'atlas-visited-pin', html: '<span aria-hidden="true"></span>', iconSize: [28, 28], iconAnchor: [14, 14] }) })
+        .bindTooltip(document.createTextNode(d.name), { direction: 'top', offset: [0, -8] })
+        .bindPopup(popup, { maxWidth: 240, autoPanPadding: [48, 48] }).addTo(cleanMarkers);
+    }
+    document.getElementById('clean-map-empty').hidden = !cleanMode || visited.length > 0;
+    document.getElementById('map').dataset.visitedCount = String(visited.length);
+  }
+  function fit(destinations) {
+    if (!destinations.length) { map.setView([20, 0], 2, { animate: false }); return; }
+    map.fitBounds(destinations.map((d) => [d.lat, d.lng]), { padding: [48, 48], maxZoom: 6, animate: false });
+  }
+  function setCleanMode(value) {
+    cleanMode = Boolean(value);
+    map.closePopup();
+    map.eachLayer((item) => item.closeTooltip?.());
+    if (cleanMode) {
+      map.setMinZoom(0);
+      updateCleanPlaces();
+      if (base) map.removeLayer(base);
+      map.removeLayer(markers); map.removeLayer(routes); map.removeLayer(planned);
+      cleanMarkers.addTo(map);
+    } else {
+      map.setMinZoom(2);
+      map.removeLayer(cleanMarkers);
+      if (base) base.addTo(map);
+      if (markersVisible) {
+        markers.addTo(map);
+        if (routeVisible) routes.addTo(map);
+        if (plannedVisible) planned.addTo(map);
+      }
+      document.getElementById('clean-map-empty').hidden = true;
+    }
+    heat.show(heatMode !== 'off' && !cleanMode);
+    layer.setStyle(style);
+    document.getElementById('map').dataset.style = cleanMode && theme === 'streets' ? 'light' : theme;
+    document.getElementById('map').setAttribute('aria-label', cleanMode ? 'Mapa dos lugares visitados' : 'Mapa interativo; clique para adicionar um destino');
+  }
   function redrawRoute() {
     routes.clearLayers();
     const stops = chronologicalStops(allDestinations);
@@ -81,7 +135,7 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
       });
       L.polyline(points, { color: '#d0ac83', weight: 2, opacity: 0.8, dashArray: '5 7', interactive: false, smoothFactor: 0 }).addTo(routes);
     }
-    if (routeVisible && markersVisible) routes.addTo(map);
+    if (routeVisible && markersVisible && !cleanMode) routes.addTo(map);
   }
   return {
     map,
@@ -91,9 +145,12 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
     markersVisible: () => markersVisible,
     setHeatMode,
     getHeatMode: () => heatMode,
+    setCleanMode,
+    fitVisited: () => fit(visitedDestinations(allDestinations)),
     update(destinations, photoURLs) {
       plannedVisible = false; planned.clearLayers(); map.removeLayer(planned);
       allDestinations = destinations;
+      if (cleanMode) updateCleanPlaces();
       heat.update(heatPoints(destinations, heatMode));
       durations = new Map();
       homes = new Set(destinations.filter((d) => d.kind === 'home').map((d) => d.countryId).filter(Boolean));
@@ -116,8 +173,8 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
       redrawRoute();
     },
     flyTo(destination) { map.flyTo([destination.lat, destination.lng], 9, { duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 0.7 }); },
-    fit(destinations) { if (destinations.length) map.fitBounds(destinations.map((d) => [d.lat, d.lng]), { padding: [60, 60], maxZoom: 6 }); },
-    route(show) { plannedVisible = false; planned.clearLayers(); map.removeLayer(planned); routeVisible = show; if (show && markersVisible) routes.addTo(map); else map.removeLayer(routes); },
+    fit,
+    route(show) { plannedVisible = false; planned.clearLayers(); map.removeLayer(planned); routeVisible = show; if (show && markersVisible && !cleanMode) routes.addTo(map); else map.removeLayer(routes); },
     itinerary(stops) {
       routeVisible = false; map.removeLayer(routes); planned.clearLayers();
       let previous;
@@ -128,7 +185,7 @@ export function createMap(countries, onSelect, onAdd, onTileError) {
         L.marker([stop.lat,lng]).bindTooltip(document.createTextNode(`${i+1}. ${stop.name}`)).addTo(planned);
         return [stop.lat,lng];
       });
-      L.polyline(points,{color:'#e4bc7e',weight:3,dashArray:'6 6'}).addTo(planned); plannedVisible = true; if (markersVisible) planned.addTo(map); map.fitBounds(points,{padding:[40,40],maxZoom:9});
+      L.polyline(points,{color:'#e4bc7e',weight:3,dashArray:'6 6'}).addTo(planned); plannedVisible = true; if (markersVisible && !cleanMode) planned.addTo(map); map.fitBounds(points,{padding:[40,40],maxZoom:9});
     },
     resize() { map.invalidateSize(); },
   };

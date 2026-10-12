@@ -1,5 +1,20 @@
 # atlas
 atlas pessoal, teste usando o codex.
+
+## Mapa limpo e atalhos da coleção
+
+**Mapa limpo** abre o mapa em tela cheia, com pontos discretos e destaque dos países dos lugares visitados. Painéis, rotas, calor, fotos dos marcadores e tiles de ruas ficam ocultos. Toque em um ponto para ver o lugar e o país; **⌖** reenquadra a coleção e **×** ou **Esc** sai. O mapa anterior, suas preferências e o foco do teclado são restaurados ao sair. Navegadores sem a API de tela cheia usam a área inteira da janela.
+
+O modo limpo e o filtro **Já fui** excluem moradias, exemplos e lugares com apenas visitas futuras. Memórias sem datas continuam incluídas, assim como viagens já iniciadas. Um destino com visitas passadas e futuras aparece uma vez. O enquadramento em tela cheia permite reduzir o zoom para acomodar destinos distantes também no celular.
+
+Os filtros **Todos / Já fui / ★ Favoritas** combinam com busca, país e etiqueta. O contador mostra quantos destinos estão visíveis; **Limpar filtros** restaura a coleção. A busca aceita nomes sem acentos, como “Italia” e “memoria”. Essa atualização não exige migração no Supabase nem altera os registros ou a privacidade das postagens.
+
+A inicialização aguarda a restauração da conta antes de liberar a wish list, o mapa limpo, a edição e os backups; isso evita abrir a coleção temporária durante um carregamento lento.
+
+Verificação: **82 testes passaram** em computador e celular para o atlas local, mapa limpo, filtros, contas e wish list, incluindo tela cheia nativa, fallback, restauração das preferências e carregamento lento. A aparência das duas telas foi conferida com Chromium; os endpoints Supabase foram simulados.
+
+## Backups
+
 **Exportar** produz um único JSON com todos os destinos, visitas, legendas, capa e imagens em base64. **Importar** valida o arquivo e as imagens antes de gravar tudo em uma transação. Destinos com o mesmo ID, ou o mesmo nome e coordenadas arredondadas a cinco casas, são atualizados sem duplicação. Outros destinos locais são preservados. Os metadados e fotos dos destinos presentes no backup substituem os correspondentes locais; reimportar o mesmo arquivo é idempotente. O país é recalculado pelas coordenadas na importação. Miniaturas são reconstruídas.
 
 O armazenamento depende da origem e do perfil do navegador. Limpar dados do site, usar outro perfil ou a remoção automática pelo navegador pode apagar a coleção. Exporte backups regularmente. O JSON contém suas fotos e notas sem criptografia; guarde-o como um arquivo pessoal. Nenhuma conta ou sincronização remota é necessária.

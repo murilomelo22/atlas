@@ -3,6 +3,7 @@ import { openDatabase, getDestinations, getAllPhotos, getPhotos, saveDestination
 import { durationLabel, totalDays, validateVisits } from './dates.js';
 import { statistics } from './stats.js';
 import { createMap } from './map.js';
+import { initializeMapFocus } from './map-focus.js';
 import { createGeocoder } from './geocoding.js';
 import { groupMediaFiles, processMedia, mediaLabel } from './media.js';
 import { createGallery } from './gallery.js';
@@ -14,8 +15,8 @@ import { initializeRecaps } from './recap.js';
 import { initializeWishlist, publicWishlistHTML } from './wishlist.js';
 import { shareDestination } from './sharing.js';
 
-let destinations = [], allPhotos = [], selectedId = null, mapController;
-let publicView = null, social = null, journeys = null, recaps = null, wishlist = null, changingAccount = false;
+let destinations = [], allPhotos = [], selectedId = null, mapController, mapFocus;
+let publicView = null, social = null, journeys = null, recaps = null, wishlist = null, changingAccount = false, initializing = true;
 const urls = new Map();
 const gallery = createGallery();
 let editId, editPhotos = [], coverId, editorToken = 0, photoBusy = false, editorURLs = [], saving = false;
@@ -67,6 +68,14 @@ function selectDestination(id) {
   $('#destinations-panel').scrollTop = 0;
 }
 function updateList() { renderList(destinations, urls, selectDestination, () => openEditor(), Boolean(publicView)); }
+function clearFilters() {
+  $('#list-search').value = ''; $('#country-filter').value = ''; $('#tag-filter').value = '';
+  document.querySelectorAll('[data-collection-filter]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.collectionFilter === 'all')));
+}
+function setAccountLoading(value) {
+  changingAccount = value;
+  for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button', '#clean-map-button']) $(selector).disabled = value || initializing;
+}
 async function refresh() {
   destinations = publicView ? publicView.destinations : await getDestinations();
   destinations = destinations.map(d => ({ ...d, ...countryAt(d.lat,d.lng) }));
@@ -236,6 +245,13 @@ function bindEvents() {
   window.addEventListener('dragover', (e) => e.preventDefault());
   window.addEventListener('drop', (e) => e.preventDefault());
   for (const selector of ['#list-search', '#country-filter', '#tag-filter', '#sort']) $(selector).addEventListener('input', updateList);
+  document.querySelectorAll('[data-collection-filter]').forEach((button) => {
+    button.onclick = () => {
+      document.querySelectorAll('[data-collection-filter]').forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+      updateList();
+    };
+  });
+  $('#clear-filters').onclick = () => { clearFilters(); updateList(); $('#list-search').focus(); };
   $('#route-toggle').onchange = (e) => mapController.route(e.target.checked);
   $('#map-style').value = mapController.getStyle();
   $('#map-style').onchange = (e) => mapController.setStyle(e.target.value);
@@ -273,13 +289,14 @@ function bindEvents() {
   window.addEventListener('pagehide', (event) => { if (!event.persisted) { for (const url of urls.values()) URL.revokeObjectURL(url); releaseEditorURLs(); } });
 }
 function setViewUI() {
+  mapFocus?.exit();
   document.body.classList.toggle('viewing-profile', Boolean(publicView));
   for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button']) $(selector).hidden = Boolean(publicView);
   $('#public-profile-header').hidden = !publicView;
   $('.sidebar-heading .eyebrow').textContent = publicView ? 'VIAGENS PÚBLICAS' : 'SUA COLEÇÃO';
   $('.sidebar-heading h2').firstChild.textContent = publicView ? 'Viagens públicas ' : 'Meus destinos ';
   $('#detail-panel').hidden = true; $('#list-panel').hidden = false;
-  $('#list-search').value = ''; $('#country-filter').value = ''; $('#tag-filter').value = '';
+  clearFilters();
   if (publicView) {
     const p = publicView.profile;
     $('#public-profile-header').innerHTML = `<span id="public-avatar" class="profile-avatar" aria-hidden="true">${escapeHTML(p.display_name.slice(0, 1))}</span><div><p class="eyebrow">@${escapeHTML(p.username)}</p><h2>${escapeHTML(p.display_name)}</h2><p>${escapeHTML(p.bio || 'Um mapa de caminhos e memórias.')}</p></div><span class="tag">Perfil público</span>${publicView.publishedTrips?.length ? `<section class="profile-trips" aria-label="Trips publicadas"><h3>Trips compartilhadas</h3><div>${publicView.publishedTrips.map(t=>`<a class="trip-card" href="#/roteiro/${escapeHTML(t.id)}"><strong>${escapeHTML(t.name)}</strong><small>${t.stops.length} destinos · Ver roteiro</small></a>`).join('')}</div></section>` : ''}${publicWishlistHTML(publicView.wishlist)}`;
@@ -289,34 +306,36 @@ function setViewUI() {
   mapController.resize();
 }
 async function init() {
-  const buttons = ['#add-button', '#export-button', '#import-button'];
-  buttons.forEach((selector) => { $(selector).disabled = true; });
+  setAccountLoading(true);
   try {
     const countries = await loadCountries();
     await openDatabase();
     mapController = createMap(countries, selectDestination, (coords) => openEditor(null, coords), () => {
       $('#map-status').textContent = 'Tiles indisponíveis. Seus países e destinos continuam acessíveis.';
     });
-    await refresh(); bindEvents(); buttons.forEach((selector) => { $(selector).disabled = false; });
+    await refresh(); bindEvents();
+    mapFocus = initializeMapFocus(mapController);
     journeys = initializeJourneys({ destinations: () => destinations, preview: (stops) => { mapController.itinerary(stops); $('#route-toggle').checked = false; notify('Roteiro no mapa. As linhas unem paradas; não representam estradas.'); } });
     recaps = initializeRecaps(() => destinations);
     wishlist = initializeWishlist({ available: () => !changingAccount, afterMutation: () => social?.afterMutation() });
     social = await initializeSocial({
       refresh,
-      lock(value) { changingAccount = value; },
+      lock: setAccountLoading,
       async switchAccount(id) {
-        changingAccount = true; editorToken++; editor.close(); $('#gallery-dialog').close(); publicView = null; selectedId = null;
+        mapFocus.exit();
+        setAccountLoading(true); editorToken++; editor.close(); $('#gallery-dialog').close(); publicView = null; selectedId = null;
         journeys.reset(); recaps.reset(); wishlist.reset();
         $('#destination-form').reset(); $('#visits-editor').replaceChildren(); $('#photo-editor').replaceChildren();
         editPhotos = []; coverId = null; releaseEditorURLs();
         try { await openDatabase({ accountId: id }); setViewUI(); await refresh(); }
-        finally { changingAccount = false; }
+        finally { setAccountLoading(false); }
       },
       async showOwn({ preserveSelection = false } = {}) { if(preserveSelection && !publicView){await refresh();return;} publicView = null; selectedId = null; setViewUI(); await refresh(); },
       async showPublic(data) { publicView = data; selectedId = null; setViewUI(); await refresh(); mapController.fit(destinations); },
       showTrip: () => journeys.route(),
     });
     await journeys.route();
+    initializing = false; setAccountLoading(false);
     // Cache the local shell; remote tiles and geocoding are never required to read saved data.
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => notify('O cache offline não pôde ser ativado. Os dados continuam salvos; mantenha o servidor local disponível.', true));
   } catch (error) {

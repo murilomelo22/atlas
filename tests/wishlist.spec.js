@@ -61,6 +61,21 @@ test('migração ausente preserva wish list, e sincroniza após instalar SQL', a
   await page.reload(); await open(page); await expect(page.locator('#wishlist-items')).toContainText('Kyoto'); missing = false; await page.locator('#wishlist-close').click(); await page.locator('#account-button').click(); await page.locator('#sync-button').click(); await expect(page.locator('#sync-status')).toHaveText('Tudo salvo na sua conta.'); expect(cloud.wishlists[0].items).toHaveLength(1);
 });
 
+test('carregamento lento restaura a wish list da conta antes de liberar sua abertura', async ({ page }) => {
+  await mockTrips(page); await ready(page); await login(page); await open(page); await add(page); await save(page, true);
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  await page.route('**/vendor/countries.geojson', async route => { await gate; await route.fallback(); });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#wishlist-button')).toBeDisabled();
+  await expect(page.locator('#clean-map-button')).toBeDisabled();
+  const opening = page.locator('#wishlist-button').click();
+  release(); await opening;
+  await expect(page.locator('#wishlist-dialog')).toBeVisible();
+  await expect(page.locator('#wishlist-items')).toContainText('Kyoto');
+  await expect(page.locator('#clean-map-button')).toBeEnabled();
+});
+
 test('backup e migração local preservam a lista sem duplicar e sem publicar', async ({ page }) => {
   const cloud = await mockTrips(page); await ready(page); await open(page); await add(page); await save(page); await page.locator('#wishlist-close').click();
   const backup = await page.evaluate(async () => (await import('/src/db.js')).exportBackup()); expect(backup.wishlist.items).toHaveLength(1); backup.wishlist.is_public = true;

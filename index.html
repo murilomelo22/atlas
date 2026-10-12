@@ -28,7 +28,7 @@
     </div>
   </header>
   <nav class="social-nav" aria-label="Conta e comunidade">
-    <div><button id="home-atlas" class="text-button">Meu atlas</button><button id="explore-button" class="text-button">Explorar perfis</button><button id="trips-button" class="text-button">Trips e roteiros</button><button id="wishlist-button" class="text-button">Wish list</button><button id="recap-button" class="text-button">Resumos</button></div>
+    <div><button id="home-atlas" class="text-button">Meu atlas</button><button id="explore-button" class="text-button">Explorar perfis</button><button id="trips-button" class="text-button">Trips e roteiros</button><button id="wishlist-button" class="text-button" disabled>Wish list</button><button id="recap-button" class="text-button">Resumos</button></div>
     <div><span id="sync-status" class="sync-status" role="status">Coleção neste dispositivo</span><button id="account-button" class="quiet" hidden>Meu perfil</button><button id="login-button" class="quiet">Entrar / Criar conta</button></div>
   </nav>
   <section id="public-profile-header" class="public-profile-header" hidden aria-label="Perfil público"></section>
@@ -44,9 +44,15 @@
       <section id="list-panel">
         <div class="sidebar-heading"><div><p class="eyebrow">SUA COLEÇÃO</p><h2>Meus destinos <span id="destination-count">0</span></h2></div></div>
         <div class="filters">
+          <div class="collection-filters" role="group" aria-label="Filtrar coleção">
+            <button type="button" data-collection-filter="all" aria-pressed="true">Todos</button>
+            <button type="button" data-collection-filter="visited" aria-pressed="false">Já fui</button>
+            <button type="button" data-collection-filter="favorites" aria-pressed="false">★ Favoritas</button>
+          </div>
           <label class="search-label" for="list-search"><span aria-hidden="true">⌕</span><input id="list-search" type="search" placeholder="Buscar nas suas memórias…" aria-label="Buscar destinos salvos"></label>
           <div class="filter-row"><label>País<select id="country-filter"><option value="">Todos os países</option></select></label><label>Etiqueta<select id="tag-filter"><option value="">Todas as etiquetas</option></select></label></div>
           <label class="sort-label">Ordenar por<select id="sort"><option value="date">Mais recentes</option><option value="name">Nome</option><option value="duration">Tempo passado</option><option value="rating">Avaliação</option></select></label>
+          <button type="button" id="clear-filters" class="text-button" hidden>Limpar filtros</button>
         </div>
         <div id="examples-banner" class="examples-banner" hidden><p>Um começo pela Itália.<br><span>Estes destinos são exemplos editáveis.</span></p><button id="clear-examples" class="text-button">Limpar exemplos</button></div>
         <div id="destination-list" class="destination-list" aria-live="polite"><p class="loading">Preparando suas memórias…</p></div>
@@ -54,10 +60,16 @@
       </section>
       <section id="detail-panel" hidden aria-label="Detalhes do destino"></section>
     </aside>
-    <section class="map-area" aria-label="Mapa dos seus destinos">
+    <section class="map-area" aria-label="Mapa dos seus destinos" id="map-area">
       <div id="map" aria-label="Mapa interativo; clique para adicionar um destino"></div>
       <div class="map-title"><p class="eyebrow">UM MUNDO DE MEMÓRIAS</p><h2>Seu mundo,<br><em>revisitado.</em></h2></div>
       <div class="map-toolbar"><label class="map-style-label">Mapa<select id="map-style"><option value="dark">Atlas escuro</option><option value="light">Atlas claro</option><option value="streets">Ruas</option><option value="offline">Atlas sem tiles</option></select></label><label class="map-style-label">Calor<select id="heat-mode" aria-label="Mapa de calor"><option value="off">Desativado</option><option value="visits">Por visitas</option><option value="days">Por dias</option></select></label><label class="route-switch"><input id="route-toggle" type="checkbox" aria-label="Rota cronológica"><span>Rota <span class="route-extra">cronológica</span></span></label><button id="fit-button" class="quiet" aria-label="Enquadrar todos os destinos">⌖ <span>Ver todos</span></button></div>
+      <button type="button" id="clean-map-button" class="clean-map-button quiet" aria-label="Abrir mapa limpo em tela cheia" title="Tela cheia com seus lugares visitados" disabled><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></svg><span>Mapa limpo</span></button>
+      <div class="clean-map-controls" hidden>
+        <button type="button" id="clean-map-fit" class="quiet" aria-label="Enquadrar lugares visitados" title="Enquadrar lugares visitados">⌖</button>
+        <button type="button" id="clean-map-close" class="quiet" aria-label="Sair do mapa em tela cheia" title="Sair da tela cheia (Esc)">×</button>
+      </div>
+      <p id="clean-map-empty" class="clean-map-empty" role="status" hidden>Ainda não há lugares visitados nesta coleção.<br><span>Adicione suas memórias para vê-las aqui.</span></p>
       <div id="heat-legend" class="heat-legend" hidden><strong data-heat-label></strong><span class="heat-scale"></span><small>Menos ← concentração → Mais</small><small>Lugares registrados, sem rastreamento GPS.</small></div>
       <label class="marker-switch"><input id="show-markers" type="checkbox" checked> Mostrar viagens no mapa <small>marcadores e números</small></label>
       <div class="map-status" id="map-status" role="status">Clique em qualquer lugar para guardar uma memória</div>
