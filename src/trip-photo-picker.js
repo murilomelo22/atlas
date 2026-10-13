@@ -4,6 +4,7 @@ import { reviewPhotos, importedPhotoId, importReviewPhotos } from './trip-media-
 import { loadCloudMedia } from './cloud-media.js';
 import { escapeHTML as esc } from './ui.js';
 import { visitedDestinations } from './dates.js';
+import { stopForDestination } from './trip-photo-location.js';
 
 export function createTripPhotoPicker({ container, trip, valid, mutate, existing, reload }) {
   const section = document.createElement('section'); section.className = 'review-photo-picker'; section.hidden = true;
@@ -49,7 +50,7 @@ export function createTripPhotoPicker({ container, trip, valid, mutate, existing
     $('[data-review-status]').textContent = 'Buscando fotos das suas avaliações…'; $('[data-review-import]').disabled = true;
     const photos = await reviewPhotos(); if (!alive(token)) return;
     const visited = new Set(visitedDestinations([...new Map(photos.map(source => [source.destination.id, source.destination])).values()]).map(destination => destination.id));
-    const inTrip = destination => visited.has(destination.id) && (trip.stops || []).some(stop => stop.sourceDestinationId === destination.id || Math.abs(Number(stop.lat) - destination.lat) < .00001 && Math.abs(Number(stop.lng) - destination.lng) < .00001);
+    const inTrip = destination => visited.has(destination.id) && Boolean(stopForDestination(trip, destination));
     const copied = new Set(existing().map(photo => photo.id));
     sources = await Promise.all(photos.map(async source => ({ ...source, inTrip: inTrip(source.destination), copied: copied.has(await importedPhotoId(owner, trip.id, source.photo)) }))); if (!alive(token)) return;
     const options = matching => [...new Map(sources.filter(source => source.inTrip === matching).map(source => [source.destination.id, source.destination.name]))].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR')).map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('');

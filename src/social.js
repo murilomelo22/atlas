@@ -46,6 +46,7 @@ export async function initializeSocial(callbacks) {
     $('#auth-dialog').showModal();
   }
   function reconnect() { $('#account-dialog').close(); openAuth(); }
+  document.addEventListener('atlas-open-auth',event=>openAuth(event.detail==='signup'?'signup':'login'));
   $('#reconnect-button').onclick = reconnect;
   async function runSync(discardLocal = false) {
     if (!currentUser() || syncRunning()) return;
@@ -84,7 +85,7 @@ export async function initializeSocial(callbacks) {
       catch (error) { diagnostic(error.diagnostic); status(error.message); notify(error.message, true); }
     }
     if (location.hash.startsWith('#/perfil/')) await route();
-    if (location.hash.startsWith('#/roteiro/')) await callbacks.showTrip?.();
+    if (!location.hash.startsWith('#/perfil/')) await callbacks.showTrip?.();
   }
   function queueAccountChange() {
     change = change.then(handleAccount).catch((error) => notify(error.message, true));

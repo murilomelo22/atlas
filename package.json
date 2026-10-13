@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.9",
     "@playwright/test": "^1.48.0",
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
@@ -11,6 +12,7 @@
   },
   "scripts": {
     "test": "playwright test",
+    "test:sharing-db": "node tests/trip-sharing.database.mjs",
     "vendor": "node tools/vendor.mjs"
   }
 }

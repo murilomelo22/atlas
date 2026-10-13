@@ -3,17 +3,22 @@ import { MEDIA_ACCEPT, groupMediaFiles, processMedia, mediaKind, mediaLabel, med
 import { createGallery } from './gallery.js';
 import { escapeHTML as esc, confirmAction } from './ui.js';
 import { createTripPhotoPicker } from './trip-photo-picker.js';
+import { linkExistingReviewPhotos } from './trip-media-import.js';
+import { assignTripPhotoStops } from './trip-photo-location.js';
 
 export function tripGallery({ container, trip, canAdd, owner, valid, mutate }) {
   let staged = null;
   let items = [], picker;
-  container.innerHTML = `<h3>Fotos e vídeos da trip</h3><p class="field-hint">Até 100 mídias, com a privacidade do roteiro. Fotos: até 40 MB; vídeos: até 50 MB. Live Photo: selecione a foto e o vídeo com o mesmo nome juntos. Se o iPhone enviar só a foto, exporte o movimento no app Fotos como vídeo.</p><div class="trip-gallery"></div>${canAdd ? `<form class="trip-photo-form"><label>Adicionar foto, vídeo ou Live Photo<input data-trip-photo type="file" accept="${MEDIA_ACCEPT}" multiple required></label><label>Legenda<input data-trip-caption maxlength="500" placeholder="Uma memória da viagem…"></label><button class="quiet" type="submit">Enviar mídia</button></form>` : ''}`;
+  const stopOptions = selected => '<option value="">Álbum geral da trip</option>' + trip.stops.filter(stop => stop.id).map(stop => `<option value="${esc(stop.id)}" ${stop.id === selected ? 'selected' : ''}>${esc(stop.name)}</option>`).join('');
+  container.innerHTML = `<h3>Fotos e vídeos da trip</h3><p class="field-hint">Até 100 mídias, com a privacidade do roteiro. Fotos: até 40 MB; vídeos: até 50 MB. Live Photo: selecione a foto e o vídeo com o mesmo nome juntos. Se o iPhone enviar só a foto, exporte o movimento no app Fotos como vídeo.</p><div class="trip-gallery"></div>${canAdd ? `<form class="trip-photo-form"><label>Adicionar foto, vídeo ou Live Photo<input data-trip-photo type="file" accept="${MEDIA_ACCEPT}" multiple required></label><label>Lugar desta memória<select data-upload-stop>${stopOptions(trip.stops.length === 1 ? trip.stops[0].id : null)}</select></label><label>Legenda<input data-trip-caption maxlength="500" placeholder="Uma memória da viagem…"></label><button class="quiet" type="submit">Enviar mídia</button></form>` : ''}`;
   async function load() {
-    const photos = await request(`/rest/v1/trip_photos?${new URLSearchParams({ select: '*', trip_id: `eq.${trip.id}`, order: 'created_at', limit: '100' })}`, { authenticated: Boolean(currentUser()) });
+    let photos = await request(`/rest/v1/trip_photos?${new URLSearchParams({ select: '*', trip_id: `eq.${trip.id}`, order: 'created_at', limit: '100' })}`, { authenticated: Boolean(currentUser()) });
+    if ((owner || canAdd) && valid()) photos = await linkExistingReviewPhotos(trip, photos, valid);
     if (!valid()) return;
     items = photos;
     const grid = container.querySelector('.trip-gallery');
-    grid.innerHTML = photos.length ? photos.map(photo => `<figure data-photo="${esc(photo.id)}"><a target="_blank" rel="noopener noreferrer" aria-label="Abrir ${mediaLabel(photo).toLowerCase()} da trip"><img alt="${esc(photo.caption || mediaLabel(photo))}" loading="lazy"></a>${mediaKind(photo) !== 'image' ? `<span class="media-badge">▶ ${mediaLabel(photo)}</span>` : ''}<figcaption>${esc(photo.caption)}</figcaption>${owner || canAdd && photo.uploader_id === currentUser()?.id ? '<button type="button" class="text-button" data-delete-photo>Remover mídia</button>' : ''}</figure>`).join('') : '<p class="field-hint">A primeira foto ou vídeo pode ser sua próxima memória.</p>';
+    grid.innerHTML = photos.length ? photos.map(photo => `<figure data-photo="${esc(photo.id)}"><a target="_blank" rel="noopener noreferrer" aria-label="Abrir ${mediaLabel(photo).toLowerCase()} da trip"><img alt="${esc(photo.caption || mediaLabel(photo))}" loading="lazy"></a>${mediaKind(photo) !== 'image' ? `<span class="media-badge">▶ ${mediaLabel(photo)}</span>` : ''}<figcaption>${esc(photo.caption)}</figcaption>${owner || canAdd && photo.uploader_id === currentUser()?.id ? `<label class="trip-photo-place">Lugar<select data-photo-stop="${esc(photo.id)}">${stopOptions(photo.stop_id)}</select></label><button type="button" class="text-button" data-delete-photo>Remover mídia</button>` : ''}</figure>`).join('') : '<p class="field-hint">A primeira foto ou vídeo pode ser sua próxima memória.</p>';
+    grid.querySelectorAll('[data-photo-stop]').forEach(select => select.onchange = () => mutate(async () => { await assignTripPhotoStops(trip, [{ photo_id: select.dataset.photoStop, stop_id: select.value || null }], valid); if (valid()) await load(); }));
     let nextPreview = 0;
     async function previewWorker() {
       while (nextPreview < photos.length && valid()) {
@@ -76,6 +81,8 @@ export function tripGallery({ container, trip, canAdd, owner, valid, mutate }) {
         const body = { p_trip: trip.id, p_id: photo.id, p_path: photo.path, p_caption: form.querySelector('[data-trip-caption]').value };
         if (!isImage) Object.assign(body, { p_kind: photo.kind, p_thumbnail: photo.thumbPath, p_motion: photo.motionPath, p_duration: photo.duration });
         await request(`/rest/v1/rpc/${isImage ? 'atlas_add_trip_photo' : 'atlas_add_trip_media'}`, { method: 'POST', authenticated: true, body });
+        const stop = form.querySelector('[data-upload-stop]').value;
+        if (stop) await assignTripPhotoStops(trip, [{ photo_id: photo.id, stop_id: stop }], valid);
         if (!valid()) return;
         staged = null; form.reset(); await load();
         document.getElementById('trip-message').textContent = 'Mídia adicionada à trip.';

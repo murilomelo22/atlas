@@ -10,6 +10,7 @@ async function login(page, email = 'alice@example.com') {
   await expect(page.locator('#sync-status')).toHaveText('Tudo salvo na sua conta.');
 }
 async function logout(page) {
+  if (await page.locator('#trip-view-dialog').isVisible()) await page.locator('[data-view-close]').click();
   if (await page.locator('#trips-dialog').isVisible()) await page.locator('#trips-close').click();
   await page.locator('#account-button').click(); await page.locator('#logout-button').click(); await expect(page.locator('#login-button')).toBeVisible();
 }
@@ -59,7 +60,7 @@ test('publicação autorizada no perfil e revogação sem copiar postagens priva
   await logout(page); await login(page, 'bob@example.com'); await accept(page); await expect(page.locator('#trip-publish-profile')).toBeEnabled();
   await page.locator('#trip-publish-profile').click(); await expect(page.locator('#trip-publish-profile')).toHaveText('Retirar do meu perfil'); expect(cloud.publications).toHaveLength(1); expect(cloud.posts).toHaveLength(0);
   await page.locator('#trips-close').click(); await page.goto('/#/perfil/bob'); await expect(page.locator('.profile-trips')).toContainText('Férias em grupo');
-  await page.locator('.profile-trips a').click(); await expect(page.locator('#trips-dialog')).toBeVisible(); await expect(page.locator('#trip-name')).toHaveValue('Férias em grupo'); await logout(page); await login(page); await open(page);
+  await page.locator('.profile-trips a').click(); await expect(page.locator('#trip-view-dialog')).toBeVisible(); await expect(page.locator('#trip-view-title')).toHaveText('Férias em grupo'); await logout(page); await login(page); await open(page);
   await page.locator('[data-person] [data-permission="publish_profile"]').uncheck(); await page.locator('[data-save-person]').click(); await expect(page.locator('#trip-message')).toHaveText('Permissões atualizadas.');
   await logout(page); await page.goto('/#/perfil/bob'); await expect(page.locator('#public-profile-header')).toContainText('@bob'); await expect(page.locator('.profile-trips')).toHaveCount(0); expect(cloud.publications).toHaveLength(0);
 });
@@ -68,8 +69,8 @@ test('trip privada bloqueia publicação; galeria pública respeita troca para p
   const cloud = await mockTrips(page); await ready(page); await login(page); await create(page); await invite(page, ['publish_profile']); await upload(page); await expect(page.locator('.trip-gallery img')).toBeVisible();
   await logout(page); await login(page, 'bob@example.com'); await accept(page); await expect(page.locator('#trip-publish-profile')).toBeDisabled(); await expect(page.locator('#trip-publication-status')).toContainText('tornar o roteiro público');
   await logout(page); await login(page); await open(page); await page.locator('#trip-public').check(); await page.locator('#trip-save').click(); await expect(page.locator('.trip-gallery img')).toBeVisible();
-  const id = cloud.trips[0].id; await logout(page); await page.goto(`/#/roteiro/${id}`); await expect(page.locator('.trip-gallery img')).toBeVisible(); await expect(page.locator('[data-trip-photo]')).toHaveCount(0); await expect(page.locator('#trip-members-section')).not.toBeVisible();
-  cloud.trips[0].is_public = false; await page.reload(); await expect(page.locator('#toast')).toContainText('não tem acesso'); await expect(page.locator('.trip-gallery img')).toHaveCount(0);
+  const id = cloud.trips[0].id; await logout(page); await page.goto(`/#/roteiro/${id}`); await page.locator('.trip-view-photo').scrollIntoViewIfNeeded(); await expect(page.locator('.trip-view-photo img')).toBeVisible(); await expect(page.locator('[data-trip-photo]')).toHaveCount(0); await expect(page.locator('#trip-members-section')).not.toBeVisible();
+  cloud.trips[0].is_public = false; await page.reload(); await expect(page.locator('#toast')).toContainText('não tem acesso'); await expect(page.locator('.trip-view-photo img')).toHaveCount(0);
 });
 
 test('resposta perdida ao adicionar foto permite tentar novamente sem duplicar', async ({ page }) => {

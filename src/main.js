@@ -407,7 +407,7 @@ async function init() {
     });
     await refresh(); bindEvents();
     mapFocus = initializeMapFocus(mapController);
-    journeys = initializeJourneys({ destinations: () => destinations, preview: (stops) => { mapController.itinerary(stops); $('#route-toggle').checked = false; notify('Roteiro no mapa. As linhas unem paradas; não representam estradas.'); } });
+    journeys = initializeJourneys({ countries, destinations: () => destinations, preview: (stops) => { mapController.itinerary(stops); $('#route-toggle').checked = false; notify('Roteiro no mapa. As linhas unem paradas; não representam estradas.'); } });
     recaps = initializeRecaps(() => destinations);
     wishlist = initializeWishlist({ available: () => !changingAccount, afterMutation: () => social?.afterMutation(), diagnostic: () => social?.diagnostic(), reconnect: () => social?.reconnect() });
     social = await initializeSocial({

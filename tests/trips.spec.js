@@ -41,8 +41,8 @@ test('link público, WhatsApp e privacidade depois de retirar publicação',asyn
  const cloud=await mockTrips(page);await ready(page);await login(page);await newTrip(page,'Roteiro compartilhado');await page.locator('#trip-public').check();await saveTrip(page);
  const id=cloud.trips[0].id;await page.locator('#trip-share').click();await expect(page.locator('#share-text')).toHaveValue(new RegExp(`#/roteiro/${id}`));expect(await page.locator('#share-whatsapp').getAttribute('href')).toMatch(/^https:\/\/wa.me\/\?text=/);
  await page.getByRole('button',{name:'Fechar compartilhamento'}).click();await page.locator('#trips-close').click();await logout(page);await page.goto(`/#/roteiro/${id}`);
- await expect(page.locator('#trip-name')).toHaveValue('Roteiro compartilhado');await expect(page.locator('#trip-name')).toBeDisabled();await expect(page.locator('#trip-save')).not.toBeVisible();await expect(page.locator('#trip-members-section')).not.toBeVisible();
- cloud.trips[0].is_public=false;await page.reload();await expect(page.locator('#toast')).toContainText('não tem acesso');await expect(page.locator('#trips-dialog')).not.toBeVisible();
+ await expect(page.locator('#trip-view-title')).toHaveText('Roteiro compartilhado');await expect(page.locator('#trip-form')).toHaveCount(0);await expect(page.locator('[data-view-manage]')).not.toBeVisible();await expect(page.locator('[data-trip-photo]')).toHaveCount(0);
+ cloud.trips[0].is_public=false;await page.reload();await expect(page.locator('#toast')).toContainText('não tem acesso');await expect(page.locator('#trip-view-dialog')).not.toBeVisible();
 });
 
 test('conflito e desconexão mantêm o formulário e exportação disponíveis',async({page})=>{

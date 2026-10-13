@@ -1,6 +1,7 @@
 import { currentUser, request, ensureMediaSupport, deleteObjects } from './cloud.js';
 import { currentAccountId, getAllPhotos, getDestinations } from './db.js';
 import { mediaKind, mediaExtension } from './media.js';
+import { stopForDestination, assignTripPhotoStops } from './trip-photo-location.js';
 
 export async function importedPhotoId(owner, trip, photo) {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(['atlas-review-import-v1', owner, trip, photo.destinationId, photo.id]))));
@@ -18,16 +19,44 @@ export async function reviewPhotos() {
 }
 const extension = (path, blob) => path?.match(/\.(mp4|webm|mov)$/i)?.[1].toLowerCase() || mediaExtension(blob);
 
+// Existing imported copies have stable IDs. Organize them from the current
+// account's cached reviews, without downloading originals or exposing reviews.
+export async function linkExistingReviewPhotos(trip, photos, valid = () => true) {
+  const owner = currentUser()?.id;
+  const unassigned = new Set(photos.filter(photo => !photo.stop_id && !photo.location_set && photo.id?.[14] === '8' && photo.uploader_id === owner).map(photo => photo.id));
+  if (!owner || currentAccountId() !== owner || !unassigned.size || !valid()) return photos;
+  const links = [];
+  for (const destination of await getDestinations()) {
+    if (!valid() || currentUser()?.id !== owner || currentAccountId() !== owner) return photos;
+    if (destination.example || destination.kind === 'home') continue;
+    const stop = stopForDestination(trip, destination); if (!stop?.id) continue;
+    // Matching needs only IDs, so large local originals stay in IndexedDB.
+    for (const photoID of destination.photoIds || []) {
+      const id = await importedPhotoId(owner, trip.id, { id: photoID, destinationId: destination.id });
+      if (unassigned.has(id)) links.push({ photo_id: id, stop_id: stop.id });
+    }
+  }
+  if (links.length && valid() && currentUser()?.id === owner) {
+    try { await assignTripPhotoStops(trip, links, valid); }
+    catch { return photos; } // Keep the album available if organization failed.
+    const byID = new Map(links.map(link => [link.photo_id, link.stop_id]));
+    return photos.map(photo => byID.has(photo.id) ? { ...photo, stop_id: byID.get(photo.id), location_set: true } : photo);
+  }
+  return photos;
+}
+
 export async function importReviewPhotos({ trip, photoIds, destinationIds, valid = () => true, progress = () => {} }) {
   const owner = currentUser()?.id;
   const guard = () => { if (!owner || owner !== currentUser()?.id || owner !== currentAccountId() || !valid()) throw new DOMException('Importação interrompida. As fotos concluídas foram preservadas.', 'AbortError'); };
   guard();
   const sources = (await reviewPhotos()).filter(({ photo }) => photoIds ? photoIds.includes(photo.id) : destinationIds?.includes(photo.destinationId)); guard();
   if (!sources.length) return { imported: 0, skipped: 0 };
-  const existing = await request(`/rest/v1/trip_photos?${new URLSearchParams({ select: 'id', trip_id: `eq.${trip.id}`, limit: '100' })}`, { authenticated: true }); guard();
+  const existing = await request(`/rest/v1/trip_photos?${new URLSearchParams({ select: 'id,uploader_id,storage_path,stop_id,location_set', trip_id: `eq.${trip.id}`, limit: '100' })}`, { authenticated: true }); guard();
   const ids = new Set(existing.map(p => p.id)), prepared = [];
   for (const source of sources) prepared.push({ ...source, id: await importedPhotoId(owner, trip.id, source.photo) });
   guard();
+  const byID = new Map(existing.map(photo => [photo.id, photo]));
+  for (const source of prepared) { const photo = byID.get(source.id); if (photo && (photo.uploader_id !== owner || !photo.storage_path.startsWith(`${owner}/${trip.id}/${source.id}.`))) throw new Error('Esta importação encontrou uma mídia com identidade diferente. Os originais foram preservados.'); }
   const pending = prepared.filter(source => !ids.has(source.id));
   if (ids.size + pending.length > 100) throw new Error('A trip aceita até 100 mídias. Selecione menos fotos para importar.');
   if (pending.some(({ photo }) => mediaKind(photo) !== 'image')) { await ensureMediaSupport('trip_photos'); guard(); }
@@ -64,5 +93,7 @@ export async function importReviewPhotos({ trip, photoIds, destinationIds, valid
       throw error;
     }
   }
+  const links = prepared.flatMap(({ destination, id }) => { const stop = stopForDestination(trip, destination), photo = byID.get(id); return stop?.id && !photo?.location_set && !photo?.stop_id ? [{ photo_id: id, stop_id: stop.id }] : []; });
+  await assignTripPhotoStops(trip, links, valid); guard();
   return { imported, skipped: prepared.length - pending.length };
 }

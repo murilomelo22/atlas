@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mockCloud } from './cloud-fixture.js';
 // HTTP contracts only. Run verify-trips.sql for actual RLS/definer verification.
 export async function mockTrips(page) {
- const state=await mockCloud(page);state.trips=[];state.members=[];state.tripPhotos=[];state.publications=[];
+ const state=await mockCloud(page);state.trips=[];state.members=[];state.tripPhotos=[];state.publications=[];state.saves=[];state.joinRequests=[];
  await page.route('https://atlas-tests.supabase.co/rest/v1/**',async route=>{
   const req=route.request(),url=new URL(req.url()),path=url.pathname;
   if(!path.includes('trip'))return route.fallback();
@@ -21,7 +21,34 @@ export async function mockTrips(page) {
   if(path==='/rest/v1/trip_photos')return ok(filter(state.tripPhotos.filter(p=>canRead(state.trips.find(t=>t.id===p.trip_id)))));
   if(path==='/rest/v1/trip_publications')return ok(filter(state.publications.filter(p=>p.user_id===owner||visiblePublication(p))).map(p=>url.searchParams.get('select')?.includes('trips(')?{...p,trips:state.trips.find(t=>t.id===p.trip_id)}:p));
   if(path==='/rest/v1/trip_members')return ok(filter(state.members.filter(m=>m.user_id===owner||['owner','editor','viewer'].includes(role(state.trips.find(t=>t.id===m.trip_id))))));
-  if(path==='/rest/v1/trips')return ok(filter(state.trips.filter(t=>canRead(t)&&(!url.searchParams.has('or')||t.owner_id===owner||state.members.some(m=>m.trip_id===t.id&&m.user_id===owner)))));
+  if(path==='/rest/v1/trip_saves')return ok(filter(state.saves.filter(row=>row.user_id===owner)));
+  if(path==='/rest/v1/trip_join_requests')return ok(filter(state.joinRequests.filter(row=>row.user_id===owner||state.trips.some(t=>t.id===row.trip_id&&t.owner_id===owner))));
+  if(path==='/rest/v1/trips')return ok(filter(state.trips.filter(t=>canRead(t)&&(!url.searchParams.has('or')||t.owner_id===owner||state.members.some(m=>m.trip_id===t.id&&m.user_id===owner)||state.saves.some(s=>s.trip_id===t.id&&s.user_id===owner)||state.joinRequests.some(r=>r.trip_id===t.id&&r.user_id===owner&&r.status==='pending')))));
+  if(path.endsWith('/atlas_save_trip_link')) {
+   const trip=state.trips.find(t=>t.id===body.p_trip);if(!owner||body.p_save&&(!trip||!canRead(trip)))return error('ATLAS_TRIP_FORBIDDEN');
+   state.saves=state.saves.filter(row=>!(row.trip_id===body.p_trip&&row.user_id===owner));if(body.p_save)state.saves.push({trip_id:body.p_trip,user_id:owner});return ok(Boolean(body.p_save));
+  }
+  if(path.endsWith('/atlas_request_trip_join')) {
+   const trip=state.trips.find(t=>t.id===body.p_trip);if(!owner||!trip?.is_public||trip.owner_id===owner)return error('ATLAS_TRIP_FORBIDDEN');
+   const membership=state.members.find(row=>row.trip_id===trip.id&&row.user_id===owner);if(membership)return ok(membership.status==='accepted'?'member':'invited');
+   const existing=state.joinRequests.find(row=>row.trip_id===trip.id&&row.user_id===owner);if(existing)return ok(existing.status);
+   state.joinRequests.push({trip_id:trip.id,user_id:owner,status:'pending',created_at:new Date().toISOString()});return ok('pending');
+  }
+  if(path.endsWith('/atlas_cancel_trip_request')){state.joinRequests=state.joinRequests.filter(row=>!(row.trip_id===body.p_trip&&row.user_id===owner&&row.status==='pending'));return ok(null,204);}
+  if(path.endsWith('/atlas_trip_requests')) {
+   const trip=state.trips.find(t=>t.id===body.p_trip);if(!owner||trip?.owner_id!==owner)return error('ATLAS_TRIP_FORBIDDEN');
+   return ok(state.joinRequests.filter(row=>row.trip_id===trip.id&&row.status==='pending').map(row=>{const profile=state.profiles.find(p=>p.id===row.user_id);return {...row,username:profile.username,display_name:profile.display_name};}));
+  }
+  if(path.endsWith('/atlas_respond_trip_request')) {
+   const trip=state.trips.find(t=>t.id===body.p_trip),pending=state.joinRequests.find(row=>row.trip_id===body.p_trip&&row.user_id===body.p_user);
+   if(!owner||trip?.owner_id!==owner||!pending)return error('ATLAS_TRIP_FORBIDDEN');
+   pending.status=body.p_accept?'approved':'rejected';if(body.p_accept&&!state.members.some(row=>row.trip_id===trip.id&&row.user_id===body.p_user))state.members.push({trip_id:trip.id,user_id:body.p_user,role:'viewer',status:'accepted',can_edit_itinerary:false,can_edit_description:false,can_add_photos:false,can_publish_profile:false});return ok(null,204);
+  }
+  if(path.endsWith('/atlas_assign_trip_photo_stops')) {
+   const trip=state.trips.find(t=>t.id===body.p_trip);if(!owner||!trip||!allowed(trip,'add_photos'))return error('ATLAS_TRIP_FORBIDDEN');
+   const pending=[];for(const link of body.p_links||[]){const photo=state.tripPhotos.find(p=>p.id===link.photo_id&&p.trip_id===trip.id);if(!photo||trip.owner_id!==owner&&photo.uploader_id!==owner)return error('ATLAS_TRIP_FORBIDDEN');if(link.stop_id&&!trip.stops.some(stop=>stop.id===link.stop_id))return error('Destino inválido',400);pending.push([photo,link.stop_id]);}
+   for(const [photo,stop] of pending){photo.stop_id=stop||null;photo.location_set=true;}return ok(null,204);
+  }
   if(path.endsWith('/atlas_save_trip')) {
    const old=state.trips.find(t=>t.id===body.p_id);
    if(!owner||old&&!allowed(old,'edit_itinerary')&&!allowed(old,'edit_description'))return error('ATLAS_TRIP_FORBIDDEN');

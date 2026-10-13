@@ -91,7 +91,7 @@ Para atualizar os arquivos locais após uma atualização deliberada das depend�
 node tools/vendor.mjs
 ```
 
-Esse comando copia JS, CSS, imagens e licenças, gera o GeoJSON e não acessa a rede. Revise e versione as alterações de `vendor/`. O `package.json` original não tinha lockfile; a aplicação é reproduzível pelos arquivos locais versionados, enquanto novas instalações de dependências de desenvolvimento podem resolver versões diferentes dentro das faixas declaradas.
+Esse comando copia JS, CSS, imagens e licenças, gera o GeoJSON e não acessa a rede. Revise e versione as alterações de `vendor/`. O `package-lock.json` fixa as dependências de desenvolvimento; use `npm ci` para reinstalá-las. Os arquivos de execução em `vendor/` também são versionados.
 
 ## Limitações conhecidas e próximos passos
 
@@ -152,3 +152,10 @@ Verificação da wish list: **130 testes passaram na suíte completa**, em deskt
 No mapa em tela cheia, clique em um lugar visitado para ver sua avaliação, notas e fotos. A galeria abre sem sair da tela cheia. Grupos de lugares usam um ícone de memórias; a quantidade permanece no rótulo acessível.
 
 Nas trips salvas, **Importar fotos das avaliações** permite escolher mídias da sua coleção. Ao usar **Adicionar viagens já feitas**, a opção **Incluir fotos e mídias das avaliações** copia também as fotos desses lugares quando você salva o roteiro. As cópias seguem a visibilidade da trip e preservam os originais. Veja [o guia das trips](docs/TRIPS.md).
+
+
+### Visualização cronológica e links de trips
+
+Use **Visualizar** para abrir o mapa da rota e uma linha do tempo com as fotos de cada lugar. As mídias importadas das avaliações são associadas ao destino; o seletor de lugar permite reorganizar as fotos e manter um álbum geral.
+
+O organizador pode criar um link público para visualização, após confirmar o conteúdo publicado. Visitantes veem a trip sem login; salvar na coleção e pedir participação exigem conta. Pedidos precisam ser aprovados pelo organizador, que define as permissões dos novos participantes. A atualização exige a migração descrita no [guia de trips](docs/TRIPS.md). Verifique as políticas reais com `npm run test:sharing-db` e a interface com os testes de trips. O banco embutido é usado somente nos testes; o navegador continua sem novas bibliotecas.

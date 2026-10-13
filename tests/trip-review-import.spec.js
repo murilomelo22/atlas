@@ -44,6 +44,11 @@ test('adicionar viagens realizadas importa suas fotos ao salvar a trip', async (
   await expect(page.locator('#completed-photos')).toBeChecked(); await page.locator('#completed-list input').check(); await page.locator('#completed-add').click();
   await page.locator('#trip-save').click(); await expect(page.locator('.trip-gallery figure')).toHaveCount(1);
   expect(cloud.trips[0].stops[0].sourceDestinationId).toBe('my-review'); expect(cloud.tripPhotos).toHaveLength(1);
+  expect(cloud.tripPhotos[0]).toMatchObject({stop_id:cloud.trips[0].stops[0].id,location_set:true});
+  await page.locator('[data-photo-stop]').selectOption(''); await expect.poll(()=>cloud.tripPhotos[0].stop_id).toBeNull();
+  await page.locator('#trip-back').click(); await page.locator('.trip-card').click(); await expect(page.locator('[data-photo-stop]')).toHaveValue('');
+  expect(cloud.tripPhotos[0].location_set).toBe(true);
+  await page.locator('#trip-view').click(); await expect(page.locator('[data-view-extra] .trip-view-photo')).toHaveCount(1); await expect(page.locator('.trip-memory-card .trip-view-photo')).toHaveCount(0);
 });
 test('resposta perdida retoma a importação sem duplicar fotos nem transferências concluídas', async ({ page }) => {
   const { cloud } = await setup(page); await create(page);
@@ -117,7 +122,7 @@ test('seleciona todas por destino da trip, mantém escolhas entre lugares e igno
   cloud.tripPhotos.push({ id: copiedID, trip_id: trip.id, uploader_id: post.owner_id, storage_path: copyPath, caption: 'Espanha · foto 1' });
   cloud.objects.set(`atlas-trip-media/${copyPath}`, cloud.objects.get(`atlas-media/${cloud.photos[0].storage_path}`));
   await page.locator('#trips-button').click(); await page.getByRole('button', { name: /Espanha, Itália e Grécia/ }).click();
-  await expect(page.locator('.trip-gallery figure')).toHaveCount(1); await page.locator('[data-import-reviews]').click();
+  await expect(page.locator('.trip-gallery figure')).toHaveCount(1); await expect.poll(()=>cloud.tripPhotos[0].stop_id).toBe('s1'); await page.locator('[data-import-reviews]').click();
   const select = page.locator('[data-review-destination]'); await expect(select).toHaveValue('__trip__');
   await expect(page.locator('[data-review-photo]')).toHaveCount(5);
   await expect(page.locator('optgroup[label="Destinos desta trip"] option')).toHaveText(['Espanha', 'Grécia', 'Itália']);
