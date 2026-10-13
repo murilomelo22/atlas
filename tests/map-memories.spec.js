@@ -30,8 +30,8 @@ test('galeria de uma memória funciona dentro da tela cheia nativa', async ({ pa
   await expect(page.locator('#gallery-dialog img')).toBeVisible(); await page.locator('[data-gallery-close]').click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement?.id)).toBe('map-area'); await page.locator('#clean-map-close').click();
 });
-test('grupos de lugares usam um ícone de memórias, com quantidade acessível', async ({ page }) => {
+test('grupos de lugares usam o check do mapa limpo, com quantidade acessível', async ({ page }) => {
   await expect(page.locator('.atlas-cluster')).toHaveCount(1);
-  await expect(page.locator('.cluster-memory svg')).toBeVisible(); await expect(page.locator('.cluster-memory')).toHaveAttribute('aria-label', /lugares próximos/);
-  expect((await page.locator('.cluster-memory').textContent()).trim()).toBe('');
+  await expect(page.locator('.cluster-check svg')).toBeVisible(); await expect(page.locator('.cluster-check')).toHaveAttribute('aria-label', /lugares próximos/);
+  expect((await page.locator('.cluster-check').textContent()).trim()).toBe('');
 });

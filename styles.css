@@ -1223,10 +1223,10 @@ body.map-focused{overflow:hidden}
 
 /* Memory markers and reviews on the full-screen map. */
 .atlas-cluster{background:transparent;border:0}
-.atlas-cluster .cluster-memory{position:relative;width:38px;height:38px;display:grid;place-items:center;border:1.5px solid #d0aa7d;border-radius:12px;background:#283328;color:#ebcba2;box-shadow:3px -3px 0 -1px #3b4430,3px -3px 0 0 #af916b,6px -6px 0 -1px #3b4430,6px -6px 0 0 #7b6a50,0 4px 12px #0006}
-.cluster-memory svg,.pin-face svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-.atlas-visited-pin{color:#efc28b;filter:drop-shadow(0 3px 4px #0006)}
-.atlas-visited-pin svg{width:30px;height:36px;fill:#252f25;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.atlas-cluster .cluster-check{width:32px;height:38px;display:grid;place-items:center;background:transparent;border:0;border-radius:0;box-shadow:none}
+.pin-face svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.atlas-visited-pin,.atlas-cluster .cluster-check{color:#efc28b;filter:drop-shadow(0 3px 4px #0006)}
+.atlas-visited-pin svg,.cluster-check svg{width:30px;height:36px;fill:#252f25;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .clean-place-popup{gap:9px;max-height:min(480px,65dvh);overflow:auto;padding:8px 4px;line-height:1.5}
 .clean-place-popup>strong{font-size:19px;line-height:1.2}
 .clean-place-rating{color:#efc28b;font-size:15px;letter-spacing:1px;margin:2px 0}

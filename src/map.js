@@ -1,7 +1,6 @@
 import { totalDays, visitedDestinations } from './dates.js';
 import { chronologicalStops } from './stats.js';
 import { createHeatLayer, heatPoints } from './heatmap.js';
-const memoryGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h10a2 2 0 0 1 2 2v13H5V7a2 2 0 0 1 2-2Z"/><path d="m7 15 3-3 3 3 2-2 2 3M8 8h.01"/></svg>';
 const visitedGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6 7-12A7 7 0 1 0 5 9c0 6 7 12 7 12Z"/><path d="m9 9 2 2 4-4"/></svg>';
 export function createMap(countries, onSelect, onAdd, onTileError, memories = {}) {
   const map = L.map('map', { zoomControl: false, minZoom: 2, maxZoom: 18, worldCopyJump: true }).setView([28, 15], 3);
@@ -51,10 +50,10 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
   }
   try { setStyle(localStorage.getItem('atlas-map-style') || 'dark'); } catch { setStyle('dark'); }
   const markers = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 48, spiderfyOnMaxZoom: true, iconCreateFunction: (cluster) => {
-    const face = document.createElement('span'); face.className = 'cluster-memory'; face.innerHTML = memoryGlyph;
+    const face = document.createElement('span'); face.className = 'cluster-check'; face.innerHTML = visitedGlyph;
     face.setAttribute('role', 'img'); face.setAttribute('aria-label', `${cluster.getChildCount()} lugares próximos. Aproxime para explorar.`);
     face.title = `${cluster.getChildCount()} lugares próximos`;
-    return L.divIcon({ className: 'atlas-cluster', html: face, iconSize: [46, 46] });
+    return L.divIcon({ className: 'atlas-cluster', html: face, iconSize: [32, 38], iconAnchor: [16, 34] });
   } }).addTo(map);
   const routes = L.layerGroup();
   const planned = L.layerGroup();
