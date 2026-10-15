@@ -4,6 +4,7 @@ import { durationLabel, totalDays, validateVisits } from './dates.js';
 import { statistics } from './stats.js';
 import { createMap } from './map.js';
 import { initializeMapFocus } from './map-focus.js';
+import { initializePoster } from './poster.js';
 import { createGeocoder } from './geocoding.js';
 import { groupMediaFiles, processMedia, mediaLabel } from './media.js';
 import { createGallery } from './gallery.js';
@@ -16,7 +17,7 @@ import { initializeRecaps } from './recap.js';
 import { initializeWishlist, publicWishlistHTML } from './wishlist.js';
 import { shareDestination } from './sharing.js';
 
-let destinations = [], allPhotos = [], selectedId = null, mapController, mapFocus;
+let destinations = [], allPhotos = [], selectedId = null, mapController, mapFocus, poster;
 let publicView = null, social = null, journeys = null, recaps = null, wishlist = null, changingAccount = false, initializing = true;
 const urls = new Map();
 let mediaEpoch = 0, previewTimer, offlineToken = 0, offlineActive = 0, previewPaintTimer;
@@ -142,7 +143,7 @@ function clearFilters() {
 function setAccountLoading(value) {
   changingAccount = value;
   if (value && offlineActive) { offlineToken++; offlineActive = 0; cancelMediaDownloads(); $('#cancel-media-download').hidden = true; $('#offline-media-status').textContent = 'Download interrompido. As mídias já baixadas foram preservadas.'; }
-  for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button', '#clean-map-button', '#download-media-button']) $(selector).disabled = value || initializing;
+  for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button', '#clean-map-button', '#download-media-button', '#poster-button']) $(selector).disabled = value || initializing;
 }
 async function refresh() {
   destinations = publicView ? publicView.destinations : await getDestinations();
@@ -377,9 +378,9 @@ function bindEvents() {
 }
 function setViewUI() {
   resetMediaView();
-  mapFocus?.exit();
+  mapFocus?.exit(); poster?.reset();
   document.body.classList.toggle('viewing-profile', Boolean(publicView));
-  for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button']) $(selector).hidden = Boolean(publicView);
+  for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button', '#poster-button']) $(selector).hidden = Boolean(publicView);
   $('#public-profile-header').hidden = !publicView;
   $('.sidebar-heading .eyebrow').textContent = publicView ? 'VIAGENS PÚBLICAS' : 'SUA COLEÇÃO';
   $('.sidebar-heading h2').firstChild.textContent = publicView ? 'Viagens públicas ' : 'Meus destinos ';
@@ -410,13 +411,14 @@ async function init() {
     journeys = initializeJourneys({ countries, destinations: () => destinations, preview: (stops) => { mapController.itinerary(stops); $('#route-toggle').checked = false; notify('Roteiro no mapa. As linhas unem paradas; não representam estradas.'); } });
     recaps = initializeRecaps(() => destinations);
     wishlist = initializeWishlist({ available: () => !changingAccount, afterMutation: () => social?.afterMutation(), diagnostic: () => social?.diagnostic(), reconnect: () => social?.reconnect() });
+    poster = initializePoster({ countries, destinations: () => destinations, available: () => !initializing && !changingAccount && !publicView });
     social = await initializeSocial({
       refresh,
       refreshWishlist: () => wishlist.refresh(),
       lock: setAccountLoading,
       async switchAccount(id) {
         resetMediaView(); $('#offline-media-status').textContent = ''; $('#cancel-media-download').hidden = true;
-        mapFocus.exit();
+        mapFocus.exit(); poster.reset();
         setAccountLoading(true); editorToken++; editor.close(); $('#gallery-dialog').close(); publicView = null; selectedId = null;
         journeys.reset(); recaps.reset(); wishlist.reset();
         $('#destination-form').reset(); $('#visits-editor').replaceChildren(); $('#photo-editor').replaceChildren();

@@ -4,18 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101310">
-  <meta name="atlas-version" content="20">
+  <meta name="atlas-version" content="21">
   <meta name="description" content="Um mapa das suas viagens, fotografias e memórias. Seus dados ficam no seu navegador.">
   <title>Atlas Pessoal — seu mundo, revisitado</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23101310'/%3E%3Cpath d='M32 8L45 45 32 38 19 45Z' fill='%23c09a71'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="./vendor/markercluster/MarkerCluster.css">
   <link rel="stylesheet" href="./vendor/markercluster/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="./styles.css?v=20">
+  <link rel="stylesheet" href="./styles.css?v=21">
   <script src="./vendor/leaflet/leaflet.js" defer></script>
   <script src="./vendor/markercluster/leaflet.markercluster.js" defer></script>
-  <script type="module" src="./src/app-updates.js?v=20"></script>
-  <script type="module" src="./src/main.js?v=20"></script>
+  <script type="module" src="./src/app-updates.js?v=21"></script>
+  <script type="module" src="./src/main.js?v=21"></script>
 </head>
 <body>
   <a class="skip-link" href="#destinations-panel">Ir para meus destinos</a>
@@ -30,7 +30,7 @@
     </div>
   </header>
   <nav class="social-nav" aria-label="Conta e comunidade">
-    <div><button id="home-atlas" class="text-button">Meu atlas</button><button id="explore-button" class="text-button">Explorar perfis</button><button id="trips-button" class="text-button">Trips e roteiros</button><button id="wishlist-button" class="text-button" disabled>Wish list</button><button id="recap-button" class="text-button">Resumos</button></div>
+    <div><button id="home-atlas" class="text-button">Meu atlas</button><button id="explore-button" class="text-button">Explorar perfis</button><button id="trips-button" class="text-button">Trips e roteiros</button><button id="wishlist-button" class="text-button" disabled>Wish list</button><button id="recap-button" class="text-button">Resumos</button><button type="button" id="poster-button" class="text-button" disabled>Exportar pôster <span class="premium-tag">Premium · teste</span></button></div>
     <div><span id="sync-status" class="sync-status" role="status">Coleção neste dispositivo</span><button id="account-button" class="quiet" hidden>Meu perfil</button><button id="login-button" class="quiet">Entrar / Criar conta</button></div>
   </nav>
   <section id="app-update-banner" class="app-update-banner" role="status" hidden><p>Há uma nova versão do Atlas disponível. Termine suas edições e atualize.</p><button type="button" data-app-update class="quiet">Atualizar agora</button></section>
@@ -59,7 +59,7 @@
         </div>
         <div id="examples-banner" class="examples-banner" hidden><p>Um começo pela Itália.<br><span>Estes destinos são exemplos editáveis.</span></p><button id="clear-examples" class="text-button">Limpar exemplos</button></div>
         <div id="destination-list" class="destination-list" aria-live="polite"><p class="loading">Preparando suas memórias…</p></div>
-        <footer class="sidebar-footer">Cada lugar guarda uma parte de você.<br><span>Faça backups para levar suas memórias adiante.</span><div class="app-version"><small>Versão 20</small><button type="button" data-app-update class="text-button">Atualizar site</button></div><p id="app-update-status" role="status" hidden></p></footer>
+        <footer class="sidebar-footer">Cada lugar guarda uma parte de você.<br><span>Faça backups para levar suas memórias adiante.</span><div class="app-version"><small>Versão 21</small><button type="button" data-app-update class="text-button">Atualizar site</button></div><p id="app-update-status" role="status" hidden></p></footer>
       </section>
       <section id="detail-panel" hidden aria-label="Detalhes do destino"></section>
     </aside>
@@ -130,9 +130,26 @@
       <label>Sobre você<textarea id="profile-bio" maxlength="500" rows="3" placeholder="Que lugares fazem parte da sua história?"></textarea></label>
       <label class="manual-toggle"><input id="profile-public" type="checkbox"> Permitir que outras pessoas encontrem meu perfil</label><p class="field-hint">Somente postagens marcadas como públicas aparecem para visitantes. Seu e-mail não faz parte do perfil.</p>
       <p id="profile-message" class="field-hint" role="status"></p><button id="profile-save" type="submit" class="primary">Salvar perfil</button>
-    </form><section class="account-body"><h3>Wish list</h3><p class="field-hint">Guarde os lugares que quer conhecer. Você escolhe se a lista fica privada ou aparece no perfil público.</p><button type="button" id="profile-wishlist" class="quiet">Gerenciar minha wish list</button></section><section class="account-body account-sync"><h3>Suas viagens na nuvem</h3><p id="account-sync-message" class="field-hint" role="status">Entre na sua conta para sincronizar.</p><div class="account-actions"><button id="sync-button" class="quiet">Sincronizar agora</button><button type="button" id="download-media-button" class="quiet">Baixar mídias para uso offline</button><button type="button" id="cancel-media-download" class="text-button" hidden>Interromper download</button><button id="migrate-button" class="quiet">Enviar meus dados locais para minha conta</button><button id="cloud-reload-button" class="text-button">Carregar versão da nuvem</button></div><p class="field-hint">Modo leve: o mapa sincroniza primeiro. Fotos e vídeos abrem quando você precisa; baixe suas mídias para acessar os originais sem internet.</p><p id="offline-media-status" class="field-hint" role="status"></p><p class="field-hint">A migração copia suas viagens e wish list como privadas e mantém os dados originais neste navegador. Exemplos não editados são ignorados.</p><div class="account-actions"><button id="my-public-profile" class="text-button">Ver meu perfil público</button><button id="share-profile" class="text-button">Copiar link do perfil</button><button id="logout-button" class="text-button">Sair da conta</button></div></section></div>
+    </form><section class="account-body"><h3>Wish list</h3><p class="field-hint">Guarde os lugares que quer conhecer. Você escolhe se a lista fica privada ou aparece no perfil público.</p><button type="button" id="profile-wishlist" class="quiet">Gerenciar minha wish list</button></section><section class="account-body"><h3>Premium <span class="premium-tag">Em teste</span></h3><p id="premium-status" class="field-hint" role="status">Verifique seu acesso à exportação de pôster.</p><button type="button" id="profile-poster" class="quiet">Exportar meu mapa como pôster</button></section><section class="account-body account-sync"><h3>Suas viagens na nuvem</h3><p id="account-sync-message" class="field-hint" role="status">Entre na sua conta para sincronizar.</p><div class="account-actions"><button id="sync-button" class="quiet">Sincronizar agora</button><button type="button" id="download-media-button" class="quiet">Baixar mídias para uso offline</button><button type="button" id="cancel-media-download" class="text-button" hidden>Interromper download</button><button id="migrate-button" class="quiet">Enviar meus dados locais para minha conta</button><button id="cloud-reload-button" class="text-button">Carregar versão da nuvem</button></div><p class="field-hint">Modo leve: o mapa sincroniza primeiro. Fotos e vídeos abrem quando você precisa; baixe suas mídias para acessar os originais sem internet.</p><p id="offline-media-status" class="field-hint" role="status"></p><p class="field-hint">A migração copia suas viagens e wish list como privadas e mantém os dados originais neste navegador. Exemplos não editados são ignorados.</p><div class="account-actions"><button id="my-public-profile" class="text-button">Ver meu perfil público</button><button id="share-profile" class="text-button">Copiar link do perfil</button><button id="logout-button" class="text-button">Sair da conta</button></div></section></div>
   </dialog>
   <dialog id="explore-dialog" aria-labelledby="explore-title"><header class="dialog-header"><div><p class="eyebrow">OUTROS CAMINHOS</p><h2 id="explore-title">Explorar perfis</h2></div><button class="icon-button" data-close-dialog="explore-dialog" aria-label="Fechar busca de perfis">×</button></header><div class="account-body"><label>Buscar nome de usuário<input id="profile-search" type="search" autocomplete="off" placeholder="Ex.: murilo" aria-describedby="explore-status"></label><p id="explore-status" class="field-hint" role="status">Digite ao menos 2 caracteres para encontrar perfis públicos.</p><div id="profile-results"></div></div></dialog>
+  <dialog id="poster-dialog" class="wide-dialog" aria-labelledby="poster-heading">
+    <header class="dialog-header"><div><p class="eyebrow">PREMIUM · EM TESTE</p><h2 id="poster-heading">Seu mapa, em pôster</h2></div><button type="button" id="poster-close" class="icon-button" aria-label="Fechar pôster">×</button></header>
+    <div class="account-body">
+      <p id="poster-status" class="field-hint" role="status" aria-live="polite"></p>
+      <div class="account-actions"><button type="button" id="poster-login" class="primary" hidden>Entrar na minha conta</button><button type="button" id="poster-retry" class="text-button">Verificar acesso</button></div>
+      <form id="poster-form" hidden>
+        <label>Título do pôster<input id="poster-title" maxlength="60" value="Meu mundo, revisitado"></label>
+        <div class="form-row"><label>Tamanho<select id="poster-size"><option value="a3">A3 — 42 × 29,7 cm</option><option value="a4">A4 — 29,7 × 21 cm</option></select></label><label>Tema<select id="poster-theme"><option value="light">Atlas claro</option><option value="dark">Atlas escuro</option></select></label></div>
+        <label>Formato do arquivo<select id="poster-format"><option value="png">PNG — alta resolução, 300 dpi</option><option value="svg">SVG — vetorial, ampliação sem perda</option></select></label>
+        <p id="poster-dimensions" class="field-hint"></p>
+        <img id="poster-preview" class="poster-preview" alt="Prévia do pôster com seus países e lugares visitados">
+        <p class="field-hint">Inclui países destacados e pontos visitados, sem fotos ou notas. Moradias, exemplos e viagens futuras ficam fora. O arquivo é criado no seu dispositivo.</p>
+        <p class="field-hint">Imprima em tamanho real (100%). Para ampliar ou usar em uma gráfica, escolha SVG vetorial.</p>
+        <button type="submit" id="poster-download" class="primary" disabled>Baixar pôster</button>
+      </form>
+    </div>
+  </dialog>
   <noscript><p class="fatal">Ative o JavaScript para usar o Atlas Pessoal.</p></noscript>
 </body>
 </html>

@@ -12,6 +12,7 @@
   },
   "scripts": {
     "test": "playwright test",
+    "test:premium-db": "node tests/premium.database.mjs",
     "test:sharing-db": "node tests/trip-sharing.database.mjs",
     "vendor": "node tools/vendor.mjs"
   }

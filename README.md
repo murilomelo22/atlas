@@ -1,6 +1,14 @@
 # atlas
 atlas pessoal, teste usando o codex.
 
+## Pôster premium em teste
+
+**Exportar pôster → Premium · teste** cria seu mapa em **A4 ou A3, paisagem**, com título, tema claro/escuro e prévia. Baixe **PNG a 300 dpi** (A3: 4961 × 3508 px; A4: 3508 × 2480 px), com densidade de impressão gravada no arquivo, ou **SVG vetorial** com tamanho físico para ampliar na gráfica. Imprima em tamanho real (100%).
+
+O pôster destaca os países e pontos visitados da coleção pessoal inteira, incluindo memórias sem datas. Exclui moradias, exemplos e viagens futuras; fotos e notas não entram no arquivo. A cartografia Natural Earth é local e a exportação não depende de tiles externos.
+
+O acesso é administrado no Supabase e verificado ao abrir e antes de baixar. Esta fase é de teste, sem cobrança ou assinatura. O perfil mostra o estado em **Meu perfil → Premium**. Instalações próprias precisam executar [premium.sql](supabase/premium.sql) após `schema.sql`; veja [o guia premium](docs/PREMIUM.md). A versão 21 atualiza o cache dos novos módulos.
+
 ## Mapa limpo e atalhos da coleção
 
 **Mapa limpo** abre o mapa em tela cheia, com pontos discretos e destaque dos países dos lugares visitados. Painéis, rotas, calor, fotos dos marcadores e tiles de ruas ficam ocultos. Toque em um ponto para ver o lugar e o país; **⌖** reenquadra a coleção e **×** ou **Esc** sai. O mapa anterior, suas preferências e o foco do teclado são restaurados ao sair. Navegadores sem a API de tela cheia usam a área inteira da janela.

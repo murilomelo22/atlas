@@ -8,7 +8,7 @@ export async function mockCloud(page) {
     profiles: [
       { id: ALICE, username: 'alice', display_name: 'Alice Viajante', bio: 'Pelos caminhos do mundo', is_public: true, avatar_path: null },
       { id: BOB, username: 'bob', display_name: 'Bruno', bio: '', is_public: true, avatar_path: null },
-    ], wishlists: [], posts: [], photos: [], objects: new Map(), grants: new Map(), failed: false, confirmation: true, recoveries: 0, refreshes: 0, changedPassword: null, requests: [],
+    ], premium: [], wishlists: [], posts: [], photos: [], objects: new Map(), grants: new Map(), failed: false, confirmation: true, recoveries: 0, refreshes: 0, changedPassword: null, requests: [],
   };
   state.session = (id = ALICE) => ({ access_token: `token-${id}`, refresh_token: `refresh-${id}`, expires_in: 3600, user: { id, email: id === ALICE ? 'alice@example.com' : 'bob@example.com' } });
   state.addPost = (id, name, owner = ALICE, visibility = 'private') => {
@@ -43,6 +43,10 @@ export async function mockCloud(page) {
       return ok(state.session(owner).user);
     }
     if (path === '/rest/v1/trip_publications') return ok([]);
+    if (path === '/rest/v1/premium_accounts') {
+      if (!owner || method !== 'GET') return denied();
+      return ok(filter(state.premium.filter(row => row.user_id === owner && (!row.expires_at || Date.parse(row.expires_at) > Date.now()))));
+    }
     if (path === '/rest/v1/profiles') {
       if (method === 'PATCH') {
         if (!owner || url.searchParams.get('id') !== `eq.${owner}`) return denied();

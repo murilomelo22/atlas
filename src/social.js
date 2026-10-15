@@ -5,6 +5,7 @@ import { processPhoto } from './photos.js';
 import { $, notify, confirmAction, escapeHTML } from './ui.js';
 import { shareText, appLink } from './sharing.js';
 import { diagnosticHTML, showDiagnostic } from './cloud-diagnostics.js';
+import { refreshPremiumStatus } from './premium.js';
 
 export async function initializeSocial(callbacks) {
   let profile = null, mode = 'login', change = Promise.resolve(), syncTimer, routeToken = 0, avatarFile = null, submitting = false;
@@ -106,6 +107,7 @@ export async function initializeSocial(callbacks) {
       const img = document.createElement('img'); img.src = url; img.alt = ''; $('#my-avatar').replaceChildren(img);
     }).catch(() => {});
     $('#account-dialog').showModal();
+    refreshPremiumStatus();
   }
   async function route(event) {
     if (location.hash.startsWith('#/roteiro/')) return;
