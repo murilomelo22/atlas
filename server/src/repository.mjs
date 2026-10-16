@@ -9,6 +9,8 @@ export class Repository {
     } catch (error) { await db.query('rollback'); throw error; } finally { db.release(); }
   }
   async customer(user) { return (await this.db.query('select customer_id from atlas_commercial.accounts where user_id=$1', [user])).rows[0]?.customer_id; }
+  async pendingCheckout(user) { return (await this.db.query('select checkout_id,checkout_expires from atlas_commercial.accounts where user_id=$1', [user])).rows[0]; }
+  async saveCheckout(user,checkout) { await this.db.query('update atlas_commercial.accounts set checkout_id=$2,checkout_expires=$3 where user_id=$1',[user,checkout.id,checkout.expires_at]); }
   async userForCustomer(customer) { return (await this.db.query('select user_id from atlas_commercial.accounts where customer_id=$1', [customer])).rows[0]?.user_id; }
   async saveCustomer(user, customer) { await this.db.query('insert into atlas_commercial.accounts(user_id,customer_id) values($1,$2)', [user, customer]); }
   async deleting(user) { return Boolean((await this.db.query('select 1 from atlas_commercial.accounts where user_id=$1 and deletion_requested_at is not null', [user])).rows.length); }

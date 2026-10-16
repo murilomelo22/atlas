@@ -20,16 +20,24 @@ export function createBilling({ repo, stripe, priceId, mode = 'test', graceDays 
       const subscriptions = await tx.subscriptions(user.id);
       if (subscriptions.some(s => !['canceled', 'incomplete_expired'].includes(s.status)))
         throw Object.assign(new Error('Já existe uma assinatura. Use Gerenciar assinatura.'), { status: 409 });
+      const pending=await tx.pendingCheckout(user.id);
+      if(pending?.checkout_id && seconds(pending.checkout_expires)>Date.now()/1000) {
+        const checkout=await stripe.checkout.sessions.retrieve(pending.checkout_id);
+        if(checkout.status==='open'&&checkout.url)return {url:checkout.url};
+        if(checkout.status==='complete')throw Object.assign(new Error('Pagamento em processamento. Aguarde a confirmação.'),{status:409});
+      }
       const result = await stripe.checkout.sessions.create({ mode: 'subscription', customer,
         line_items: [{ price: priceId, quantity: 1 }], payment_method_types: ['card'],
         subscription_data: { metadata: { atlas_user_id: user.id } },
         success_url: new URL('?billing=success', siteURL).href,
         cancel_url: new URL('?billing=cancel', siteURL).href },
         { idempotencyKey: `atlas-checkout-${mode}-${user.id}-${Math.floor(Date.now() / 1800000)}` });
+      await tx.saveCheckout(user.id,result);
       return { url: result.url };
     });
   }
   async function portal(user) {
+    if(await repo.deleting(user.id))throw Object.assign(new Error('Conta em exclusão.'),{status:403});
     const customer = await repo.customer(user.id);
     if (!customer) throw Object.assign(new Error('Esta conta ainda não possui assinatura.'), { status: 409 });
     return { url: (await stripe.billingPortal.sessions.create({ customer, return_url: siteURL })).url };
