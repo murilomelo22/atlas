@@ -16,6 +16,7 @@ async function launch() {
   if (process.platform === 'linux') args.unshift('--no-sandbox');
   application = await electron.launch({ executablePath, args, timeout:30000, env:{ ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS:'true' } });
   const page = await application.firstWindow();
+  await expect.poll(()=>page.evaluate(()=>JSON.parse(document.documentElement.dataset.atlasState||'{}').ready)).toBe(true);
   await expect(page.locator('#add-button')).toBeEnabled();
   return page;
 }
@@ -84,7 +85,8 @@ test('reabre offline sem servidor e produz links públicos utilizáveis', async 
   const page = await launch();
   await page.context().setOffline(true);
   try {
-    await page.reload();
+    await page.reload({waitUntil:'domcontentloaded'});
+    await expect.poll(()=>page.evaluate(()=>JSON.parse(document.documentElement.dataset.atlasState||'{}').ready)).toBe(true);
     await expect(page.locator('#add-button')).toBeEnabled();
     await expect(page.locator('.destination-card')).toHaveCount(5);
     const url = await page.evaluate(async () => (await import('./src/sharing.js')).appLink('#/perfil/viajante'));

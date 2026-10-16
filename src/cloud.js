@@ -195,6 +195,13 @@ export async function signOut() {
   catch { /* Local logout still proceeds. */ }
   await keepSession(null);
 }
+export async function accountAccessToken() {
+  const owner = currentUser()?.id;
+  if (!owner || needsReconnect()) throw reconnectError();
+  if (session.expires_at < Date.now() / 1000 + 30) await refreshSession();
+  if (currentUser()?.id !== owner) throw reconnectError();
+  return session.access_token;
+}
 async function rows(table, parameters, authenticated = false) {
   const result = [];
   for (let offset = 0; ; offset += 1000) {

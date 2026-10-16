@@ -16,6 +16,7 @@ import { initializeJourneys } from './journeys.js';
 import { initializeRecaps } from './recap.js';
 import { initializeWishlist, publicWishlistHTML } from './wishlist.js';
 import { shareDestination } from './sharing.js';
+import { initializeCommercial } from './commercial.js';
 
 let destinations = [], allPhotos = [], selectedId = null, mapController, mapFocus, poster;
 let publicView = null, social = null, journeys = null, recaps = null, wishlist = null, changingAccount = false, initializing = true;
@@ -402,6 +403,7 @@ function setViewUI() {
   mapController.resize();
 }
 async function init() {
+  initializeCommercial();
   setAccountLoading(true);
   try {
     const countries = await loadCountries();
