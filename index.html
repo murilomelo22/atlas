@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#14251e">
-  <meta name="atlas-version" content="24">
+  <meta name="atlas-version" content="30">
   <meta name="application-name" content="Atlas">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -17,14 +17,14 @@
   <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="./vendor/markercluster/MarkerCluster.css">
   <link rel="stylesheet" href="./vendor/markercluster/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="./styles.css?v=24">
-  <link rel="stylesheet" href="./app.css?v=24">
+  <link rel="stylesheet" href="./styles.css?v=30">
+  <link rel="stylesheet" href="./app.css?v=30">
   <script src="./vendor/leaflet/leaflet.js" defer></script>
   <script src="./vendor/markercluster/leaflet.markercluster.js" defer></script>
-  <script type="module" src="./src/app-updates.js?v=24"></script>
-  <script type="module" src="./src/app-shell.js?v=24"></script>
-  <script type="module" src="./src/main.js?v=24"></script>
-  <link rel="stylesheet" href="./download.css?v=24">
+  <script type="module" src="./src/app-updates.js?v=30"></script>
+  <script type="module" src="./src/app-shell.js?v=30"></script>
+  <script type="module" src="./src/main.js?v=30"></script>
+  <link rel="stylesheet" href="./download.css?v=30">
 </head>
 <body class="atlas-app">
   <a class="skip-link" href="#destinations-panel">Ir para meus destinos</a>
@@ -152,7 +152,7 @@
       <div class="auth-switches"><button type="button" class="text-button" data-auth-mode="signup">Criar uma conta</button><button type="button" class="text-button" data-auth-mode="recover">Esqueci minha senha</button><button type="button" class="text-button" data-auth-mode="login" hidden>Já tenho uma conta</button></div>
     </form>
   </dialog>
-  <nav aria-label="Informações do Atlas"><button type="button" id="plan-button" class="text-button">Plano e assinatura</button><button type="button" id="privacy-button" class="text-button">Privacidade e conta</button><a href="./legal/termos.html">Termos · rascunho</a> · <a href="./legal/privacidade.html">Privacidade · rascunho</a><button type="button" id="support-button" class="text-button">Ajuda e suporte</button></nav>
+  <nav class="commercial-links" aria-label="Informações do Atlas"><button type="button" id="plan-button" class="text-button">Plano e assinatura</button><button type="button" id="privacy-button" class="text-button">Privacidade e conta</button><a href="./legal/termos.html">Termos · rascunho</a> · <a href="./legal/privacidade.html">Privacidade · rascunho</a><button type="button" id="support-button" class="text-button">Ajuda e suporte</button></nav>
   <dialog id="support-dialog" aria-labelledby="support-title"><header class="dialog-header"><h2 id="support-title">Ajuda e suporte</h2><button type="button" id="support-close" class="icon-button" aria-label="Fechar suporte">×</button></header><div class="account-scroll account-body"><a href="./ajuda.html" target="_blank" rel="noopener">Abrir ajuda e perguntas frequentes</a><h3>Preferências deste dispositivo</h3><label><input id="metrics-consent" type="checkbox">Permitir métricas básicas opcionais</label><label><input id="errors-consent" type="checkbox">Permitir relatórios de falhas opcionais</label><p>Apenas códigos gerais e versão, sem conteúdo das memórias. Você pode revogar a qualquer momento.</p><button type="button" id="save-consent" class="quiet">Salvar preferências</button><h3>Falar com o suporte</h3><label><input id="support-logs" type="checkbox">Incluir relatório de diagnóstico neste e-mail</label><pre id="support-preview" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre><button type="button" id="support-email" class="primary">Preparar e-mail de suporte</button><p id="support-status" role="status"></p></div></dialog>
   <dialog id="privacy-dialog" aria-labelledby="privacy-title"><header class="dialog-header"><h2 id="privacy-title">Privacidade e conta</h2><button type="button" id="privacy-close" class="icon-button" aria-label="Fechar privacidade">×</button></header><div class="account-scroll account-body"><p id="privacy-status" role="status"></p><p><a href="./legal/termos.html" target="_blank" rel="noopener">Termos de Uso — RASCUNHO</a> · <a href="./legal/privacidade.html" target="_blank" rel="noopener">Política de Privacidade — RASCUNHO</a></p><form id="legal-consent-form" hidden><label><input type="checkbox" name="accepted" required>Li os Termos de Uso e a Política de Privacidade da versão apresentada.</label><button type="submit" class="quiet">Registrar aceite desta versão</button></form><h3>Seus dados</h3><p>O botão Exportar da coleção salva um backup local com arquivos. A portabilidade abaixo inclui dados da nuvem e links de mídia válidos por 1 hora.</p><button type="button" id="portability-button" class="quiet">Exportar dados da nuvem</button><h3>Comunidade</h3><form id="moderation-form"><label>Perfil (nome de usuário ou identificador)<input name="target" required maxlength="128"></label><label>Ação<select name="action"><option value="report">Denunciar</option><option value="block">Bloquear</option><option value="unblock">Desbloquear</option></select></label><label>Motivo<select name="reason"><option value="privacy">Privacidade</option><option value="harassment">Assédio</option><option value="illegal">Conteúdo ilegal</option><option value="other">Outro</option></select></label><button type="submit" class="quiet">Enviar solicitação</button></form><h3>Excluir conta</h3><p>A conta será bloqueada imediatamente e a remoção será processada em até 7 dias. A assinatura será cancelada. Exporte seu backup antes: a cópia local desta conta será removida ao sair. Dados de outros participantes não serão apagados.</p><form id="account-delete-form"><label>Digite EXCLUIR MINHA CONTA<input id="delete-confirmation" required autocomplete="off"></label><label>Senha para confirmar sua identidade<input id="delete-password" type="password" required autocomplete="current-password"></label><button type="submit" class="quiet">Solicitar exclusão definitiva</button></form></div></dialog>
   <dialog id="plan-dialog" aria-labelledby="plan-title"><header class="dialog-header"><h2 id="plan-title">Plano e assinatura</h2><button type="button" id="plan-close" class="icon-button" aria-label="Fechar plano">×</button></header><div class="account-body"><p>Seu mapa e backup local continuam disponíveis no plano gratuito. Benefícios de nuvem dependem da confirmação do servidor.</p><p id="plan-status" role="status"></p><button type="button" class="primary" data-billing-action="checkout" disabled>Conhecer plano pago</button><button type="button" class="quiet" data-billing-action="portal" disabled>Gerenciar assinatura e cancelamento</button><p class="field-hint">O preço e as condições aparecem antes de confirmar o pagamento. O pôster experimental está separado dos benefícios comerciais.</p></div></dialog>
