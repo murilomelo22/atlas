@@ -4,3 +4,6 @@ export const supabaseConfig = {
   url: 'https://unqdumwgbirvuwssjkff.supabase.co',
   publishableKey: 'sb_publishable_ssCVWmN5DOIOlBdzRskidg_bXqCW-q0',
 };
+
+// Somente configuração pública. Publicar o backend HTTPS antes de preencher.
+export const commercialConfig = { apiURL: '', experimentalPoster: false, supportEmail: '', legalApproved: false };

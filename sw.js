@@ -10,6 +10,7 @@ FILES.push('./src/cloud-media.js');
 FILES.push('./src/cloud-diagnostics.js');
 FILES.push('./src/trip-media-import.js', './src/trip-photo-picker.js');
 FILES.push('./src/app-updates.js', './src/premium.js', './src/poster.js', './src/poster-render.js');
+FILES.push('./src/commercial.js');
 FILES.push('./src/app-context.js');
 FILES.push('./app.css', './src/app-shell.js', './manifest.webmanifest', './assets/icon-192.png', './assets/icon-512.png', './assets/icon-maskable-512.png', './assets/apple-touch-icon.png');
 // Keep the ZIP on demand: do not precache the application download.

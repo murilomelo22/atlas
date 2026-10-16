@@ -1,7 +1,10 @@
 import { currentUser, request } from './cloud.js';
+import { commercialConfig } from './commercial.js';
 
 // Entitlements are administered in the database, never in editable profiles.
 export async function readPremiumAccess() {
+  // Legacy poster is an isolated, non-commercial experiment. Cloud benefits are enforced by the backend.
+  if (!commercialConfig.experimentalPoster) return false;
   const owner = currentUser()?.id;
   if (!owner) return false;
   const query = new URLSearchParams({ select: 'user_id,expires_at', user_id: `eq.${owner}`, limit: '1' });
