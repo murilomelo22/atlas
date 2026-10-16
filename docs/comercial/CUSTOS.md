@@ -9,7 +9,9 @@
 
 `commercial-limits.sql` aplica limites no banco, com lock transacional por proprietário, independentemente do cliente. Contabiliza todos os três buckets. Não transforma plano por um campo enviado pelo app. Downgrade não apaga objetos existentes; bloqueia crescimento até adequação. RLS existente continua determinando acesso a cada objeto. Uma viagem colaborativa compartilha apenas o que foi explicitamente permitido; privado nunca deve ser visível a outro usuário. Perfis/roteiros voluntariamente públicos continuam públicos.
 
-Fotos já são recodificadas em JPEG até 1600px e miniatura 240px, sem EXIF original. Vídeos já têm prévia JPEG e validação de duração/dimensões/50 MB, mas **ainda não são transcodificados**. TUS usa chunks de 6 MiB, renova token e retoma a posição após falha da conexão dentro da mesma tentativa lógica; grava URL opaca no cache da conta, sem token. A geração atual de novo caminho em um novo save limita retomada após reiniciar o app: ensaio real/caminho estável ainda pendente. Não prometer retomada entre reinícios.
+Fotos já são recodificadas em JPEG até 1600px e miniatura 240px, sem EXIF original. Vídeos têm prévia JPEG e validação local. Foi acrescentado worker de FFmpeg (`server/src/media-worker.mjs`), fila transacional em commercial-media.sql e teste com vídeo sintético real: gera H.264 até 1280×720/30fps e miniatura, remove metadados e preserva o arquivo original. Só guarda derivado comprimido se for menor; rejeita processamento acima de 50 MiB/10 minutos/100 MP, limita execução/threads e nunca passa nome remoto a um shell. Worker é separado: `ALLOW_MEDIA_PROCESSING=true node --env-file=.env src/media-worker.mjs` dentro de server/, com FFmpeg/FFprobe e CPU/memória limitados pelo host. `_derived` não gera novos jobs. Resultados ficam na fila privada; **seleção do derivado no player e homologação real da fila/Storage continuam parciais**, sem trocar os bytes do backup. Derivados consomem cota e custo adicionais; incluir CPU do worker no orçamento medido.
+
+TUS usa chunks de 6 MiB, renova token e retoma a posição após falha da conexão dentro da mesma tentativa lógica; grava URL opaca no cache da conta, sem token. A geração atual de novo caminho em um novo save limita retomada após reiniciar o app: ensaio real/caminho estável ainda pendente. Não prometer retomada entre reinícios.
 
 ## Limitações que bloqueiam oferta ilimitada
 
@@ -36,5 +38,5 @@ Procedimento: exportar JSON completo, guardar cópia criptografada; importar em 
 1. Aprovar cotas, custo suportado de gratuitos e região de dados.
 2. Aplicar SQL em staging, rodar verificações RLS existentes e ensaio de Storage/TUS com metadata real.
 3. Contratar/ativar limites de gastos, alertas e WAF/gateway de banda; configurar limiares a partir de orçamento aprovado.
-4. Medir custos reais/usuário, definir processo de órfãos e validar worker de compressão de vídeo antes de aumentar cotas.
+4. Medir custos reais/usuário, definir processo de órfãos, instalar commercial-media.sql e executar worker em staging com limite de CPU/memória antes de aumentar cotas. Verificar fila, perda de lease/retry e inclusão dos derivados no player antes de anunciar compressão automática aos usuários.
 5. Escolher backup/PITR e executar restauração em staging; aprovar preço apenas após essas medições.
