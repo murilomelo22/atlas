@@ -7,6 +7,8 @@ create table if not exists atlas_commercial.accounts (
  customer_id text unique,
  deletion_requested_at timestamptz
 );
+alter table atlas_commercial.accounts add column if not exists checkout_id text;
+alter table atlas_commercial.accounts add column if not exists checkout_expires bigint;
 create table if not exists atlas_commercial.subscriptions (
  subscription_id text primary key, user_id uuid not null references auth.users(id) on delete cascade,
  status text not null, paid_through bigint not null default 0, grace_until bigint not null default 0,
