@@ -15,7 +15,7 @@ export async function mockCloud(page) {
     const row = { id, owner_id: owner, visibility, revision: randomUUID(), data: { id, name, lat: 48.8566, lng: 2.3522, notes: '', rating: 4, tags: ['viagem'], visits: [{ id: 'visit', arrival: '2025-05-01', departure: '2025-05-03', manualDays: null }], photoIds: [], coverId: null, createdAt: '2025-05-01T12:00:00Z', updatedAt: '2025-05-01T12:00:00Z' } };
     state.posts.push(row); return row;
   };
-  await page.route('**/config.js', (route) => route.fulfill({ contentType: 'text/javascript', body: "export const supabaseConfig = {url:'https://atlas-tests.supabase.co', publishableKey:'sb_publishable_test_fixture'};" }));
+  await page.route('**/config.js', (route) => route.fulfill({ contentType: 'text/javascript', body: "export const supabaseConfig = {url:'https://atlas-tests.supabase.co', publishableKey:'sb_publishable_test_fixture'}; export const commercialConfig = {apiURL:'', experimentalPoster:true};" }));
   await page.route('https://*.basemaps.cartocdn.com/**', (route) => route.fulfill({ contentType: 'image/png', body: png }));
   await page.route('https://nominatim.openstreetmap.org/**', (route) => route.abort());
   await page.route('https://atlas-tests.supabase.co/**', async (route) => {
