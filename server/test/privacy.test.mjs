@@ -23,9 +23,16 @@ test('account deletion resumes stages, cancels billing, deletes media and identi
    alter table storage.objects enable row level security;grant select,insert,update,delete on storage.objects to anon,authenticated;`);
   for(const f of ['schema.sql','trips.sql','collaboration.sql','media.sql','wishlist.sql','migrations/20261013010702_atlas_trip_view_sharing.sql','commercial-billing.sql','commercial-limits.sql','commercial-privacy.sql'])await db.exec(await readFile(new URL(`../../supabase/${f}`,import.meta.url),'utf8'));
   await db.exec(await readFile(new URL('../../supabase/commercial-privacy.sql',import.meta.url),'utf8'));
+  const roleSQL=await readFile(new URL('../../supabase/commercial-runtime-role.sql',import.meta.url),'utf8');await db.exec(roleSQL);await db.exec(roleSQL);
   await db.query('insert into auth.users(id) values($1),($2)',[alice,bob]);
+  assert.equal((await db.query('select is_public from public.profiles where id=$1',[bob])).rows[0].is_public,false);
+  await db.query('update public.profiles set is_public=true where id=$1',[alice]);
   const repo=new Repository({query:(...args)=>db.query(...args),connect:async()=>({query:(...args)=>db.query(...args),release(){}})});
   await repo.saveCustomer(alice,'cus_fixture');
+  await db.exec('set role atlas_backend');assert.equal(await repo.customer(alice),'cus_fixture');
+  await assert.rejects(db.query('delete from public.profiles where id=$1',[bob]),e=>e.code==='42501');
+  await assert.rejects(db.query("update atlas_commercial.plan_limits set storage_bytes=1"),e=>e.code==='42501');
+  await db.exec('reset role');assert.equal((await db.query("select pg_has_role('authenticated','atlas_backend','MEMBER') as allowed")).rows[0].allowed,false);
   const calls=[];let fail=true;
   const admin={ban:async()=>calls.push('ban'),remove:async(bucket,paths)=>{if(fail){fail=false;throw new Error('provider down');}await db.query('delete from storage.objects where bucket_id=$1 and name=any($2)',[bucket,paths]);},deleteUser:async id=>{calls.push('delete');await db.query('delete from auth.users where id=$1',[id]);},signedURL:async()=> 'https://fixture.invalid/signed'};
   const stripe={subscriptions:{list:()=>({async *[Symbol.asyncIterator](){yield{id:'sub_test',status:'active'};}}),cancel:async()=>calls.push('cancel')}};
