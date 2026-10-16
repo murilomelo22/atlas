@@ -200,7 +200,7 @@ export async function initializeSocial(callbacks) {
   };
   $('#share-profile').onclick = async () => {
     if (!profile?.is_public) return notify('Seu perfil está privado. Torne-o público antes de compartilhar.', true);
-    const url = new URL(`#/perfil/${profile.username}`, new URL('./', location.href)).href;
+    const url = appLink(`#/perfil/${profile.username}`);
     try { await navigator.clipboard.writeText(url); notify('Link do perfil copiado.'); }
     catch { $('#profile-message').textContent = `Copie este endereço: ${url}`; }
   };

@@ -1,0 +1,79 @@
+name: Atlas Desktop para Mac
+
+on:
+  push:
+    branches: [desktop-v0.1.1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atlas-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - name: Instalar dependências de teste e desktop
+        run: |
+          npm ci
+          npm --prefix desktop ci
+      - name: Preparar o aplicativo
+        run: npm run desktop:prepare
+      - name: Testar a janela, persistência, backup e uso offline
+        run: npm run test:desktop
+      - name: Gerar aplicativo universal e DMG
+        run: npm --prefix desktop run dist:mac
+      - name: Validar assinatura local e integridade
+        run: |
+          codesign --verify --deep --strict 'desktop/release/mac-universal/Atlas Pessoal.app'
+          hdiutil verify desktop/release/*.dmg
+          shasum -a 256 desktop/release/*.dmg desktop/release/*.zip > desktop/release/SHA256SUMS.txt
+      - name: Abrir e verificar o aplicativo empacotado
+        env:
+          ATLAS_DESKTOP_EXECUTABLE: ${{ github.workspace }}/desktop/release/mac-universal/Atlas Pessoal.app/Contents/MacOS/Atlas Pessoal
+        run: npm run test:desktop -- --grep 'abre os arquivos locais'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Atlas-Pessoal-0.1.1-Mac
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Atlas-Desktop-Diagnostico
+          path: test-results/
+          retention-days: 7
+
+  release:
+    needs: mac
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Atlas-Pessoal-0.1.1-Mac
+          path: release
+      - name: Publicar acesso antecipado
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          printf '%s\n' 'Aplicativo universal para Macs Apple Silicon e Intel.' '' 'Abra o DMG e arraste Atlas Pessoal para Aplicativos. O aplicativo inclui seus arquivos e não precisa de Python, Terminal ou servidor local.' '' 'Esta é uma versão de teste com assinatura local, sem notarização Apple. O macOS pode solicitar autorização em Ajustes do Sistema → Privacidade e Segurança.' > release-notes.md
+          gh release create desktop-v0.1.1 --target '${{ github.sha }}' --title 'Atlas Pessoal 0.1.1 para Mac' --notes-file release-notes.md --prerelease release/*.dmg release/*.zip release/SHA256SUMS.txt

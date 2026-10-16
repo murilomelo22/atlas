@@ -1,5 +1,6 @@
 {
   "name": "atlas-pessoal",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "devDependencies": {
@@ -11,6 +12,12 @@
     "world-atlas": "^2.0.2"
   },
   "scripts": {
+    "dev": "python3 -m http.server 8000 --bind 127.0.0.1",
+    "build": "node tools/build-app.mjs",
+    "desktop:prepare": "node tools/build-desktop.mjs",
+    "desktop:start": "npm run desktop:prepare && npm --prefix desktop start",
+    "desktop:mac": "npm run desktop:prepare && npm --prefix desktop run dist:mac",
+    "test:desktop": "playwright test --config desktop/playwright.config.mjs",
     "test": "playwright test",
     "test:premium-db": "node tests/premium.database.mjs",
     "test:sharing-db": "node tests/trip-sharing.database.mjs",

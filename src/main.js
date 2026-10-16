@@ -140,10 +140,16 @@ function clearFilters() {
   $('#list-search').value = ''; $('#country-filter').value = ''; $('#tag-filter').value = '';
   document.querySelectorAll('[data-collection-filter]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.collectionFilter === 'all')));
 }
+function announceAppState() {
+  const detail = { ready: !initializing && !changingAccount, publicView: Boolean(publicView), signedIn: Boolean(currentUser()), personalCount: destinations.filter(d => !d.example).length };
+  document.documentElement.dataset.atlasState = JSON.stringify(detail);
+  document.dispatchEvent(new CustomEvent('atlas:state', { detail }));
+}
 function setAccountLoading(value) {
   changingAccount = value;
   if (value && offlineActive) { offlineToken++; offlineActive = 0; cancelMediaDownloads(); $('#cancel-media-download').hidden = true; $('#offline-media-status').textContent = 'Download interrompido. As mídias já baixadas foram preservadas.'; }
   for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button', '#clean-map-button', '#download-media-button', '#poster-button']) $(selector).disabled = value || initializing;
+  announceAppState();
 }
 async function refresh() {
   destinations = publicView ? publicView.destinations : await getDestinations();
@@ -159,6 +165,7 @@ async function refresh() {
   for (const [key, value] of Object.entries(stats)) $(`#stat-${key}`).textContent = new Intl.NumberFormat('pt-BR').format(value);
   mapController.update(destinations, urls);
   await wishlist?.refresh();
+  announceAppState();
 }
 function updateCountry() {
   try {

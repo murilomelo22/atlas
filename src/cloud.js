@@ -4,6 +4,7 @@ import { sanitizeDestination } from './db.js';
 import { mediaKind, mediaExtension } from './media.js';
 import { cleanWishlist, emptyWishlist } from './wishlist-data.js';
 import { cloudDiagnostic } from './cloud-diagnostics.js';
+import { publicAppBase } from './app-context.js';
 
 function validConfig(config) {
   if (!config.url || !config.publishableKey) return null;
@@ -154,7 +155,7 @@ async function refreshSession(force = false) {
   if (!refreshing) refreshing = (navigator.locks ? navigator.locks.request('atlas-session-refresh', refresh) : refresh()).finally(() => { refreshing = null; });
   return refreshing;
 }
-const redirectURL = () => new URL('./', location.href).href;
+const redirectURL = () => publicAppBase().href;
 export async function restoreAuth() {
   if (!cloudEnabled) return { recovery: false };
   session = await readSession() || null;

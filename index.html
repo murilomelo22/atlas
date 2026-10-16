@@ -2,29 +2,38 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101310">
-  <meta name="atlas-version" content="23">
-  <meta name="description" content="Um mapa das suas viagens, fotografias e memórias. Seus dados ficam no seu navegador.">
-  <title>Atlas Pessoal — seu mundo, revisitado</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14251e">
+  <meta name="atlas-version" content="24">
+  <meta name="application-name" content="Atlas">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Atlas">
+  <meta name="description" content="Seu mundo, revisitado. Guarde viagens, fotos e memórias no seu Atlas pessoal. Aplicativo em acesso antecipado, versão 0.1.">
+  <title>Atlas — seu mundo, revisitado · 0.1</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23101310'/%3E%3Cpath d='M32 8L45 45 32 38 19 45Z' fill='%23c09a71'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="./vendor/markercluster/MarkerCluster.css">
   <link rel="stylesheet" href="./vendor/markercluster/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="./styles.css?v=23">
+  <link rel="stylesheet" href="./styles.css?v=24">
+  <link rel="stylesheet" href="./app.css?v=24">
   <script src="./vendor/leaflet/leaflet.js" defer></script>
   <script src="./vendor/markercluster/leaflet.markercluster.js" defer></script>
-  <script type="module" src="./src/app-updates.js?v=23"></script>
-  <script type="module" src="./src/main.js?v=23"></script>
-  <link rel="stylesheet" href="./download.css?v=23">
+  <script type="module" src="./src/app-updates.js?v=24"></script>
+  <script type="module" src="./src/app-shell.js?v=24"></script>
+  <script type="module" src="./src/main.js?v=24"></script>
+  <link rel="stylesheet" href="./download.css?v=24">
 </head>
-<body>
+<body class="atlas-app">
   <a class="skip-link" href="#destinations-panel">Ir para meus destinos</a>
   <header class="app-header">
-    <div class="brand"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><path d="M24 9 28 27 10 31Z"/><path d="m24 9-7 14 11 4"/></svg><div><h1>Atlas <span>Pessoal</span></h1><p>MEMÓRIAS EM MOVIMENTO</p></div></div>
+    <div class="brand"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><path d="M24 9 28 27 10 31Z"/><path d="m24 9-7 14 11 4"/></svg><div><h1>Atlas <span>Pessoal</span></h1><p>SEU MUNDO, REVISITADO</p></div><button type="button" class="release-badge" data-open-app-info aria-label="Sobre o Atlas 0.1">0.1 <span>ACESSO ANTECIPADO</span></button></div>
     <div class="header-actions">
       <div class="app-download"><a id="download-app-button" class="app-download-button" href="./downloads/atlas-0.1.0.zip" download="atlas-0.1.0.zip" aria-label="Baixar aplicativo Atlas 0.1 em ZIP"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 15v5h14v-5"/></svg><span>Baixar aplicativo<small>v0.1 · ZIP</small></span></a><a class="app-download-help" href="./instalar.html">Como instalar no Mac</a></div>
       <span class="local-badge" title="Dados armazenados apenas neste navegador"><span></span> Salvo no seu navegador</span>
+      <button type="button" id="install-app-button" class="quiet install-button" aria-label="Instalar Atlas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 15v5h14v-5"/></svg><span>Instalar app</span></button>
       <button id="export-button" class="quiet" aria-label="Exportar backup"><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m-4 4 4-4 4 4M4 12v5h12v-5"/></svg> <span>Exportar</span></button>
       <button id="import-button" class="quiet" aria-label="Importar backup"><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 12v5h12v-5"/></svg> <span>Importar</span></button>
       <input type="file" id="import-input" accept="application/json,.json" hidden aria-label="Arquivo de backup">
@@ -36,6 +45,12 @@
     <div><span id="sync-status" class="sync-status" role="status">Coleção neste dispositivo</span><button id="account-button" class="quiet" hidden>Meu perfil</button><button id="login-button" class="quiet">Entrar / Criar conta</button></div>
   </nav>
   <section id="app-update-banner" class="app-update-banner" role="status" hidden><p>Há uma nova versão do Atlas disponível. Termine suas edições e atualize.</p><button type="button" data-app-update class="quiet">Atualizar agora</button></section>
+  <p id="app-connection-status" class="connection-notice" role="status" hidden>Você está offline. As memórias já disponíveis neste aparelho continuam acessíveis. Busca de lugares e sincronização precisam de conexão.</p>
+  <section id="first-access" class="first-access" aria-labelledby="welcome-title" hidden>
+    <div class="welcome-copy"><p class="welcome-eyebrow"><span></span> UM DIÁRIO. TODOS OS SEUS CAMINHOS.</p><h2 id="welcome-title">O mundo é grande.<br><em>Sua história também.</em></h2><p>Transforme os lugares por onde passou em um mapa de memórias. Guarde fotos, reviva viagens e imagine os próximos caminhos.</p><div class="welcome-actions"><button type="button" id="welcome-create" class="primary" disabled>Guardar minha primeira viagem <span aria-hidden="true">→</span></button><button type="button" id="welcome-login" class="welcome-login" disabled>Já tenho conta <span aria-hidden="true">→</span></button></div><p class="welcome-footnote">Comece neste aparelho. Crie uma conta para sincronizar suas memórias.</p></div>
+    <div class="welcome-art" aria-hidden="true"><svg viewBox="0 0 480 290" fill="none"><defs><pattern id="atlas-grid" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M36 0H0V36" stroke="#294736" stroke-opacity=".1"/></pattern></defs><rect width="480" height="290" fill="url(#atlas-grid)"/><circle cx="248" cy="147" r="112" stroke="#71846b" stroke-opacity=".25"/><ellipse cx="248" cy="147" rx="57" ry="112" stroke="#71846b" stroke-opacity=".25"/><path d="M137 147h222M151 92h194M151 202h194" stroke="#71846b" stroke-opacity=".25"/><path d="m159 88 28-10 22 17 9 26-23 19-15-12-20 2-14-22Zm43 70 21 5 13 28-8 38-19-17-8-25Zm49-67 32-15 53 15 20 28-13 21-26-4-14 29-27-13-6-22-25-3Zm48 112 21-8 23 15-4 17-31 4-15-14Z" fill="#8d9f80" fill-opacity=".4"/><path d="M103 210c56 17 72-126 143-95s64 92 150 43" stroke="#a97647" stroke-width="2" stroke-dasharray="5 6"/><circle cx="103" cy="210" r="6" fill="#294736"/><circle cx="246" cy="115" r="6" fill="#a97647"/><circle cx="396" cy="158" r="6" fill="#294736"/><circle cx="246" cy="115" r="13" stroke="#a97647" stroke-opacity=".4"/><path d="m400 48 7 23-7-5-7 5Z" fill="#294736"/><text x="400" y="38" fill="#294736" text-anchor="middle" font-family="sans-serif" font-size="10">N</text></svg><span class="art-caption">CADA LUGAR, UMA PARTE DE VOCÊ.</span></div>
+    <button type="button" id="welcome-dismiss" class="welcome-dismiss" aria-label="Fechar boas-vindas e explorar o mapa">Explorar o mapa <span aria-hidden="true">→</span></button>
+  </section>
   <section id="public-profile-header" class="public-profile-header" hidden aria-label="Perfil público"></section>
   <section class="statistics" aria-label="Estatísticas das viagens">
     <div><strong id="stat-countries">—</strong><span>países visitados</span></div>
@@ -61,7 +76,7 @@
         </div>
         <div id="examples-banner" class="examples-banner" hidden><p>Um começo pela Itália.<br><span>Estes destinos são exemplos editáveis.</span></p><button id="clear-examples" class="text-button">Limpar exemplos</button></div>
         <div id="destination-list" class="destination-list" aria-live="polite"><p class="loading">Preparando suas memórias…</p></div>
-        <footer class="sidebar-footer">Cada lugar guarda uma parte de você.<br><span>Faça backups para levar suas memórias adiante.</span><div class="app-version"><small>Versão 23</small><button type="button" data-app-update class="text-button">Atualizar site</button></div><p id="app-update-status" role="status" hidden></p></footer>
+        <footer class="sidebar-footer">Cada lugar guarda uma parte de você.<br><span>Faça backups para levar suas memórias adiante.</span><div class="app-version"><small>Atlas 0.1 · acesso antecipado</small><button type="button" data-app-update class="text-button">Atualizar site</button></div><button type="button" data-open-app-info class="text-button">Instalação e ajuda</button><p id="app-update-status" role="status" hidden></p></footer>
       </section>
       <section id="detail-panel" hidden aria-label="Detalhes do destino"></section>
     </aside>
@@ -81,6 +96,20 @@
       <div class="map-legend"><span></span> Países visitados <span class="home-legend"></span> Moradia <small>mais tempo, mais intensidade</small></div>
     </section>
   </main>
+  <nav class="mobile-dock" aria-label="Navegação do aplicativo">
+    <button type="button" data-app-nav="map" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2ZM9 3v16m6-14v16"/></svg><span>Mapa</span></button>
+    <button type="button" data-app-nav="memories"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8m-8 4h4"/></svg><span>Memórias</span></button>
+    <button type="button" data-app-nav="trips" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M9 6h7a4 4 0 0 1 0 8H8a4 4 0 0 0 0 8"/></svg><span>Roteiros</span></button>
+    <button type="button" data-app-nav="profile" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg><span>Perfil</span></button>
+  </nav>
+  <dialog id="app-info-dialog" class="app-info-dialog" aria-labelledby="app-info-title">
+    <header class="dialog-header"><div><p class="eyebrow">SEU ATLAS, SEMPRE POR PERTO</p><h2 id="app-info-title">Leve seu mundo com você.</h2></div><button type="button" id="app-info-close" class="icon-button" aria-label="Fechar instalação e ajuda">×</button></header>
+    <div class="dialog-body"><div class="app-info-brand"><img src="./assets/icon-192.png" width="64" height="64" alt=""><div><strong>Atlas Pessoal</strong><p>Versão 0.1 · Acesso antecipado</p></div></div>
+      <section class="install-guide" aria-labelledby="install-title"><h3 id="install-title">Instalar no seu aparelho</h3><p id="install-instructions"></p><button type="button" id="install-native-button" class="primary" hidden>Instalar Atlas agora</button><p id="install-status" role="status"></p></section>
+      <section class="app-help-section"><h3>Suas memórias, com cuidado.</h3><p>Sem conta, os registros ficam neste navegador. Com uma conta, aguarde a confirmação de sincronização antes de trocar de aparelho. Exportar cria uma cópia das suas memórias pessoais.</p><p>Offline, você pode consultar o que já carregou e registrar memórias. Para levar mídias da sua conta, use <strong>Meu perfil → Baixar mídias para uso offline</strong> antes de viajar. A busca de lugares e os mapas de ruas precisam de internet.</p></section>
+      <section class="app-help-section"><h3>Uma primeira versão, feita para explorar.</h3><p>O acesso antecipado ajuda a aperfeiçoar o Atlas. Não há cobrança nesta versão; o pôster Premium continua disponível apenas para contas habilitadas para teste.</p><button type="button" id="show-welcome" class="text-button">Rever apresentação do Atlas →</button></section>
+    </div>
+  </dialog>
   <div id="toast" role="status" class="toast" hidden></div>
   <dialog id="editor-dialog" aria-labelledby="editor-title">
     <form id="destination-form">

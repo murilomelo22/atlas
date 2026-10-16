@@ -1,6 +1,16 @@
 # atlas
 atlas pessoal, teste usando o codex.
 
+## Aplicativo para Mac
+
+A versão desktop 0.1.1 inclui o Atlas em uma janela própria, sem Python ou servidor local. O build universal gera DMG e ZIP para Apple Silicon e Intel. Veja [instalação, migração de memórias, limites e compilação](docs/DESKTOP.md).
+
+## Aplicativo 0.1 — acesso antecipado
+
+O Atlas agora pode ser instalado pela tela inicial do Android/iPhone ou pelo navegador no computador. A versão 0.1 traz identidade visual própria, boas-vindas para novos usuários, navegação inferior no celular, instruções de instalação e indicação de uso offline. Contas e coleções existentes são preservadas. Não há cobrança nesta versão.
+
+Execute `npm run dev` para abrir localmente ou `npm run build` para gerar a distribuição estática em `dist/`. Publique o conteúdo dessa pasta por HTTPS para instalar no celular. Veja [instalação, limites e roteiro do piloto](docs/APP-0.1.md). A versão interna do service worker passa de 21 para 22; a versão do produto é 0.1.0.
+
 ## Pôster premium em teste
 
 **Exportar pôster → Premium · teste** cria seu mapa em **A4 ou A3, paisagem**, com título, tema claro/escuro e prévia. Baixe **PNG a 300 dpi** (A3: 4961 × 3508 px; A4: 3508 × 2480 px), com densidade de impressão gravada no arquivo, ou **SVG vetorial** com tamanho físico para ampliar na gráfica. Imprima em tamanho real (100%).

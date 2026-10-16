@@ -4,3 +4,6 @@ playwright-report/
 __pycache__/
 *.log
 supabase/.temp/
+dist/
+desktop/app/
+desktop/release/

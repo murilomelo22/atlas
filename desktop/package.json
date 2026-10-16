@@ -1,0 +1,41 @@
+{
+  "name": "atlas-pessoal-desktop",
+  "productName": "Atlas Pessoal",
+  "version": "0.1.1",
+  "description": "Seu mundo, revisitado. Aplicativo de memórias e viagens para desktop.",
+  "author": "Atlas Pessoal",
+  "repository": { "type": "git", "url": "https://github.com/murilomelo22/atlas.git" },
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist:mac": "electron-builder --mac dmg zip --universal --publish never",
+    "pack:linux": "electron-builder --linux --dir --publish never"
+  },
+  "devDependencies": {
+    "electron": "44.8.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.atlaspessoal.desktop",
+    "productName": "Atlas Pessoal",
+    "asar": true,
+    "directories": { "output": "release", "buildResources": "assets" },
+    "files": ["main.cjs", "protocol.cjs", "app/**/*", "assets/icon.png"],
+    "artifactName": "Atlas-Pessoal-${version}-${arch}.${ext}",
+    "mac": {
+      "category": "public.app-category.travel",
+      "icon": "assets/icon.icns",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "notarize": false,
+      "target": [{ "target": "dmg", "arch": ["universal"] }, { "target": "zip", "arch": ["universal"] }]
+    },
+    "dmg": {
+      "title": "Atlas Pessoal",
+      "contents": [{ "x": 150, "y": 180, "type": "file" }, { "x": 430, "y": 180, "type": "link", "path": "/Applications" }]
+    },
+    "linux": { "icon": "assets/icon.png", "category": "Utility" }
+  }
+}

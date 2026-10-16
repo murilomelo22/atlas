@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "Atlas Pessoal — seu mundo, revisitado",
+  "short_name": "Atlas",
+  "description": "Guarde viagens, fotografias e memórias no seu mapa pessoal.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "./?source=installed",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#14251e",
+  "theme_color": "#14251e",
+  "categories": ["travel", "lifestyle"],
+  "icons": [
+    { "src": "./assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

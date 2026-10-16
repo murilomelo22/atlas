@@ -1,6 +1,7 @@
 import { currentUser, myProfile } from './cloud.js';
 import { $, notify, escapeHTML } from './ui.js';
-export const appLink = (hash) => new URL(hash, new URL('./', location.href)).href;
+import { publicAppBase } from './app-context.js';
+export const appLink = (hash) => new URL(hash, publicAppBase()).href;
 export function shareText(text, url = '') {
   let dialog = $('#share-dialog');
   if (!dialog) {
