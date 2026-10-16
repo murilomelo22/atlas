@@ -19,9 +19,9 @@ test('migra perfil real de 0.1.1 para 0.1.2 e permite rollback sem perder memór
   await page.locator('#add-button').click();await page.locator('#destination-name').fill('Memória antes da atualização');
   // The established editor uses the same coordinates fields in both versions.
   await page.locator('#latitude').fill('48.85');await page.locator('#longitude').fill('2.35');
-  await page.locator('#destination-form button[type="submit"]').click();await expect(page.getByText('Memória antes da atualização',{exact:true}).first()).toBeVisible();await app.close();app=null;
-  page=await launch(false);await expect(page.getByText('Memória antes da atualização',{exact:true}).first()).toBeVisible();
+  await page.locator('#destination-form button[type="submit"]').click();await expect(page.locator('#destination-list')).toContainText('Memória antes da atualização');await app.close();app=null;
+  page=await launch(false);await expect(page.locator('#destination-list')).toContainText('Memória antes da atualização');
   expect(await page.evaluate(async()=> (await import('./src/db.js')).getMeta('data-schema'))).toBe(2);await app.close();app=null;
-  page=await launch(true);await expect(page.getByText('Memória antes da atualização',{exact:true}).first()).toBeVisible();
+  page=await launch(true);await expect(page.locator('#destination-list')).toContainText('Memória antes da atualização');
  }finally{if(app)await app.close();await rm(profile,{recursive:true,force:true});}
 });
