@@ -57,23 +57,24 @@ export function createPrivacy({db,repo,stripe,admin}) {
   return {format:'atlas-portability',version:1,generatedAt:new Date().toISOString(),mediaLinksExpireInSeconds:3600,records,media,
    note:'Este manifesto inclui dados da nuvem e links temporários. Exporte também o backup local com arquivos incorporados; o manifesto não substitui esse backup.'};
  }
- async function moderate(user,{action,targetType,targetId,reason,blockedId}) {
+ async function moderateWithDB(database,user,{action,targetType,targetId,reason,blockedId}) {
   if(targetType==='profile' && !/^[a-f0-9-]{36}$/i.test(targetId||'')) {
-   const profile=(await db.query('select id from public.profiles where username=$1 and is_public',[targetId])).rows[0];
+   const profile=(await database.query('select id from public.profiles where username=$1 and is_public',[targetId])).rows[0];
    if(!profile)throw Object.assign(new Error('Perfil não encontrado.'),{status:404});
    targetId=profile.id;blockedId=profile.id;
   }
   if(action==='block'||action==='unblock') {
    if(!/^[a-f0-9-]{36}$/i.test(blockedId||'')||blockedId===user.id)throw Object.assign(new Error('Usuário inválido.'),{status:400});
-   if(action==='block')await db.query('insert into atlas_commercial.blocks(blocker,blocked) values($1,$2) on conflict do nothing',[user.id,blockedId]);
-   else await db.query('delete from atlas_commercial.blocks where blocker=$1 and blocked=$2',[user.id,blockedId]);
+   if(action==='block')await database.query('insert into atlas_commercial.blocks(blocker,blocked) values($1,$2) on conflict do nothing',[user.id,blockedId]);
+   else await database.query('delete from atlas_commercial.blocks where blocker=$1 and blocked=$2',[user.id,blockedId]);
   } else if(action==='report') {
    if(!['profile','destination','trip'].includes(targetType)||typeof targetId!=='string'||!targetId.trim()||targetId.length>128||!['privacy','harassment','illegal','other'].includes(reason))throw Object.assign(new Error('Denúncia inválida.'),{status:400});
-   const count=(await db.query("select count(*)::int as n from atlas_commercial.reports where reporter=$1 and created_at>now()-interval '1 day'",[user.id])).rows[0].n;
+   const count=(await database.query("select count(*)::int as n from atlas_commercial.reports where reporter=$1 and created_at>now()-interval '1 day'",[user.id])).rows[0].n;
    if(count>=10)throw Object.assign(new Error('Limite diário de denúncias atingido.'),{status:429});
-   await db.query('insert into atlas_commercial.reports(reporter,target_type,target_id,reason) values($1,$2,$3,$4)',[user.id,targetType,targetId,reason]);
+   await database.query('insert into atlas_commercial.reports(reporter,target_type,target_id,reason) values($1,$2,$3,$4)',[user.id,targetType,targetId,reason]);
   } else throw Object.assign(new Error('Ação inválida.'),{status:400});
   return {ok:true};
  }
+ async function moderate(user,input) {return repo.lockUser(user.id,tx=>moderateWithDB(tx.db,user,input));}
  return {requestDeletion,workOnce,portability,moderate};
 }
