@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {transcodeVideo,execute} from '../src/transcode.mjs';
 test('real FFmpeg produces bounded H264 and thumbnail while preserving original synthetic media',async t=>{
- try{await execute('ffmpeg',['-version']);await execute('ffprobe',['-version']);}catch{t.skip('FFmpeg não instalado neste runner; teste deve ser executado no worker antes do deploy.');return;}
+ try{await execute('ffmpeg',['-version']);await execute('ffprobe',['-version']);}catch(error){if(process.env.ATLAS_REQUIRE_MEDIA_TOOLS==='true')throw error;t.skip('FFmpeg não instalado neste runner; teste deve ser executado no worker antes do deploy.');return;}
  const dir=await mkdtemp(path.join(tmpdir(),'atlas-transcode-test-')),input=new URL('../../tests/fixtures/memory.mp4',import.meta.url),before=await readFile(input);
  try{
   const video=path.join(dir,'out.mp4'),thumb=path.join(dir,'thumb.jpg');
