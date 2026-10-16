@@ -44,7 +44,8 @@ Fragilidades: Premium legado manual com gate de UI contornável, sem billing; li
 ## G — Oferta e preço
 | Status | Implementado | Como testar | Falta |
 |---|---|---|---|
-| bloqueado por humano | Nenhum preço definitivo estabelecido | Revisão do documento de oferta a produzir | Público e preço: DECISÃO DO MURILO |
+| feito | Documento com 3 hipóteses de público, divisão grátis/pago, faixas provisórias ancoradas em custo e página de apresentação sem checkout fictício | node tools/cost-model.mjs; tests/offer.spec.js | Implementação documental concluída; hipótese não equivale a validação comercial |
+| bloqueado por humano | Faixas e entrevista/piloto descritos em docs/comercial/OFERTA.md | Aprovação e pesquisa com público | Público e preço final: DECISÃO DO MURILO |
 
 ## Validação e branches
 
