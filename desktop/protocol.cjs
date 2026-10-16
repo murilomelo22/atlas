@@ -32,8 +32,11 @@ function assetHandler(root, net) {
     } catch { return new Response('Not found', { status:404 }); }
   };
 }
+function documentationURL(value) {
+  return localURL(value) && ['/legal/termos.html','/legal/privacidade.html','/ajuda.html'].includes(new URL(value).pathname);
+}
 function externalURL(value) {
   try { const url = new URL(value); return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password; }
   catch { return false; }
 }
-module.exports = { ORIGIN, localURL, assetPath, assetHandler, externalURL };
+module.exports = { ORIGIN, localURL, assetPath, assetHandler, externalURL, documentationURL };
