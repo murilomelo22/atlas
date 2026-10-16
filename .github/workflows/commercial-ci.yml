@@ -6,9 +6,14 @@ on:
     branches: [main, 'feat/**', desktop-v0.1.1]
 permissions:
   contents: read
+concurrency:
+  group: commercial-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   web-and-server:
     runs-on: ubuntu-latest
+    env:
+      CHROMIUM_PATH: /usr/bin/google-chrome
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -18,7 +23,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm --prefix server ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chrome
       - run: npm --prefix server test
       - run: npm run test:premium-db && npm run test:sharing-db && node tests/wishlist-reconcile.unit.mjs
       - run: npm test -- --workers=2 --timeout=90000
