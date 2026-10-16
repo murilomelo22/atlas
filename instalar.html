@@ -4,27 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#14251e">
-  <title>Instalar o Atlas 0.1 no Mac</title>
-  <meta name="description" content="Baixe o Atlas 0.1 em ZIP e veja como abrir no Mac e adicionar ao Dock.">
-  <link rel="stylesheet" href="./download.css?v=23">
+  <title>Instalar o Atlas Pessoal no Mac</title>
+  <meta name="description" content="Baixe o aplicativo Atlas Pessoal para Mac, abra o DMG e arraste para Aplicativos. Sem Terminal ou servidor local.">
+  <link rel="stylesheet" href="./download.css?v=25">
 </head>
 <body class="atlas-download-guide">
   <main class="download-guide">
     <header><span class="download-guide-brand">Atlas Pessoal</span><a href="./">Voltar ao meu Atlas →</a></header>
-    <p class="guide-eyebrow">VERSÃO 0.1 · ACESSO ANTECIPADO</p>
+    <p class="guide-eyebrow">VERSÃO 0.1.1 · APLICATIVO PARA MAC</p>
     <h1>Seu Atlas, no Mac.</h1>
-    <p>Baixe o pacote ZIP da primeira versão do aplicativo e siga os passos para abrir e adicionar ao Dock.</p>
-    <a class="app-download-button" href="./downloads/atlas-0.1.0.zip" download="atlas-0.1.0.zip">Baixar aplicativo · v0.1 ZIP</a>
+    <p>O Atlas agora abre em uma janela própria, sem precisar de navegador, Python ou Terminal. O mesmo instalador funciona em Macs Apple Silicon e Intel.</p>
+    <a class="app-download-button" href="https://github.com/murilomelo22/atlas/releases/download/desktop-v0.1.1/Atlas-Pessoal-0.1.1-universal.dmg">Baixar para Mac · v0.1.1 DMG</a>
     <ol>
-      <li><strong>Baixe e descompacte.</strong><p>Dê dois cliques no arquivo <code>atlas-0.1.0.zip</code>. Você verá a pasta <code>atlas-0.1.0</code>. Se o Safari já descompactou o arquivo, use essa pasta.</p></li>
-      <li><strong>Abra o Terminal.</strong><p>Pressione ⌘ + Espaço, digite <strong>Terminal</strong> e pressione Enter.</p></li>
-      <li><strong>Selecione a pasta.</strong><p>Digite <code>cd </code>, com um espaço depois, e arraste a pasta <code>atlas-0.1.0</code> para dentro do Terminal. Pressione Enter.</p></li>
-      <li><strong>Inicie o Atlas.</strong><p>Cole o comando abaixo e pressione Enter:</p><pre><code>python3 -m http.server 8000 --bind 127.0.0.1</code></pre><p>Se o comando não estiver disponível, instale o <a href="https://www.python.org/downloads/macos/" target="_blank" rel="noopener noreferrer">Python para macOS</a>, abra novamente o Terminal e repita os dois últimos passos.</p></li>
-      <li><strong>Abra no navegador.</strong><p>Acesse <a href="http://127.0.0.1:8000" target="_blank" rel="noopener">http://127.0.0.1:8000</a> no Safari ou Chrome.</p></li>
-      <li><strong>Adicione ao Dock.</strong><p>No Safari do macOS Sonoma 14 ou posterior, escolha <strong>Arquivo → Adicionar ao Dock → Adicionar</strong>. No Chrome, clique em <strong>Instalar app</strong> dentro do Atlas e siga as instruções do navegador.</p></li>
+      <li><strong>Baixe o instalador.</strong><p>Clique em <strong>Baixar para Mac</strong> e aguarde o download do arquivo <code>Atlas-Pessoal-0.1.1-universal.dmg</code>.</p></li>
+      <li><strong>Arraste para Aplicativos.</strong><p>Abra o DMG com dois cliques e arraste o ícone <strong>Atlas Pessoal</strong> para a pasta <strong>Aplicativos</strong> mostrada na janela.</p></li>
+      <li><strong>Abra o Atlas.</strong><p>Ejete o instalador e abra o Atlas pela pasta Aplicativos. Para deixá-lo no Dock, clique com o botão direito no ícone → <strong>Opções → Manter no Dock</strong>.</p></li>
     </ol>
-    <aside class="guide-note"><strong>Enquanto usa esta versão local, mantenha o Terminal aberto.</strong><p>Depois de reiniciar o Mac, selecione a pasta e execute o comando novamente. Para encerrar, pressione Control + C no Terminal.</p><p>O ZIP contém uma aplicação web. Abrir o arquivo index.html diretamente pelo Finder não inicia o aplicativo.</p></aside>
-    <footer><p>A cópia local tem armazenamento separado do site. Para acessar memórias já sincronizadas, entre na mesma conta. Faça backups pelo botão Exportar.</p><a href="./">← Voltar ao site do Atlas</a></footer>
+    <aside class="guide-note"><strong>Primeira abertura no macOS.</strong><p>Esta versão de teste tem assinatura local e ainda não tem notarização Apple. Se o sistema bloquear a abertura, confira que baixou pelo Atlas e use <strong>Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim</strong>, quando disponível.</p></aside>
+    <section><h2>Traga suas memórias.</h2><p>Entre na mesma conta para sincronizar ou use Exportar na versão anterior e Importar no aplicativo. O armazenamento do aplicativo é separado do Safari e do site.</p><p>O mapa local e as memórias disponíveis no aparelho podem ser usados offline. Login, sincronização, busca e mídias ainda não baixadas precisam de internet.</p></section>
+    <footer><p>Depois de instalar esta versão, você pode fechar o servidor Python usado anteriormente. O Atlas abre diretamente pela pasta Aplicativos.</p><a href="./">← Voltar ao site do Atlas</a></footer>
   </main>
 </body>
 </html>
