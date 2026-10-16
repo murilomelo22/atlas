@@ -1,0 +1,47 @@
+name: Atlas commercial verification
+on:
+  push:
+    branches: ['feat/**']
+  pull_request:
+    branches: [main, 'feat/**', desktop-v0.1.1]
+permissions:
+  contents: read
+jobs:
+  web-and-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix server ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm --prefix server test
+      - run: npm run test:premium-db && npm run test:sharing-db && node tests/wishlist-reconcile.unit.mjs
+      - run: npm test -- --workers=2 --timeout=90000
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: commercial-web-diagnostics
+          path: test-results/
+          retention-days: 7
+  mac:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci && npm --prefix desktop ci
+      - run: npm run desktop:prepare
+      - run: npm run test:desktop -- --timeout=90000
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: commercial-mac-diagnostics
+          path: test-results/
+          retention-days: 7
