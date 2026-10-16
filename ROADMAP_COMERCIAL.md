@@ -34,7 +34,7 @@ Fragilidades: Premium legado manual com gate de UI contornável, sem billing; li
 ## E — Distribuição
 | Status | Implementado | Como testar | Falta |
 |---|---|---|---|
-| parcial | Build universal e testes Mac já existentes | Workflow anterior 38952823282 | Pipeline Developer ID/notarytool/staple e segredos Apple |
+| parcial | Workflow manual com pré-validação de segredos, Developer ID, universal/lipo, hardened runtime, notarytool Accepted, staple app+DMG, spctl, feed assinado e teste de pacote | server/test/distribution.test.mjs + revisão do YAML; execução real bloqueada sem segredos | Criar Apple Developer/certificado/segredos e executar homologação completa; ver docs/comercial/DISTRIBUICAO.md |
 
 ## F — Atendimento e telemetria
 | Status | Implementado | Como testar | Falta |

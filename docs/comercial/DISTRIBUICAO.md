@@ -1,0 +1,20 @@
+# Distribuição Mac com Developer ID — preparada, sem certificado configurado
+
+Workflow manual `.github/workflows/atlas-signed-release.yml`, environment `mac-release`. Não executa em push nem publica release automaticamente. Configuração falha antes de build se algum segredo faltar. App universal contém arm64 e x86_64; pipeline valida ambas com lipo e assinatura/Team ID com codesign. Hardened Runtime e entitlement JIT do Electron habilitados; não há desativação de Gatekeeper nem instrução para remover quarentena.
+
+Pipeline: suite web completa, SQL/RLS/billing, testes Electron; build Developer ID; enviar app ZIP ao notarytool e exigir Accepted; staple/validate app e spctl; reempacotar DMG/ZIP a partir do app grampeado; notarizar/staple DMG; verificar integridade; gerar feed Ed25519 sobre hash do ZIP final; testar o app empacotado e migração do perfil 0.1.1; upload de artefatos para revisão. Não publica automaticamente: feed e artefatos de atualização devem ser publicados juntos após homologação e aprovação comercial.
+
+**Não foi executada notarização ou assinatura Developer ID:** este ambiente não contém conta/certificado/segredos Apple. Testes de configuração validam requisitos e recusa de assinatura ad-hoc, mas não provam que um certificado real funciona nem que notarytool aceitou um build. Binário 0.1.1 público continua intacto.
+
+## AÇÕES HUMANAS NECESSÁRIAS — ordem
+
+1. Inscrever a pessoa/empresa no Apple Developer Program; concluir verificação de identidade/empresa e contratos. Confirmar custo atual diretamente em https://developer.apple.com/programs/enroll/ (não gravar preço provisório como definitivo).
+2. No Mac, Acesso às Chaves → Assistente de Certificados → solicitar certificado a autoridade certificadora; gerar CSR. No portal Certificates, Identifiers & Profiles, criar **Developer ID Application** (distribuição fora da App Store), enviar CSR e baixar certificado. Instalar junto da chave privada. Para DMG não é necessário Developer ID Installer, usado em PKG.
+3. Exportar identidade e chave privada do Acesso às Chaves como `.p12`, com senha forte. Guardar cópia segura fora do repositório. `security find-identity -v -p codesigning` mostra o nome Developer ID e Team ID. Nunca enviar chave pelo chat, issue ou arquivo público.
+4. Em conta Apple com 2FA, gerar senha específica de app em https://account.apple.com/ para notarização. Verificar acesso de Apple ID ao Team ID. Opcional futuro: substituir por chave App Store Connect adequada, sem misturar métodos.
+5. GitHub → Settings → Environments → criar `mac-release`, restringir branches aprovadas e adicionar revisor humano. Secrets: `CSC_LINK` (base64 do .p12, conforme electron-builder), `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_SIGNING_IDENTITY` (nome completo Developer ID Application).
+6. Gerar par Ed25519 em máquina segura, por exemplo `openssl genpkey -algorithm ED25519 -out update-private.pem`, depois `openssl pkey -in update-private.pem -pubout -out update-public.pem`. Guardar privada em `ATLAS_UPDATE_PRIVATE_KEY` e pública em `ATLAS_UPDATE_PUBLIC_KEY`; não commitar arquivos PEM. Criar variable `ATLAS_UPDATE_FEED_URL` com URL HTTPS estável do envelope `atlas-update.json`. Não é uma chave de exemplo utilizável.
+7. Depois dos PRs e revisão, executar workflow manual na branch exata. Conferir Accepted de app/DMG, stapler, spctl, arquiteturas, testes e hashes. Baixar artefato e instalar em Macs Apple Silicon e Intel (ou máquina/VM de homologação autorizada).
+8. Ensaiar primeira instalação manual sobre 0.1.1, backup/conta/offline e depois atualização automática entre dois builds assinados pelo mesmo Team ID. Publicar ZIP/DMG/checksums/feed somente após aprovação; manter versão anterior disponível e sem trocar appId/nome/userData. Atualizar o botão do site quando a versão for aprovada.
+
+Fontes: https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution ; https://www.electron.build/v26/docs/features/auto-update/ ; https://www.electron.build/docs/features/signed-update-manifests/ (documentação de desenvolvimento v27, não aplicada como se fosse estável).
