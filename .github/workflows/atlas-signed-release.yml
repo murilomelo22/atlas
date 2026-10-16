@@ -30,7 +30,7 @@ jobs:
         run: node tools/prepare-distribution.mjs
       - run: npm ci && npm --prefix server ci && npm --prefix desktop ci
       - run: npm --prefix server test && npm run test:premium-db && npm run test:sharing-db && node tests/wishlist-reconcile.unit.mjs
-      - run: npx playwright install chromium && npm test -- --workers=2 --timeout=90000
+      - run: npx playwright install chrome && CHROMIUM_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" npm test -- --workers=2 --timeout=90000
       - run: npm run desktop:prepare && npm run test:desktop -- --timeout=90000
       - name: Compilar e assinar arm64 + x86_64 no aplicativo universal
         run: npm --prefix desktop run dist:signed
