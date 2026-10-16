@@ -1,11 +1,15 @@
 import { commercialRequest, commercialConfig } from './commercial.js';
-import { currentUser, signIn, signOut } from './cloud.js';
+import { currentUser, signIn, signOut, onAuthChange } from './cloud.js';
 export function downloadJSON(data,name) {
  const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
  const link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
 export function initializePrivacy() {
  const dialog=document.getElementById('privacy-dialog'),status=document.getElementById('privacy-status');
+ const clearConfirmation=()=>{document.getElementById('account-delete-form').reset();document.getElementById('legal-consent-form').reset();};
+ dialog.addEventListener('close',clearConfirmation);
+ let owner=currentUser()?.id;
+ onAuthChange(user=>{if(user?.id!==owner){owner=user?.id;clearConfirmation();document.getElementById('legal-consent-form').hidden=true;}});
  document.getElementById('privacy-button').onclick=async()=>{
   dialog.showModal();status.textContent=commercialConfig.legalApproved?'Documentos aprovados disponíveis abaixo.':'Documentos em RASCUNHO, aguardando revisão jurídica. Não há aceite de contrato comercial final nesta versão.';
   const form=document.getElementById('legal-consent-form');form.hidden=true;
