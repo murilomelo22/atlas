@@ -6,7 +6,15 @@ export function downloadJSON(data,name) {
 }
 export function initializePrivacy() {
  const dialog=document.getElementById('privacy-dialog'),status=document.getElementById('privacy-status');
- document.getElementById('privacy-button').onclick=()=>{dialog.showModal();status.textContent=commercialConfig.legalApproved?'Documentos aprovados disponíveis abaixo.':'Documentos em RASCUNHO, aguardando revisão jurídica. Não há aceite de contrato comercial final nesta versão.';};
+ document.getElementById('privacy-button').onclick=async()=>{
+  dialog.showModal();status.textContent=commercialConfig.legalApproved?'Documentos aprovados disponíveis abaixo.':'Documentos em RASCUNHO, aguardando revisão jurídica. Não há aceite de contrato comercial final nesta versão.';
+  const form=document.getElementById('legal-consent-form');form.hidden=true;
+  if(commercialConfig.legalApproved&&currentUser())try{const legal=await commercialRequest('/v1/legal');form.hidden=!legal.available||legal.accepted;form.dataset.version=legal.version||'';}catch(e){status.textContent=e.message;}
+ };
+ document.getElementById('legal-consent-form').onsubmit=async event=>{
+  event.preventDefault();const form=event.currentTarget;
+  try{await commercialRequest('/v1/consent',{method:'POST',body:{version:form.dataset.version,accepted:form.elements.accepted.checked}});form.hidden=true;status.textContent='Aceite da versão atual registrado. Você pode consultar os documentos a qualquer momento.';}catch(e){status.textContent=e.message;}
+ };
  document.getElementById('privacy-close').onclick=()=>dialog.close();
  document.getElementById('portability-button').onclick=async()=>{
   try{status.textContent='Preparando dados da nuvem…';downloadJSON(await commercialRequest('/v1/export'),'atlas-portabilidade-nuvem.json');status.textContent='Manifesto exportado. Os links de mídia expiram em 1 hora. Exporte também seu backup local completo.';}catch(e){status.textContent=e.message;}
