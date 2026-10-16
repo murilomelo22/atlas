@@ -1,11 +1,11 @@
 const {verifyFeed,serveVerifiedManifest}=require('./signed-feed.cjs');
-function initializeUpdater({app,dialog,config,updater,fetcher=fetch}) {
+function initializeUpdater({app,dialog,config,updater,fetcher=fetch,platform=process.platform}) {
  updater.on?.('error',()=>{});
  let busy=false;
  async function check({silent=false}={}) {
   if(busy)return;busy=true;let local;
   try {
-   if(!config.enabled||!app.isPackaged||process.platform!=='darwin') {
+   if(!config.enabled||!app.isPackaged||platform!=='darwin') {
     if(!silent)await dialog.showMessageBox({type:'info',message:'Atualização automática ainda não está habilitada nesta distribuição.',detail:'A primeira instalação após 0.1.1 é manual. Seus dados ficam separados do aplicativo.'});return;
    }
    const url=new URL(config.feedURL);if(url.protocol!=='https:'||url.username||url.password)throw new Error('Feed inseguro.');
@@ -20,7 +20,7 @@ function initializeUpdater({app,dialog,config,updater,fetcher=fetch}) {
    if(choice.response!==1)return;await updater.downloadUpdate();
    const install=await dialog.showMessageBox({type:'question',buttons:['Depois','Reiniciar e instalar'],defaultId:0,cancelId:0,message:'Atualização pronta',detail:'Memórias e conta ficam preservadas. Feche formulários com alterações antes de continuar.'});
    if(install.response===1)updater.quitAndInstall(false,true);
-  }catch{if(!silent)await dialog.showMessageBox({type:'warning',message:'Não foi possível verificar uma atualização segura.',detail:'O aplicativo atual e seus dados foram preservados. Tente novamente mais tarde.'});}
+  }catch(error){if(!silent)await dialog.showMessageBox(error.code==='ATLAS_NO_NEWER_VERSION'?{type:'info',message:'Você já está na versão mais recente disponível.'}:{type:'warning',message:'Não foi possível verificar uma atualização segura.',detail:'O aplicativo atual e seus dados foram preservados. Tente novamente mais tarde.'});}
   finally{local?.close();busy=false;}
  }
  return {check};
