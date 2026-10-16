@@ -31,7 +31,7 @@ test('account deletion resumes stages, cancels billing, deletes media and identi
   const stripe={subscriptions:{list:()=>({async *[Symbol.asyncIterator](){yield{id:'sub_test',status:'active'};}}),cancel:async()=>calls.push('cancel')}};
   const privacy=createPrivacy({db,repo,stripe,admin}),user={id:alice,last_sign_in_at:new Date().toISOString()};
   await db.query("insert into storage.objects(bucket_id,name,metadata) values('atlas-media',$1,'{\"size\":10}')",[`${alice}/a.jpg`]);
-  const exported=await privacy.portability(user);assert.equal(exported.media.length,1);assert.equal(exported.records.profiles[0].id,alice);assert.equal(exported.mediaLinksExpireInSeconds,3600);
+  const exported=await privacy.portability({...user,email:'fixture@example.invalid',access_token:'never-export-this'});assert.equal(exported.media.length,1);assert.equal(exported.records.profiles[0].id,alice);assert.equal(exported.mediaLinksExpireInSeconds,3600);assert.equal(exported.account.email,'fixture@example.invalid');assert.ok(!JSON.stringify(exported).includes('never-export-this'));assert.deepEqual(exported.commercial.consents,[]);
   await privacy.moderate({id:bob},{action:'block',targetType:'profile',targetId:alice,blockedId:alice});
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[bob]);await db.exec('set role authenticated');
   assert.equal((await db.query('select * from public.profiles where id=$1',[alice])).rows.length,0);await db.exec('reset role');
