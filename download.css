@@ -1,0 +1,32 @@
+/* Shared by the current site and the standalone Mac installation guide. */
+.app-header { height:auto; min-height:96px; }
+.header-actions, .atlas-app .header-actions { flex-wrap:wrap; }
+.app-download { display:flex; flex-direction:column; align-items:center; gap:5px; flex-shrink:0; }
+.app-download-button { display:inline-flex; align-items:center; justify-content:center; gap:9px; padding:10px 14px; min-height:44px; border:1px solid var(--accent,#c6a179); border-radius:8px; background:var(--accent,#c6a179); color:#1b241c; text-decoration:none; font:600 12px/1.2 system-ui,sans-serif; white-space:nowrap; }
+.app-download-button svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.6; flex-shrink:0; }
+.app-download-button small { display:block; margin-top:4px; font-size:9px; font-weight:400; letter-spacing:.4px; }
+.app-download-button:hover { filter:brightness(1.08); }
+.app-download-button:focus-visible,.app-download-help:focus-visible { outline:2px solid var(--accent,#c6a179); outline-offset:4px; }
+.app-download-help { color:var(--muted,#a7aea2); font:10px/1.4 system-ui,sans-serif; text-underline-offset:3px; }
+@media(max-width:700px) {
+  .app-download { width:100%; flex-direction:row; justify-content:space-between; gap:12px; order:-1; margin-bottom:3px; }
+  .app-download-button { padding:10px 14px; }
+  .app-download-help { font-size:11px; }
+}
+.atlas-download-guide { margin:0; background:#101c17; color:#f0ede4; font:15px/1.8 system-ui,-apple-system,sans-serif; }
+.download-guide { width:min(700px,calc(100% - 40px)); margin:40px auto 70px; }
+.download-guide>header { display:flex; justify-content:space-between; align-items:center; gap:18px; padding-bottom:24px; border-bottom:1px solid #334238; }
+.download-guide a:not(.app-download-button) { color:#d5b386; text-underline-offset:4px; }
+.download-guide-brand { font:32px Georgia,serif; }
+.download-guide .guide-eyebrow { color:#d5b386; font-size:10px; letter-spacing:2px; margin-top:30px; }
+.download-guide h1 { font:normal clamp(30px,6vw,44px)/1.15 Georgia,serif; margin:12px 0 18px; }
+.download-guide p { color:#b1b9ab; }
+.download-guide .app-download-button { margin:10px 0; font-size:14px; padding:14px 22px; }
+.download-guide ol { padding-left:24px; }
+.download-guide li { padding:13px 0 13px 6px; }
+.download-guide li p { margin:6px 0; }
+.download-guide code { color:#f1d7b1; font:13px/1.8 ui-monospace,monospace; background:#1d2e25; border:1px solid #334238; border-radius:6px; padding:4px 7px; overflow-wrap:anywhere; }
+.download-guide pre { overflow-x:auto; background:#1d2e25; border:1px solid #334238; border-radius:8px; padding:14px; }
+.download-guide pre code { padding:0; border:0; white-space:pre-wrap; }
+.download-guide .guide-note { border-left:2px solid #d5b386; background:#d5b3860a; padding:16px 20px; margin-top:24px; font-size:13px; }
+.download-guide footer { margin-top:30px; border-top:1px solid #334238; padding-top:18px; font-size:12px; }

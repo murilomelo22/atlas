@@ -1,4 +1,4 @@
-const VERSION = '21';
+const VERSION = '23';
 const CACHE = `atlas-pessoal-v${VERSION}-fresh-assets`;
 const FILES = [ './', './index.html', './styles.css', './src/main.js', './src/ui.js', './src/db.js', './src/map.js', './src/geography.js', './src/geocoding.js', './src/gallery.js', './src/photos.js', './src/stats.js', './src/dates.js', './vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css', './vendor/leaflet/images/marker-icon.png', './vendor/leaflet/images/marker-icon-2x.png', './vendor/leaflet/images/marker-shadow.png', './vendor/leaflet/images/layers.png', './vendor/leaflet/images/layers-2x.png', './vendor/markercluster/leaflet.markercluster.js', './vendor/markercluster/MarkerCluster.css', './vendor/markercluster/MarkerCluster.Default.css', './vendor/countries.geojson' ];
 FILES.push('./config.js', './src/cloud.js', './src/session.js', './src/sync.js', './src/social.js');
@@ -9,6 +9,8 @@ FILES.push('./src/cloud-media.js');
 FILES.push('./src/cloud-diagnostics.js');
 FILES.push('./src/trip-media-import.js', './src/trip-photo-picker.js');
 FILES.push('./src/app-updates.js', './src/premium.js', './src/poster.js', './src/poster-render.js');
+// Keep the ZIP on demand: do not precache the application download.
+FILES.push('./download.css', './instalar.html');
 // Bypass fresh HTTP-cache entries when installing a release. The browser cache
 // can otherwise populate the new offline cache with the previous release.
 self.addEventListener('install', (event) => { event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES.map(file => new Request(new URL(file, self.registration.scope), { cache: 'reload' })))).then(() => self.skipWaiting())); });

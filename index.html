@@ -4,24 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101310">
-  <meta name="atlas-version" content="21">
+  <meta name="atlas-version" content="23">
   <meta name="description" content="Um mapa das suas viagens, fotografias e memórias. Seus dados ficam no seu navegador.">
   <title>Atlas Pessoal — seu mundo, revisitado</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23101310'/%3E%3Cpath d='M32 8L45 45 32 38 19 45Z' fill='%23c09a71'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="./vendor/markercluster/MarkerCluster.css">
   <link rel="stylesheet" href="./vendor/markercluster/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="./styles.css?v=21">
+  <link rel="stylesheet" href="./styles.css?v=23">
   <script src="./vendor/leaflet/leaflet.js" defer></script>
   <script src="./vendor/markercluster/leaflet.markercluster.js" defer></script>
-  <script type="module" src="./src/app-updates.js?v=21"></script>
-  <script type="module" src="./src/main.js?v=21"></script>
+  <script type="module" src="./src/app-updates.js?v=23"></script>
+  <script type="module" src="./src/main.js?v=23"></script>
+  <link rel="stylesheet" href="./download.css?v=23">
 </head>
 <body>
   <a class="skip-link" href="#destinations-panel">Ir para meus destinos</a>
   <header class="app-header">
     <div class="brand"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><path d="M24 9 28 27 10 31Z"/><path d="m24 9-7 14 11 4"/></svg><div><h1>Atlas <span>Pessoal</span></h1><p>MEMÓRIAS EM MOVIMENTO</p></div></div>
     <div class="header-actions">
+      <div class="app-download"><a id="download-app-button" class="app-download-button" href="./downloads/atlas-0.1.0.zip" download="atlas-0.1.0.zip" aria-label="Baixar aplicativo Atlas 0.1 em ZIP"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 15v5h14v-5"/></svg><span>Baixar aplicativo<small>v0.1 · ZIP</small></span></a><a class="app-download-help" href="./instalar.html">Como instalar no Mac</a></div>
       <span class="local-badge" title="Dados armazenados apenas neste navegador"><span></span> Salvo no seu navegador</span>
       <button id="export-button" class="quiet" aria-label="Exportar backup"><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m-4 4 4-4 4 4M4 12v5h12v-5"/></svg> <span>Exportar</span></button>
       <button id="import-button" class="quiet" aria-label="Importar backup"><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 12v5h12v-5"/></svg> <span>Importar</span></button>
@@ -59,7 +61,7 @@
         </div>
         <div id="examples-banner" class="examples-banner" hidden><p>Um começo pela Itália.<br><span>Estes destinos são exemplos editáveis.</span></p><button id="clear-examples" class="text-button">Limpar exemplos</button></div>
         <div id="destination-list" class="destination-list" aria-live="polite"><p class="loading">Preparando suas memórias…</p></div>
-        <footer class="sidebar-footer">Cada lugar guarda uma parte de você.<br><span>Faça backups para levar suas memórias adiante.</span><div class="app-version"><small>Versão 21</small><button type="button" data-app-update class="text-button">Atualizar site</button></div><p id="app-update-status" role="status" hidden></p></footer>
+        <footer class="sidebar-footer">Cada lugar guarda uma parte de você.<br><span>Faça backups para levar suas memórias adiante.</span><div class="app-version"><small>Versão 23</small><button type="button" data-app-update class="text-button">Atualizar site</button></div><p id="app-update-status" role="status" hidden></p></footer>
       </section>
       <section id="detail-panel" hidden aria-label="Detalhes do destino"></section>
     </aside>
