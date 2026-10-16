@@ -13,3 +13,4 @@ desktop/release/
 *.p12
 *.p8
 *.pem
+desktop/distribution-config.json
