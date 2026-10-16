@@ -7,7 +7,8 @@ test('draft privacy is explicit, no destructive action offline and export remain
  await page.locator('#portability-button').click();await expect(page.locator('#privacy-status')).toContainText('ainda não estão disponíveis');
  await page.locator('#delete-confirmation').fill('EXCLUIR MINHA CONTA');await page.locator('#delete-password').fill('fixture-only');await page.locator('#account-delete-form button').click();
  await expect(page.locator('#privacy-status')).toContainText('Entre na conta');await expect(page.locator('#delete-password')).toHaveValue('');
- await page.locator('#privacy-close').click();await expect(page.locator('.destination-card')).toHaveCount(5);
+ await page.locator('#delete-password').fill('discard-on-close');await page.locator('#privacy-close').click();await expect(page.locator('.destination-card')).toHaveCount(5);
+ await page.locator('#privacy-button').click();await expect(page.locator('#delete-password')).toHaveValue('');await expect(page.locator('#delete-confirmation')).toHaveValue('');await page.locator('#privacy-close').click();
  await page.goto('/legal/privacidade.html');await expect(page.getByRole('heading',{level:1})).toContainText('RASCUNHO NÃO APROVADO');
 });
 test('approved document flow records explicit acceptance of server version',async({page})=>{
