@@ -54,7 +54,11 @@ export function createPrivacy({db,repo,stripe,admin}) {
   const objects=(await db.query("select bucket_id,name,metadata from storage.objects where bucket_id in ('atlas-media','atlas-trip-media','atlas-avatars') and split_part(name,'/',1)=$1 order by bucket_id,name",[user.id])).rows;
   const media=[];
   for(const object of objects)media.push({...object,...(admin?{url:await admin.signedURL(object.bucket_id,object.name,3600)}:{})});
-  return {format:'atlas-portability',version:1,generatedAt:new Date().toISOString(),mediaLinksExpireInSeconds:3600,records,media,
+  const commercial={};
+  for(const [table,column] of [['consents','user_id'],['blocks','blocker'],['reports','reporter'],['subscriptions','user_id']])
+   commercial[table]=(await db.query(`select * from atlas_commercial.${table} where ${column}=$1`,[user.id])).rows;
+  return {format:'atlas-portability',version:1,generatedAt:new Date().toISOString(),mediaLinksExpireInSeconds:3600,
+   account:{id:user.id,email:user.email||'',createdAt:user.created_at||null},records,media,commercial,
    note:'Este manifesto inclui dados da nuvem e links temporários. Exporte também o backup local com arquivos incorporados; o manifesto não substitui esse backup.'};
  }
  async function moderateWithDB(database,user,{action,targetType,targetId,reason,blockedId}) {
