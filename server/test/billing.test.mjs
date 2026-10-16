@@ -21,7 +21,7 @@ test('billing ledger, RLS, provider events and HTTP signatures', async t => {
   const sdk = new Stripe('sk_test_fixture');
   const stripe = { webhooks:sdk.webhooks, subscriptions:{retrieve:async()=>structuredClone(sub)},
     charges:{retrieve:async()=>({customer:'cus_alice',invoice:'in_1'})},
-    customers:{create:async()=>({id:'cus_new'})}, checkout:{sessions:{create:async()=>({url:'https://checkout.stripe.com/c/pay/test'})}},
+    customers:{create:async()=>({id:'cus_new'})}, checkout:{sessions:{create:async()=>({id:'cs_test',expires_at:2100000000,url:'https://checkout.stripe.com/c/pay/test'}),retrieve:async()=>({id:'cs_test',status:'open',url:'https://checkout.stripe.com/c/pay/test'})}},
     billingPortal:{sessions:{create:async()=>({url:'https://billing.stripe.com/p/test'})}} };
   const billing = createBilling({repo,stripe,priceId:'price_test',siteURL:'https://example.test/',graceDays:3});
   let n=0;
@@ -35,6 +35,12 @@ test('billing ledger, RLS, provider events and HTTP signatures', async t => {
   await t.test('active but unpaid never grants access',async()=>{
     sub.latest_invoice.status='open';await billing.webhook(event('customer.subscription.created'));
     assert.equal((await billing.plan({id:alice})).plan,'free'); sub.latest_invoice.status='paid';
+  });
+  await t.test('unfinished checkout is reused across time buckets and deletion blocks portal',async()=>{
+    const first=await billing.checkout({id:bob}),second=await billing.checkout({id:bob});assert.deepEqual(second,first);
+    await db.query('update atlas_commercial.accounts set deletion_requested_at=now() where user_id=$1',[bob]);
+    await assert.rejects(billing.portal({id:bob}),/exclusão/);await assert.rejects(billing.checkout({id:bob}),/exclusão/);
+    await db.query('update atlas_commercial.accounts set deletion_requested_at=null where user_id=$1',[bob]);
   });
   await t.test('paid, retry, renewal, cancel at period end, isolated accounts',async()=>{
     const e=event('invoice.paid',{subscription:'sub_1',customer:'cus_alice'});
