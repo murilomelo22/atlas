@@ -39,7 +39,7 @@ Fragilidades: Premium legado manual com gate de UI contornável, sem billing; li
 ## F — Atendimento e telemetria
 | Status | Implementado | Como testar | Falta |
 |---|---|---|---|
-| parcial | Sem coleta adicional ativada | Inspeção | Suporte/FAQ/diagnósticos opcionais |
+| parcial | FAQ, mailto com versão e relatório de códigos sem conteúdo pessoal, prévia e consentimento separado; métricas/falhas JS opt-in revogáveis, payload restrito e agregação no servidor | server/test/telemetry.test.mjs; tests/support.spec.js; CI completo | Endereço de suporte real, homologar e-mail/coletor, cron de retenção aprovado; crash nativo pendente; ver docs/comercial/SUPORTE.md |
 
 ## G — Oferta e preço
 | Status | Implementado | Como testar | Falta |
