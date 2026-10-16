@@ -1,4 +1,6 @@
 begin;
+-- New accounts start private; preserve existing users' current visibility settings.
+alter table public.profiles alter column is_public set default false;
 create table if not exists atlas_commercial.deletion_jobs (
  user_id uuid primary key references auth.users(id) on delete cascade,
  requested_at timestamptz not null default now(), deadline timestamptz not null default now()+interval '7 days',
