@@ -2,6 +2,7 @@ import { countryAt, normalizeCoordinates } from './geography.js';
 import { validateVisits } from './dates.js';
 import { blobAsDataURL } from './photos.js';
 import { mediaFromBackup } from './media.js';
+import { migrateDatabase } from './schema.js';
 import { cleanWishlist, emptyWishlist, mergeWishlistItems } from './wishlist-data.js';
 let database;
 let accountId = null;
@@ -52,6 +53,7 @@ export async function openDatabase(options = {}) {
     tx.objectStore('meta').put({ key: 'initialized', value: true });
   };
   await done;
+  await migrateDatabase(database);
 }
 function examples() {
   return [

@@ -1,10 +1,13 @@
 {
   "name": "atlas-pessoal-desktop",
   "productName": "Atlas Pessoal",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Seu mundo, revisitado. Aplicativo de memórias e viagens para desktop.",
   "author": "Atlas Pessoal",
-  "repository": { "type": "git", "url": "https://github.com/murilomelo22/atlas.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/murilomelo22/atlas.git"
+  },
   "license": "UNLICENSED",
   "private": true,
   "main": "main.cjs",
@@ -21,8 +24,19 @@
     "appId": "com.atlaspessoal.desktop",
     "productName": "Atlas Pessoal",
     "asar": true,
-    "directories": { "output": "release", "buildResources": "assets" },
-    "files": ["main.cjs", "protocol.cjs", "app/**/*", "assets/icon.png"],
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.cjs",
+      "protocol.cjs",
+      "updater.cjs",
+      "signed-feed.cjs",
+      "update-config.json",
+      "app/**/*",
+      "assets/icon.png"
+    ],
     "artifactName": "Atlas-Pessoal-${version}-${arch}.${ext}",
     "mac": {
       "category": "public.app-category.travel",
@@ -30,12 +44,43 @@
       "identity": "-",
       "hardenedRuntime": false,
       "notarize": false,
-      "target": [{ "target": "dmg", "arch": ["universal"] }, { "target": "zip", "arch": ["universal"] }]
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ]
     },
     "dmg": {
       "title": "Atlas Pessoal",
-      "contents": [{ "x": 150, "y": 180, "type": "file" }, { "x": 430, "y": 180, "type": "link", "path": "/Applications" }]
+      "contents": [
+        {
+          "x": 150,
+          "y": 180,
+          "type": "file"
+        },
+        {
+          "x": 430,
+          "y": 180,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
-    "linux": { "icon": "assets/icon.png", "category": "Utility" }
+    "linux": {
+      "icon": "assets/icon.png",
+      "category": "Utility"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9"
   }
 }
