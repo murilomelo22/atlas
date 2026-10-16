@@ -33,7 +33,7 @@ begin
  if new_size is null or new_size<1 then raise exception 'ATLAS_INVALID_MEDIA' using errcode='22023';end if;
  if tg_op='UPDATE' and (old.name<>new.name or old.bucket_id<>new.bucket_id) then raise exception 'ATLAS_MEDIA_IMMUTABLE' using errcode='42501';end if;
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('commercial:'||owner::text,0));
- if exists(select 1 from atlas_commercial.accounts where user_id=owner and deletion_requested_at is not null) then raise exception 'ATLAS_ACCOUNT_DELETING' using errcode='42501';end if;
+ if not exists(select 1 from auth.users where id=owner) or exists(select 1 from atlas_commercial.accounts where user_id=owner and deletion_requested_at is not null) then raise exception 'ATLAS_ACCOUNT_DELETING' using errcode='42501';end if;
  select * into lim from atlas_commercial.limits_for(owner);
  if lim.plan is null then raise exception 'ATLAS_LIMITS_UNAVAILABLE';end if;
  select coalesce(sum((metadata->>'size')::bigint),0),count(*) into used,count_objects from storage.objects

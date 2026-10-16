@@ -19,7 +19,7 @@ Fragilidades: Premium legado manual com gate de UI contornável, sem billing; li
 ## B — Limites, custos e confiabilidade
 | Status | Implementado | Como testar | Falta |
 |---|---|---|---|
-| parcial | Cotas transacionais de Storage/objetos/tamanho/destinos/escritas, mensagens no app, TUS com retomada de offset, modelo de custo executável | server/test/limits.test.mjs e cost-model.test.mjs; suíte completa no CI de cada branch | Homologar triggers/TUS reais; retomada entre reinícios, transcodificação de vídeo e banda de leitura via gateway ainda pendentes; ver docs/comercial/CUSTOS.md |
+| parcial | Cotas transacionais de Storage/objetos/tamanho/destinos/escritas, mensagens no app, TUS com retomada de offset, modelo de custo executável e worker/fila FFmpeg com originais preservados | server/test/limits.test.mjs, cost-model.test.mjs e transcode.test.mjs com vídeo sintético; suíte completa no CI | Homologar triggers/TUS/worker reais; selecionar derivado no player, retomada entre reinícios e banda de leitura via gateway ainda pendentes; ver docs/comercial/CUSTOS.md |
 
 ## C — Privacidade, LGPD e conta
 | Status | Implementado | Como testar | Falta |
