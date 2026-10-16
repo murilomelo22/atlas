@@ -20,7 +20,21 @@ async function launch() {
   return page;
 }
 test.beforeEach(async () => { profile = await mkdtemp(path.join(tmpdir(), 'atlas-desktop-test-')); });
-test.afterEach(async () => { await application?.close(); application = null; await rm(profile, { recursive:true, force:true }); });
+test.afterEach(async () => {
+  const current = application; application = null;
+  if (current) {
+    // A denied native popup can leave an automation target pending on macOS.
+    // Bound fixture cleanup; the persistence test below separately requires a
+    // graceful close and verifies that a clean restart retains the memory.
+    const closing = current.close().catch(() => {});
+    let timer;
+    await Promise.race([closing, new Promise(resolve => {
+      timer = setTimeout(() => { current.process()?.kill('SIGKILL'); resolve(); }, 8000);
+    })]);
+    clearTimeout(timer);
+  }
+  await rm(profile, { recursive:true, force:true });
+});
 
 test('abre os arquivos locais com estilos, IndexedDB e isolamento de Node', async () => {
   const page = await launch();
