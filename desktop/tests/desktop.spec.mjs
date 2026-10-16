@@ -94,6 +94,12 @@ test('reabre offline sem servidor e produz links públicos utilizáveis', async 
   } finally { await page.context().setOffline(false); }
 });
 
+test('abre documentos locais em janela isolada sem sair da coleção',async()=>{
+  const page=await launch();await page.locator('#privacy-button').click();
+  const opened=application.waitForEvent('window');await page.locator('#privacy-dialog a[href="./legal/termos.html"]').click();const reader=await opened;
+  await expect(reader).toHaveURL('atlas://app/legal/termos.html');await expect(reader.locator('h1')).toContainText('RASCUNHO NÃO APROVADO');expect(await reader.evaluate(()=>typeof window.require)).toBe('undefined');await reader.close();
+  await page.locator('#privacy-close').click();await expect(page.locator('.destination-card')).toHaveCount(5);
+});
 test('recusa protocolos externos perigosos e leituras fora do pacote', async () => {
   const page = await launch();
   expect(await page.evaluate(async () => (await fetch('atlas://app/%2e%2e%2fpackage.json')).status)).toBe(404);
