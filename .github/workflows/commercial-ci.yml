@@ -39,6 +39,13 @@ jobs:
       - run: npm ci && npm --prefix desktop ci
       - run: npm run desktop:prepare
       - run: npm run test:desktop -- --timeout=90000
+      - name: Testar perfil da versão distribuída 0.1.1 e rollback
+        env:
+          ATLAS_LEGACY_EXECUTABLE: ${{ runner.temp }}/Atlas-legacy/Atlas Pessoal.app/Contents/MacOS/Atlas Pessoal
+        run: |
+          curl -fsSL --retry 3 https://github.com/murilomelo22/atlas/releases/download/desktop-v0.1.1/Atlas-Pessoal-0.1.1-universal.zip -o "$RUNNER_TEMP/Atlas-legacy.zip"
+          ditto -x -k "$RUNNER_TEMP/Atlas-legacy.zip" "$RUNNER_TEMP/Atlas-legacy"
+          npm run test:desktop -- --grep 'migra perfil real'
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

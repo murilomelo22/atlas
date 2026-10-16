@@ -29,7 +29,7 @@ Fragilidades: Premium legado manual com gate de UI contornável, sem billing; li
 ## D — Atualizações
 | Status | Implementado | Como testar | Falta |
 |---|---|---|---|
-| parcial | Identificado Electron e update manual atual | desktop/tests | Updater assinado e ensaio 0.1.1→0.1.2; 0.1.1 não possui updater e exigirá primeira instalação manual |
+| parcial | electron-updater, envelope Ed25519, bloqueio de downgrade/tamper, confirmação de reinício, versão lógica de dados e rollback compatível com 0.1.1 | server/test/updates.test.mjs; desktop/tests/upgrade.spec.mjs exige binário legado | Assinaturas Apple e ensaio real de instalação; primeiro salto 0.1.1→0.1.2 obrigatoriamente manual; ver docs/comercial/ATUALIZACOES.md |
 
 ## E — Distribuição
 | Status | Implementado | Como testar | Falta |
