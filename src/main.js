@@ -18,6 +18,7 @@ import { initializeWishlist, publicWishlistHTML } from './wishlist.js';
 import { shareDestination } from './sharing.js';
 import { initializeCommercial } from './commercial.js';
 import { initializePrivacy } from './privacy.js';
+import { initializeSupport,recordEvent } from './support.js';
 
 let destinations = [], allPhotos = [], selectedId = null, mapController, mapFocus, poster;
 let publicView = null, social = null, journeys = null, recaps = null, wishlist = null, changingAccount = false, initializing = true;
@@ -354,7 +355,7 @@ function bindEvents() {
       const url = URL.createObjectURL(new Blob([JSON.stringify(backup)], { type: 'application/json' }));
       const link = document.createElement('a'); link.href = url; link.download = `atlas-pessoal-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
-      notify('Backup exportado com todos os destinos e fotografias.');
+      notify('Backup exportado com todos os destinos e fotografias.'); recordEvent('backup_export');
     } catch (error) { notify(storageMessage(error), true); }
     finally { button.disabled = false; button.innerHTML = label; }
   };
@@ -406,6 +407,7 @@ function setViewUI() {
 async function init() {
   initializeCommercial();
   initializePrivacy();
+  initializeSupport();
   setAccountLoading(true);
   try {
     const countries = await loadCountries();

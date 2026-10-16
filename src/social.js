@@ -6,6 +6,7 @@ import { $, notify, confirmAction, escapeHTML } from './ui.js';
 import { shareText, appLink } from './sharing.js';
 import { diagnosticHTML, showDiagnostic } from './cloud-diagnostics.js';
 import { refreshPremiumStatus } from './premium.js';
+import { recordEvent } from './support.js';
 
 export async function initializeSocial(callbacks) {
   let profile = null, mode = 'login', change = Promise.resolve(), syncTimer, routeToken = 0, avatarFile = null, submitting = false;
@@ -56,7 +57,7 @@ export async function initializeSocial(callbacks) {
     diagnostic();
     if (discardLocal) callbacks.lock(true);
     for (const id of ['#sync-button', '#migrate-button', '#logout-button', '#cloud-reload-button']) $(id).disabled = true;
-    try { await synchronize(status, { discardLocal, onWishlistSync: callbacks.refreshWishlist }); await callbacks.refresh(); }
+    try { await synchronize(status, { discardLocal, onWishlistSync: callbacks.refreshWishlist }); await callbacks.refresh(); recordEvent('sync_success'); }
     catch (error) { diagnostic(error.diagnostic); status(error.message); notify(error.message, true); await callbacks.refresh(); }
     finally {
       if (discardLocal) callbacks.lock(false);

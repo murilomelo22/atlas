@@ -7,6 +7,7 @@ import { createHandler } from './http.mjs';
 import { createPrivacy } from './privacy.mjs';
 import { createAdmin } from './admin.mjs';
 import { readBody } from './http.mjs';
+import { storeTelemetry } from './telemetry.mjs';
 const env = process.env;
 for (const key of ['DATABASE_URL','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET','STRIPE_PRICE_ID'])
   if (!env[key]) throw new Error(`Configure ${key} no servidor.`);
@@ -25,6 +26,7 @@ const authenticate = async token => {
 const privacy=createPrivacy({db:pool,repo,stripe,admin:env.SUPABASE_SERVICE_ROLE_KEY?createAdmin({url:env.SUPABASE_URL,key:env.SUPABASE_SERVICE_ROLE_KEY}):null});
 const extension=async({path,req,user})=>{
  if(await repo.deleting(user.id))throw Object.assign(new Error('Conta em exclusão.'),{status:403});
+ if(path==='/v1/telemetry'&&req.method==='POST')return {body:await storeTelemetry(repo,user,JSON.parse(await readBody(req,2048)))};
  if(path==='/v1/export'&&req.method==='GET')return {body:await privacy.portability(user)};
  if(path==='/v1/account/delete'&&req.method==='POST')return {status:202,body:await privacy.requestDeletion(user,JSON.parse(await readBody(req)).confirmation)};
  if(path==='/v1/moderation'&&req.method==='POST')return {body:await privacy.moderate(user,JSON.parse(await readBody(req)))};

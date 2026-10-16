@@ -14,6 +14,7 @@ FILES.push('./src/commercial.js');
 FILES.push('./src/resumable.js');
 FILES.push('./src/privacy.js','./legal/termos.html','./legal/privacidade.html');
 FILES.push('./src/schema.js');
+FILES.push('./src/support.js','./src/diagnostics.js','./ajuda.html');
 FILES.push('./src/app-context.js');
 FILES.push('./app.css', './src/app-shell.js', './manifest.webmanifest', './assets/icon-192.png', './assets/icon-512.png', './assets/icon-maskable-512.png', './assets/apple-touch-icon.png');
 // Keep the ZIP on demand: do not precache the application download.

@@ -33,7 +33,11 @@ function assetHandler(root, net) {
   };
 }
 function externalURL(value) {
-  try { const url = new URL(value); return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password; }
+  try {
+    const url = new URL(value);
+    if(url.protocol==='mailto:')return /^[^\s?@]+@[^\s?@]+\.[^\s?@]+$/.test(url.pathname)&&[...url.searchParams.keys()].every(k=>['subject','body'].includes(k));
+    return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password;
+  }
   catch { return false; }
 }
 module.exports = { ORIGIN, localURL, assetPath, assetHandler, externalURL };
