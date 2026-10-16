@@ -1,4 +1,6 @@
 # atlas
+Preparação comercial 0.1.2: veja [ROADMAP_COMERCIAL.md](./ROADMAP_COMERCIAL.md) para diagnóstico, validação e ações humanas. O backend encontrado é Supabase; a migração Firebase não está nas branches inspecionadas. Serviços comerciais e distribuição assinada permanecem em homologação, sem cobrança live ou novo release público.
+
 atlas pessoal, teste usando o codex.
 
 ## Aplicativo para Mac
