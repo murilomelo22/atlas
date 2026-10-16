@@ -3,7 +3,7 @@ export async function readBody(req, max = 256 * 1024) {
   for await (const chunk of req) { size += chunk.length; if (size > max) throw Object.assign(new Error('Pedido excede o limite.'), { status: 413 }); chunks.push(chunk); }
   return Buffer.concat(chunks);
 }
-export function createHandler({ billing, stripe, webhookSecret, authenticate, origins = [], extension }) {
+export function createHandler({ billing, stripe, webhookSecret, authenticate, origins = [], extension, authorize }) {
   return async (req, res) => {
     const origin = req.headers.origin;
     const send = (code, body) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }); res.end(JSON.stringify(body)); };
@@ -26,6 +26,7 @@ export function createHandler({ billing, stripe, webhookSecret, authenticate, or
       if (!token) return send(401, { error: 'Entre na sua conta.' });
       const user = await authenticate(token);
       if (!user?.id) return send(401, { error: 'Sessão inválida. Entre novamente.' });
+      if(authorize)await authorize({path,req,user});
       if (path === '/v1/plan' && req.method === 'GET') return send(200, await billing.plan(user));
       if (path === '/v1/checkout' && req.method === 'POST') return send(200, await billing.checkout(user));
       if (path === '/v1/portal' && req.method === 'POST') return send(200, await billing.portal(user));
