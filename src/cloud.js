@@ -5,6 +5,8 @@ import { mediaKind, mediaExtension } from './media.js';
 import { cleanWishlist, emptyWishlist } from './wishlist-data.js';
 import { cloudDiagnostic } from './cloud-diagnostics.js';
 import { publicAppBase } from './app-context.js';
+import { resumableUpload } from './resumable.js';
+import { getMeta, setMeta } from './db.js';
 
 function validConfig(config) {
   if (!config.url || !config.publishableKey) return null;
@@ -57,6 +59,8 @@ function apiError(body, status, path, method) {
   if (error.code === '42501' || status === 403) error.message = 'O banco recusou a operação por falta de permissão. Seus dados locais foram preservados. É necessário verificar as permissões no Supabase.';
   if (error.code === '22023') error.message = 'O banco recusou os dados enviados. Suas alterações locais foram preservadas.';
   const providerMessage = String(body?.message || body?.msg || body?.error_description || '');
+  const quotaMessages = { ATLAS_FILE_LIMIT:'Esta mídia excede o tamanho permitido. Use um arquivo menor.', ATLAS_STORAGE_QUOTA:'O espaço de nuvem do seu plano acabou. Exporte um backup, remova mídias da nuvem ou consulte seu plano.', ATLAS_MEDIA_QUOTA:'Você atingiu a quantidade de arquivos do plano, incluindo miniaturas.', ATLAS_DESTINATION_QUOTA:'Você atingiu o limite de destinos na nuvem. Seus dados continuam salvos no dispositivo.', ATLAS_SYNC_QUOTA:'O limite mensal de envios foi atingido. Suas alterações locais continuam salvas.', ATLAS_ACCOUNT_DELETING:'Esta conta está em exclusão e não pode receber novos dados.' };
+  for (const [code,message] of Object.entries(quotaMessages)) if (providerMessage.includes(code)) error.message=message;
   if (path?.startsWith('/auth/v1/token') && (['refresh_token_not_found', 'refresh_token_already_used', 'session_not_found'].some(code => code === error.code || code === body?.error_code) || /invalid refresh token|refresh token (?:not found|already used)/i.test(providerMessage))) {
     error.code = 'reauth_required'; error.message = reconnectError().message;
   }
@@ -266,6 +270,13 @@ export async function avatarURL(profile, authenticated = false) {
   return profile.avatar_path ? signedURL('atlas-avatars', profile.avatar_path, authenticated) : null;
 }
 async function upload(bucket, path, blob) {
+  if (blob.size > 6 * 1024 * 1024) {
+    const owner=currentUser()?.id;
+    const prefix=`tus:${owner}:`;
+    return resumableUpload({ endpoint:`${config.url}/storage/v1/upload/resumable`,bucket,path,blob,token:accountAccessToken,
+      valid:()=>currentUser()?.id===owner,
+      cache:{get:key=>getMeta(prefix+key),set:(key,value)=>setMeta(prefix+key,value),delete:key=>setMeta(prefix+key,null)} });
+  }
   await request(`/storage/v1/object/${bucket}/${objectPath(path)}`, { method: 'POST', authenticated: true, body: blob, headers: { 'Content-Type': blob.type, 'x-upsert': 'false' } });
 }
 export async function uploadAvatar(blob) {
