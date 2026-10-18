@@ -1,6 +1,6 @@
 # Roadmap comercial — Atlas 0.1.2 em preparação
 
-Atualizado em 16/10/2026. Nenhum deploy de backend, migração em produção, cobrança live ou release público foi realizado por este trabalho. Estados: **feito** = implementado e verificado no escopo descrito; **parcial** = há código, faltam integrações/validação; **bloqueado por humano** = exige credencial, conta ou decisão.
+Atualizado em 17/10/2026. Nenhum deploy de backend, migração em produção, cobrança live ou release público foi realizado por este trabalho. Estados: **feito** = implementado e verificado no escopo descrito; **parcial** = há código, faltam integrações/validação; **bloqueado por humano** = exige credencial, conta ou decisão.
 
 ## Diagnóstico inicial
 
@@ -24,7 +24,7 @@ Fragilidades: Premium legado manual com gate de UI contornável, sem billing; li
 ## C — Privacidade, LGPD e conta
 | Status | Implementado | Como testar | Falta |
 |---|---|---|---|
-| parcial | Fila de exclusão com etapas/retry, confirmação e login recente; políticas restritivas; manifesto de portabilidade com links de 1h; denúncia/bloqueio e fila privada; documentos explicitamente rascunhos no site/app | server/test/privacy.test.mjs; tests/privacy.spec.js; CI completo | Ensaio real Auth/Storage/Stripe, auditoria RPCs definer, arquivo de portabilidade durável, painel de moderação, retenção e documentos/aceite finais; ver docs/comercial/PRIVACIDADE.md |
+| parcial | Fila de exclusão com etapas/retry, confirmação e login recente; políticas restritivas, novos perfis privados por padrão e role de backend com privilégios limitados; manifesto de portabilidade com links de 1h; denúncia/bloqueio e fila privada; documentos explicitamente rascunhos no site/app | server/test/privacy.test.mjs; tests/privacy.spec.js; CI completo | Ensaio real Auth/Storage/Stripe, auditoria RPCs definer, arquivo de portabilidade durável, painel de moderação, retenção e documentos/aceite finais; ver docs/comercial/PRIVACIDADE.md |
 
 ## D — Atualizações
 | Status | Implementado | Como testar | Falta |
@@ -49,9 +49,9 @@ Fragilidades: Premium legado manual com gate de UI contornável, sem billing; li
 
 ## Validação e branches
 
-Cada frente usa branch própria e PR em cadeia, sem merge/deploy automático: pagamentos → limites-custos → privacidade-conta → atualizacoes → distribuicao → suporte-telemetria → oferta-preco. A primeira frente parte de desktop-v0.1.1; main continua com o site/download atual e deverá ser reconciliada numa integração posterior. Branch consolidada: feat/oferta-preco. Nunca fazer merge na branch desktop-v0.1.1 sem revisar seu workflow legado, que publica a release de mesmo nome ao receber push.
+Cada frente usa branch própria e PR em cadeia, sem merge/deploy automático: pagamentos → limites-custos → privacidade-conta → atualizacoes → distribuicao → suporte-telemetria → oferta-preco. A primeira frente parte do código de desktop-v0.1.1 por meio da base isolada comercial/base-0.1.1; main continua com o site/download atual e deverá ser reconciliada numa integração posterior. Branch consolidada: feat/oferta-preco. Nunca fazer merge na branch desktop-v0.1.1 sem revisar seu workflow legado, que publica a release de mesmo nome ao receber push.
 
-Validação local consolidada: 23 testes de backend/lógica passaram, incluindo PostgreSQL/RLS, idempotência, aceite jurídico, fila de exclusão, FFmpeg real, fila de mídia e feed assinado; 14 testes das novas telas passaram em desktop/celular; 6 testes Electron passaram (offline, persistência, backup, isolamento e documentos). Teste com binário legado é skipped no Linux e executado separadamente no CI macOS. A suíte completa anterior da frente A passou no CI 38961548919: 261 web + 5 Mac, com 1 caso móvel não aplicável skipped. Os commits finais de cada frente têm nova execução completa no workflow Atlas commercial verification; consultar o resultado do SHA antes de aprovar PR.
+Validação local consolidada: 23 testes de backend/lógica passaram, incluindo PostgreSQL/RLS, idempotência, aceite jurídico, fila de exclusão, FFmpeg real, fila de mídia e feed assinado; 14 testes das novas telas passaram em desktop/celular; 6 testes Electron passaram (offline, persistência, backup, isolamento e documentos). Teste com binário legado é skipped no Linux e executado separadamente no CI macOS. A frente A passou no CI [38963541193](https://github.com/murilomelo22/atlas/actions/runs/38963541193): 263 web + 5 Mac, com 1 caso móvel não aplicável skipped. A cópia consolidada anterior (25bcbf7) passou no CI [38964065190](https://github.com/murilomelo22/atlas/actions/runs/38964065190): 273 web, 6 Electron e o ensaio separado de migração/rollback usando o binário Mac 0.1.1 distribuído. Nesse CI anterior, 22 testes de backend passaram e o teste FFmpeg ficou skipped por falta da ferramenta; a configuração final instala FFmpeg e exige sua execução, enquanto os 23 passaram localmente sem skips. Os commits finais de cada frente têm nova execução completa no workflow Atlas commercial verification; consultar o resultado do SHA antes de aprovar PR.
 
 Limites da evidência: HTTP cloud/Stripe nos testes são fixtures fictícias; SQL roda em PostgreSQL em memória PGlite. FFmpeg realmente processou vídeo sintético. Não houve compra Stripe sandbox real, deploy de SQL em produção, medição real de custos, assinatura/notarização Apple ou instalação automática entre dois apps Developer ID. Não confundir teste do mecanismo/estado com homologação externa.
 
