@@ -1,6 +1,6 @@
 # Roadmap comercial — Atlas 0.1.2 em preparação
 
-Atualizado em 16/10/2026. Nenhum deploy de backend, migração em produção, cobrança live ou release público foi realizado por este trabalho. Estados: **feito** = implementado e verificado no escopo descrito; **parcial** = há código, faltam integrações/validação; **bloqueado por humano** = exige credencial, conta ou decisão.
+Atualizado em 17/10/2026. Nenhum deploy de backend, migração em produção, cobrança live ou release público foi realizado por este trabalho. Estados: **feito** = implementado e verificado no escopo descrito; **parcial** = há código, faltam integrações/validação; **bloqueado por humano** = exige credencial, conta ou decisão.
 
 ## Diagnóstico inicial
 
@@ -24,7 +24,7 @@ Fragilidades: Premium legado manual com gate de UI contornável, sem billing; li
 ## C — Privacidade, LGPD e conta
 | Status | Implementado | Como testar | Falta |
 |---|---|---|---|
-| parcial | Fila de exclusão com etapas/retry, confirmação e login recente; políticas restritivas; manifesto de portabilidade com links de 1h; denúncia/bloqueio e fila privada; documentos explicitamente rascunhos no site/app | server/test/privacy.test.mjs; tests/privacy.spec.js; CI completo | Ensaio real Auth/Storage/Stripe, auditoria RPCs definer, arquivo de portabilidade durável, painel de moderação, retenção e documentos/aceite finais; ver docs/comercial/PRIVACIDADE.md |
+| parcial | Fila de exclusão com etapas/retry, confirmação e login recente; políticas restritivas, novos perfis privados por padrão e role de backend com privilégios limitados; manifesto de portabilidade com links de 1h; denúncia/bloqueio e fila privada; documentos explicitamente rascunhos no site/app | server/test/privacy.test.mjs; tests/privacy.spec.js; CI completo | Ensaio real Auth/Storage/Stripe, auditoria RPCs definer, arquivo de portabilidade durável, painel de moderação, retenção e documentos/aceite finais; ver docs/comercial/PRIVACIDADE.md |
 
 ## D — Atualizações
 | Status | Implementado | Como testar | Falta |
@@ -44,15 +44,34 @@ Fragilidades: Premium legado manual com gate de UI contornável, sem billing; li
 ## G — Oferta e preço
 | Status | Implementado | Como testar | Falta |
 |---|---|---|---|
-| bloqueado por humano | Nenhum preço definitivo estabelecido | Revisão do documento de oferta a produzir | Público e preço: DECISÃO DO MURILO |
+| feito | Documento com 3 hipóteses de público, divisão grátis/pago, faixas provisórias ancoradas em custo e página de apresentação sem checkout fictício | node tools/cost-model.mjs; tests/offer.spec.js | Implementação documental concluída; hipótese não equivale a validação comercial |
+| bloqueado por humano | Faixas e entrevista/piloto descritos em docs/comercial/OFERTA.md | Aprovação e pesquisa com público | Público e preço final: DECISÃO DO MURILO |
 
 ## Validação e branches
 
-Cada frente usa branch própria e PR em cadeia, sem merge/deploy automático. Base comercial parte do código nativo 0.1.1; mudanças da página de download em main devem ser reconciliadas ao integrar. Baseline completo está em execução; resultados finais e limitações serão registrados aqui antes dos PRs. Testes usam apenas dados fictícios, nunca contas de produção.
+Cada frente usa branch própria e PR em cadeia, sem merge/deploy automático: pagamentos → limites-custos → privacidade-conta → atualizacoes → distribuicao → suporte-telemetria → oferta-preco. A primeira frente parte do código de desktop-v0.1.1 por meio da base isolada comercial/base-0.1.1; main continua com o site/download atual e deverá ser reconciliada numa integração posterior. Branch consolidada: feat/oferta-preco. Nunca fazer merge na branch desktop-v0.1.1 sem revisar seu workflow legado, que publica a release de mesmo nome ao receber push.
+
+Validação local consolidada: 23 testes de backend/lógica passaram, incluindo PostgreSQL/RLS, idempotência, aceite jurídico, fila de exclusão, FFmpeg real, fila de mídia e feed assinado; 14 testes das novas telas passaram em desktop/celular; 6 testes Electron passaram (offline, persistência, backup, isolamento e documentos). Teste com binário legado é skipped no Linux e executado separadamente no CI macOS. A frente A passou no CI [38963541193](https://github.com/murilomelo22/atlas/actions/runs/38963541193): 263 web + 5 Mac, com 1 caso móvel não aplicável skipped. A cópia consolidada anterior (25bcbf7) passou no CI [38964065190](https://github.com/murilomelo22/atlas/actions/runs/38964065190): 273 web, 6 Electron e o ensaio separado de migração/rollback usando o binário Mac 0.1.1 distribuído. Nesse CI anterior, 22 testes de backend passaram e o teste FFmpeg ficou skipped por falta da ferramenta; a configuração final instala FFmpeg e exige sua execução, enquanto os 23 passaram localmente sem skips. Os commits finais de cada frente têm nova execução completa no workflow Atlas commercial verification; consultar o resultado do SHA antes de aprovar PR.
+
+Limites da evidência: HTTP cloud/Stripe nos testes são fixtures fictícias; SQL roda em PostgreSQL em memória PGlite. FFmpeg realmente processou vídeo sintético. Não houve compra Stripe sandbox real, deploy de SQL em produção, medição real de custos, assinatura/notarização Apple ou instalação automática entre dois apps Developer ID. Não confundir teste do mecanismo/estado com homologação externa.
+
+Inventário da cópia consolidada percorreu 172 arquivos de texto (17.414 linhas no momento do levantamento, antes das últimas adições), incluindo código, testes, SQL, docs, build e workflows. Nenhum SDK/configuração Firebase foi encontrado. Dependências vendorizadas e binários de mídia/ícones foram identificados pelo inventário, sem dados de usuários.
+
+## Pendências técnicas ainda abertas
+
+- Gateway para limite rígido de banda de leitura e rate limiting público; homologação de quotas com Storage/TUS real e retomada entre reinícios.
+- Entrega dos derivados de vídeo ao player, medição de CPU/órfãos e ensaio do worker com múltiplos processos.
+- Portabilidade durável com todos os arquivos em pacote; auditoria adicional das funções SECURITY DEFINER de colaboração e bloqueio/moderação.
+- Ensaio de exclusão e pagamento ponta a ponta em staging, painel de moderação e retenção automatizada aprovada.
+- Primeira instalação manual da 0.1.2 assinada, seguida de ensaio de atualização automática e rollback entre dois builds Developer ID do mesmo Team ID. 0.1.1 não tem updater.
+- Crashes nativos/minidumps e recuperação gerenciada de backups não foram integrados; falhas JS e métricas são opcionais e testadas.
 
 ## AÇÕES HUMANAS NECESSÁRIAS
 
-1. Confirmar o backend/repositório se a migração Firebase estiver fora das branches disponíveis.
-2. Seguir a lista ordenada de cada frente em docs/comercial/; homologar pagamentos primeiro.
-3. Aprovar cotas, custos, textos jurídicos e política de retenção antes de usuários pagantes.
-4. Preparar Apple Developer/certificados e ambiente de homologação; executar ensaios que exigem macOS e serviços reais.
+1. Confirmar o repositório/branch que contém Firebase, se existir. Não aplicar estas migrações Supabase a outro backend nem migrar identidades sem um plano específico.
+2. Criar homologação separada com Supabase e Stripe de teste; configurar o **frontend e o backend no mesmo projeto de homologação**. Gerar chaves no painel e guardar somente no servidor/GitHub Secrets. Instalar SQL revisado e executar compra/renovação/falha/cancelamento/reembolso com evidências (PAGAMENTOS.md).
+3. DECISÃO DO MURILO: aprovar público, cotas, preço, orçamento e carência com base em custo real e piloto. Aprovar fornecedor fiscal/nota e política de reembolso com contador/advogado (CUSTOS.md e OFERTA.md).
+4. Advogado preencher/revisar os rascunhos; definir controlador, contato, subprocessadores/região, retenção, exclusão e atendimento. Publicar documentos finais versionados e configurar LEGAL_DOCUMENT_VERSION/ legalApproved. Homologar aceite, portabilidade/exclusão e moderação (PRIVACIDADE.md).
+5. Criar Apple Developer, Developer ID Application e senha específica; cadastrar segredos e environment mac-release. Gerar/guardar chave Ed25519 e URL de feed. Rodar pipeline manual e ensaios Mac antes de distribuir (DISTRIBUICAO.md e ATUALIZACOES.md).
+6. Criar canal real de suporte, responsáveis, cron de retenção e alertas; homologar consentimentos e incidentes (SUPORTE.md).
+7. Revisar PRs na ordem A–G, resolver as pendências técnicas acima, executar piloto com 10–20 pessoas e só então habilitar cobrança live/publicar a versão comercial. Nenhum preço, texto jurídico final ou credencial foi inventado.
