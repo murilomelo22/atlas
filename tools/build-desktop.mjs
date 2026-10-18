@@ -7,7 +7,7 @@ const version = JSON.parse(await readFile(path.join(root,'desktop/package.json')
 const destination = path.join(root, 'desktop/app');
 await rm(destination, { recursive:true, force:true });
 await mkdir(destination, { recursive:true });
-for (const name of ['styles.css','app.css','config.js','src','vendor','assets','legal']) {
+for (const name of ['styles.css','app.css','config.js','src','vendor','assets','legal','ajuda.html']) {
   await cp(path.join(root, name), path.join(destination, name), { recursive:true });
 }
 let html = await readFile(path.join(root, 'index.html'), 'utf8');

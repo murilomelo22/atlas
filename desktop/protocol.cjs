@@ -36,7 +36,11 @@ function documentationURL(value) {
   return localURL(value) && ['/legal/termos.html','/legal/privacidade.html','/ajuda.html'].includes(new URL(value).pathname);
 }
 function externalURL(value) {
-  try { const url = new URL(value); return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password; }
+  try {
+    const url = new URL(value);
+    if(url.protocol==='mailto:')return /^[^\s?@]+@[^\s?@]+\.[^\s?@]+$/.test(url.pathname)&&[...url.searchParams.keys()].every(k=>['subject','body'].includes(k));
+    return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password;
+  }
   catch { return false; }
 }
 module.exports = { ORIGIN, localURL, assetPath, assetHandler, externalURL, documentationURL };
