@@ -2,6 +2,8 @@ const { app, BrowserWindow, Menu, dialog, net, protocol, session, shell } = requ
 const path = require('node:path');
 const { existsSync } = require('node:fs');
 const { ORIGIN, localURL, assetHandler, externalURL, documentationURL } = require('./protocol.cjs');
+const { initializeUpdater } = require('./updater.cjs');
+let updateController;
 
 app.setName('Atlas Pessoal');
 const requestedData = app.commandLine.getSwitchValue('user-data-dir');
@@ -28,7 +30,7 @@ function menu() {
     { label:'Editar', submenu:[{ role:'undo', label:'Desfazer' }, { role:'redo', label:'Refazer' }, { type:'separator' }, { role:'cut', label:'Recortar' }, { role:'copy', label:'Copiar' }, { role:'paste', label:'Colar' }, { role:'selectAll', label:'Selecionar tudo' }] },
     { label:'Visualizar', submenu:[{ role:'resetZoom', label:'Tamanho real' }, { role:'zoomIn', label:'Ampliar' }, { role:'zoomOut', label:'Reduzir' }, { type:'separator' }, { role:'togglefullscreen', label:'Tela cheia' }] },
     { label:'Janela', submenu:[{ role:'minimize', label:'Minimizar' }, { role:'zoom', label:'Zoom' }, ...(mac ? [{ role:'front', label:'Trazer todas para frente' }] : [])] },
-    { role:'help', label:'Ajuda', submenu:[{ label:'Atualizações do Atlas', click:() => openExternal('https://github.com/murilomelo22/atlas/releases') }, { label:'Abrir site do Atlas', click:() => openExternal('https://murilomelo22.github.io/atlas/') }] },
+    { role:'help', label:'Ajuda', submenu:[{ label:'Verificar atualizações…', click:() => updateController.check() }, { label:'Downloads do Atlas', click:() => openExternal('https://github.com/murilomelo22/atlas/releases') }, { label:'Abrir site do Atlas', click:() => openExternal('https://murilomelo22.github.io/atlas/') }] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -63,7 +65,9 @@ else {
       item.setSaveDialogOptions({ title:'Salvar arquivo do Atlas', buttonLabel:'Salvar', defaultPath:path.join(app.getPath('downloads'), path.basename(item.getFilename())) });
     });
     app.setAboutPanelOptions({ applicationName:'Atlas Pessoal', applicationVersion:app.getVersion(), version:'Desktop · Acesso antecipado', copyright:'Seu mundo, revisitado.' });
+    updateController=initializeUpdater({app,dialog,config:require('./update-config.json'),updater:require('electron-updater').autoUpdater});
     menu(); createWindow();
+    if(require('./update-config.json').enabled)setTimeout(()=>updateController.check({silent:true}),30000).unref();
     app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
   });
 }
