@@ -24,7 +24,7 @@ Fragilidades: Premium legado manual com gate de UI contornável, sem billing; li
 ## C — Privacidade, LGPD e conta
 | Status | Implementado | Como testar | Falta |
 |---|---|---|---|
-| parcial | Auditoria de conta e comunidade existente | Suíte social e RLS | Exclusão, portabilidade, consentimento, moderação e rascunhos jurídicos |
+| parcial | Fila de exclusão com etapas/retry, confirmação e login recente; políticas restritivas; manifesto de portabilidade com links de 1h; denúncia/bloqueio e fila privada; documentos explicitamente rascunhos no site/app | server/test/privacy.test.mjs; tests/privacy.spec.js; CI completo | Ensaio real Auth/Storage/Stripe, auditoria RPCs definer, arquivo de portabilidade durável, painel de moderação, retenção e documentos/aceite finais; ver docs/comercial/PRIVACIDADE.md |
 
 ## D — Atualizações
 | Status | Implementado | Como testar | Falta |

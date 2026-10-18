@@ -1,7 +1,7 @@
 const { app, BrowserWindow, Menu, dialog, net, protocol, session, shell } = require('electron');
 const path = require('node:path');
 const { existsSync } = require('node:fs');
-const { ORIGIN, localURL, assetHandler, externalURL } = require('./protocol.cjs');
+const { ORIGIN, localURL, assetHandler, externalURL, documentationURL } = require('./protocol.cjs');
 
 app.setName('Atlas Pessoal');
 const requestedData = app.commandLine.getSwitchValue('user-data-dir');
@@ -12,6 +12,13 @@ let window;
 const root = path.join(__dirname, 'app');
 function openExternal(url) {
   if (externalURL(url)) shell.openExternal(url).catch(() => {});
+}
+function openDocumentation(url) {
+  if(!documentationURL(url))return false;
+  const reader=new BrowserWindow({width:800,height:850,parent:window,webPreferences:{contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,devTools:!app.isPackaged}});
+  reader.webContents.setWindowOpenHandler(({url})=>{if(!openDocumentation(url))openExternal(url);return {action:'deny'};});
+  reader.webContents.on('will-navigate',(event,url)=>{if(!documentationURL(url)){event.preventDefault();openExternal(url);}});
+  reader.webContents.on('will-attach-webview',event=>event.preventDefault());reader.loadURL(url).catch(()=>reader.close());return true;
 }
 function menu() {
   const mac = process.platform === 'darwin';
@@ -33,8 +40,8 @@ function createWindow() {
   });
   window.once('ready-to-show', () => window.show());
   window.on('closed', () => { window = null; });
-  window.webContents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action:'deny' }; });
-  window.webContents.on('will-navigate', (event, url) => { if (!localURL(url)) { event.preventDefault(); openExternal(url); } });
+  window.webContents.setWindowOpenHandler(({ url }) => { if(!openDocumentation(url))openExternal(url); return { action:'deny' }; });
+  window.webContents.on('will-navigate', (event, url) => { if(documentationURL(url)){event.preventDefault();openDocumentation(url);}else if (!localURL(url)) { event.preventDefault(); openExternal(url); } });
   window.webContents.on('will-attach-webview', event => event.preventDefault());
   window.loadURL(`${ORIGIN}/`).catch(() => {
     dialog.showErrorBox('Não foi possível abrir o Atlas', 'Os arquivos do aplicativo não puderam ser carregados. Instale novamente o pacote completo. Suas memórias ficam separadas dos arquivos do aplicativo.');

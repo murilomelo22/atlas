@@ -5,7 +5,7 @@ import path from 'node:path';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = path.join(root, 'dist');
 const manifest = JSON.parse(await readFile(path.join(root, 'manifest.webmanifest'), 'utf8'));
-const files = ['index.html', 'styles.css', 'app.css', 'download.css', 'instalar.html', 'downloads', 'manifest.webmanifest', 'sw.js', 'config.js', 'src', 'vendor', 'assets'];
+const files = ['index.html', 'styles.css', 'app.css', 'download.css', 'instalar.html', 'downloads', 'manifest.webmanifest', 'sw.js', 'config.js', 'src', 'vendor', 'assets', 'legal'];
 // Copy only explicit runtime assets. Tests, Git history, dependencies and
 // deployment credentials never enter the distributable.
 await rm(output, { recursive: true, force: true });
