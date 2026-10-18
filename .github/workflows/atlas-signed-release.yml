@@ -1,0 +1,84 @@
+name: Atlas signed Mac distribution
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: signed-mac-release
+  cancel-in-progress: false
+jobs:
+  signed:
+    runs-on: macos-latest
+    environment: mac-release
+    timeout-minutes: 40
+    env:
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      ATLAS_UPDATE_PUBLIC_KEY: ${{ secrets.ATLAS_UPDATE_PUBLIC_KEY }}
+      ATLAS_UPDATE_PRIVATE_KEY: ${{ secrets.ATLAS_UPDATE_PRIVATE_KEY }}
+      ATLAS_UPDATE_FEED_URL: ${{ vars.ATLAS_UPDATE_FEED_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validar configuração antes de produzir artefatos
+        run: node tools/prepare-distribution.mjs
+      - run: npm ci && npm --prefix server ci && npm --prefix desktop ci
+      - run: npm --prefix server test && npm run test:premium-db && npm run test:sharing-db && node tests/wishlist-reconcile.unit.mjs
+      - run: npx playwright install chrome && CHROMIUM_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" npm test -- --workers=2 --timeout=90000
+      - run: npm run desktop:prepare && npm run test:desktop -- --timeout=90000
+      - name: Compilar e assinar arm64 + x86_64 no aplicativo universal
+        run: npm --prefix desktop run dist:signed
+      - name: Verificar Developer ID e arquiteturas
+        run: |
+          APP='desktop/release/mac-universal/Atlas Pessoal.app'
+          lipo -verify_arch arm64 x86_64 "$APP/Contents/MacOS/Atlas Pessoal"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign -dv --verbose=4 "$APP" 2>&1 | grep -F "TeamIdentifier=$APPLE_TEAM_ID"
+      - name: Notarizar com notarytool e grampear app
+        run: |
+          APP='desktop/release/mac-universal/Atlas Pessoal.app'
+          ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/atlas-notary.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/atlas-notary.zip" --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait --output-format json > "$RUNNER_TEMP/atlas-notary.json"
+          node -e 'const r=JSON.parse(require("fs").readFileSync(process.env.RUNNER_TEMP+"/atlas-notary.json"));if(r.status!=="Accepted")process.exit(1)'
+          xcrun stapler staple "$APP"
+          xcrun stapler validate "$APP"
+          spctl --assess --type execute --verbose=2 "$APP"
+      - name: Recriar DMG e ZIP com aplicativo grampeado
+        run: |
+          npm --prefix desktop run dist:signed -- --prepackaged 'release/mac-universal/Atlas Pessoal.app'
+          VERSION=$(node -p 'require("./desktop/package.json").version')
+          ditto -c -k --keepParent 'desktop/release/mac-universal/Atlas Pessoal.app' "desktop/release/Atlas-Pessoal-$VERSION-universal.zip"
+          DMG="desktop/release/Atlas-Pessoal-$VERSION-universal.dmg"
+          xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait --output-format json > "$RUNNER_TEMP/atlas-dmg-notary.json"
+          node -e 'const r=JSON.parse(require("fs").readFileSync(process.env.RUNNER_TEMP+"/atlas-dmg-notary.json"));if(r.status!=="Accepted")process.exit(1)'
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+          hdiutil verify "$DMG"
+          node tools/sign-update.mjs "$VERSION" "desktop/release/Atlas-Pessoal-$VERSION-universal.zip" "https://github.com/$GITHUB_REPOSITORY/releases/download/desktop-v$VERSION/Atlas-Pessoal-$VERSION-universal.zip" desktop/release/atlas-update.json
+          shasum -a 256 desktop/release/*.dmg desktop/release/*universal.zip > desktop/release/SHA256SUMS.txt
+      - name: Testar pacote assinado e perfil 0.1.1
+        env:
+          ATLAS_DESKTOP_EXECUTABLE: ${{ github.workspace }}/desktop/release/mac-universal/Atlas Pessoal.app/Contents/MacOS/Atlas Pessoal
+          ATLAS_LEGACY_EXECUTABLE: ${{ runner.temp }}/Atlas-legacy/Atlas Pessoal.app/Contents/MacOS/Atlas Pessoal
+        run: |
+          curl -fsSL --retry 3 https://github.com/murilomelo22/atlas/releases/download/desktop-v0.1.1/Atlas-Pessoal-0.1.1-universal.zip -o "$RUNNER_TEMP/Atlas-legacy.zip"
+          ditto -x -k "$RUNNER_TEMP/Atlas-legacy.zip" "$RUNNER_TEMP/Atlas-legacy"
+          npm run test:desktop -- --timeout=120000
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Atlas-Signed-Mac
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*universal.zip
+            desktop/release/atlas-update.json
+            desktop/release/SHA256SUMS.txt
+          if-no-files-found: error
+      - name: Limpar material temporário
+        if: always()
+        run: rm -f "$RUNNER_TEMP/atlas-notary.zip" "$RUNNER_TEMP/atlas-notary.json" "$RUNNER_TEMP/atlas-dmg-notary.json" desktop/distribution-config.json

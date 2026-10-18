@@ -14,7 +14,8 @@
   "scripts": {
     "start": "electron .",
     "dist:mac": "electron-builder --mac dmg zip --universal --publish never",
-    "pack:linux": "electron-builder --linux --dir --publish never"
+    "pack:linux": "electron-builder --linux --dir --publish never",
+    "dist:signed": "electron-builder --mac --universal --config distribution-config.json --publish never"
   },
   "devDependencies": {
     "electron": "44.8.0",
