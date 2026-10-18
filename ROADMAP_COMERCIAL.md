@@ -19,7 +19,7 @@ Fragilidades: Premium legado manual com gate de UI contornável, sem billing; li
 ## B — Limites, custos e confiabilidade
 | Status | Implementado | Como testar | Falta |
 |---|---|---|---|
-| parcial | Auditoria inicial: compressão JPEG/miniaturas de imagem e vídeo já existentes, revisões e backup atômico | Suíte existente de mídia/backup/sync | Aplicação de cotas/abuso no servidor, retomada, modelo de custos e novos testes |
+| parcial | Cotas transacionais de Storage/objetos/tamanho/destinos/escritas, mensagens no app, TUS com retomada de offset, modelo de custo executável e worker/fila FFmpeg com originais preservados | server/test/limits.test.mjs, cost-model.test.mjs e transcode.test.mjs com vídeo sintético; suíte completa no CI | Homologar triggers/TUS/worker reais; selecionar derivado no player, retomada entre reinícios e banda de leitura via gateway ainda pendentes; ver docs/comercial/CUSTOS.md |
 
 ## C — Privacidade, LGPD e conta
 | Status | Implementado | Como testar | Falta |
