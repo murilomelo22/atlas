@@ -1202,6 +1202,11 @@ body.map-focused{overflow:hidden}
 .clean-map-controls{position:absolute;top:max(18px,env(safe-area-inset-top));right:max(18px,env(safe-area-inset-right));z-index:1000;display:flex;gap:8px}
 .clean-map-controls button{display:grid;place-items:center;width:44px;height:44px;padding:0;font-size:25px;border:1px solid #626c5a80;background:#192119df;color:#e5e9dc;border-radius:50%;box-shadow:0 3px 18px #0002;backdrop-filter:blur(10px)}
 .clean-map-controls button:hover{border-color:var(--accent);background:#2a3528}
+.clean-map-brand{position:absolute;top:max(18px,env(safe-area-inset-top));left:max(18px,env(safe-area-inset-left));z-index:450;display:flex;align-items:center;gap:12px;max-width:calc(100% - 148px);padding:12px 16px;border:1px solid #626c5a80;border-radius:12px;background:#192119ed;color:#eee9df;box-shadow:0 3px 18px #0002;backdrop-filter:blur(10px);pointer-events:none}
+.clean-map-brand svg{width:36px;height:36px;flex-shrink:0;fill:none;stroke:#c09a71;stroke-width:1.4}
+.clean-map-name{margin:0;font-family:Georgia,serif;font-size:23px;line-height:1.2}.clean-map-name span{color:#d0ac83}
+.clean-map-slogan{margin:5px 0 0;color:#c5cdbb;font-size:9px;line-height:1.5;letter-spacing:1.5px;text-transform:uppercase}
+@media(max-width:700px){.clean-map-brand{top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));gap:8px;padding:10px;max-width:calc(100% - 132px)}.clean-map-brand svg{width:26px;height:26px}.clean-map-name{font-size:19px}.clean-map-slogan{font-size:8px;letter-spacing:1px}}
 .atlas-visited-pin{display:grid;place-items:center;background:transparent;border:0}
 .atlas-visited-pin span{width:12px;height:12px;background:#efc28b;border:2px solid #453523;border-radius:50%;box-shadow:0 0 0 4px #e8b77c28,0 2px 8px #0005}
 .atlas-visited-pin:focus-visible{outline:2px solid #efc28b;border-radius:50%;outline-offset:2px}

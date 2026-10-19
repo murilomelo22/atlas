@@ -3,6 +3,7 @@ export function initializeMapFocus(controller) {
   const open = document.getElementById('clean-map-button');
   const close = document.getElementById('clean-map-close');
   const controls = area.querySelector('.clean-map-controls');
+  const brand = document.getElementById('clean-map-brand');
   const gallery = document.getElementById('gallery-dialog');
   let galleryParent, galleryNext;
   let active = false, previousView, previousFocus, blocked = [], generation = 0;
@@ -15,6 +16,7 @@ export function initializeMapFocus(controller) {
     if (document.fullscreenElement === area) document.exitFullscreen().catch(() => {});
     area.classList.remove('is-focused'); document.body.classList.remove('map-focused');
     controls.hidden = true;
+    brand.hidden = true;
     area.removeAttribute('role'); area.removeAttribute('aria-modal');
     for (const [element, inert] of blocked) element.inert = inert;
     blocked = [];
@@ -32,6 +34,7 @@ export function initializeMapFocus(controller) {
     galleryParent = gallery.parentElement; galleryNext = gallery.nextSibling; area.append(gallery);
     area.classList.add('is-focused'); document.body.classList.add('map-focused');
     controls.hidden = false;
+    brand.hidden = false;
     area.setAttribute('role', 'dialog'); area.setAttribute('aria-modal', 'true');
     blocked = [...document.body.children].filter((element) => element !== area.closest('main'));
     blocked.push(document.getElementById('destinations-panel'));

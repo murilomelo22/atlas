@@ -1,6 +1,16 @@
 # atlas
 atlas pessoal, teste usando o codex.
 
+## Tela cheia e UFs do Brasil
+
+Na versão 26, o **Mapa limpo** mostra **Atlas Pessoal · Memórias em movimento**
+no canto superior esquerdo, tanto em tela cheia nativa quanto no modo alternativo.
+As divisas dos 26 estados e do Distrito Federal aparecem ao aproximar o Brasil
+(zoom 4 ou maior), nos temas claro, escuro, ruas e sem tiles, inclusive em tela
+cheia. A geometria é local e entra no cache offline; a camada não intercepta
+cliques nem altera países visitados e estatísticas. A origem dos contornos está
+em `vendor/BRAZIL-STATES-SOURCE.md`.
+
 ## Pôster premium em teste
 
 **Exportar pôster → Premium · teste** cria seu mapa em **A4 ou A3, paisagem**, com título, tema claro/escuro e prévia. Baixe **PNG a 300 dpi** (A3: 4961 × 3508 px; A4: 3508 × 2480 px), com densidade de impressão gravada no arquivo, ou **SVG vetorial** com tamanho físico para ampliar na gráfica. Imprima em tamanho real (100%).

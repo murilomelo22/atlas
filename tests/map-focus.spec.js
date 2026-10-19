@@ -44,6 +44,12 @@ test('mapa limpo ocupa a tela sem API nativa e mostra apenas lugares já visitad
   await page.locator('#clean-map-button').click();
   await expect(page.locator('#map-area')).toHaveAttribute('aria-modal', 'true');
   await expectViewport(page);
+  await expect(page.locator('#clean-map-brand')).toBeVisible();
+  await expect(page.locator('#clean-map-brand')).toContainText('Atlas Pessoal');
+  await expect(page.locator('#clean-map-brand')).toContainText('Memórias em movimento');
+  const brandBox = await page.locator('#clean-map-brand').boundingBox();
+  const controlsBox = await page.locator('.clean-map-controls').boundingBox();
+  expect(brandBox.x + brandBox.width).toBeLessThan(controlsBox.x);
   await expect(page.locator('.atlas-visited-pin')).toHaveCount(4);
   await expect(page.locator('.atlas-pin,.atlas-cluster,.atlas-heatmap,#map path[stroke-dasharray]')).toHaveCount(0);
   for (const selector of ['.map-title', '.map-toolbar', '.map-status', '.map-legend', '.marker-switch', '.leaflet-control-zoom']) await expect(page.locator(selector)).not.toBeVisible();
@@ -58,6 +64,7 @@ test('mapa limpo ocupa a tela sem API nativa e mostra apenas lugares já visitad
   await expect(page.locator('#editor-dialog')).not.toBeVisible();
   await page.locator('#clean-map-close').click();
   await expect(page.locator('#map-area')).not.toHaveClass(/is-focused/);
+  await expect(page.locator('#clean-map-brand')).not.toBeVisible();
   await expect(page.locator('.map-title')).toBeVisible();
   await expect(page.locator('.atlas-heatmap')).toBeVisible();
   await expect(page.locator('#map path[stroke-dasharray]')).not.toHaveCount(0);
@@ -90,6 +97,7 @@ test('tela cheia nativa acompanha a saída pelo navegador', async ({ page }) => 
   await page.locator('#clean-map-button').click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement?.id)).toBe('map-area');
   await expectViewport(page);
+  await expect(page.locator('#clean-map-brand')).toBeVisible();
   await page.evaluate(() => document.exitFullscreen());
   await expect(page.locator('#map-area')).not.toHaveClass(/is-focused/);
   await expect(page.locator('.map-title')).toBeVisible();

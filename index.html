@@ -4,19 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101310">
-  <meta name="atlas-version" content="25">
+  <meta name="atlas-version" content="26">
   <meta name="description" content="Um mapa das suas viagens, fotografias e memórias. Seus dados ficam no seu navegador.">
   <title>Atlas Pessoal — seu mundo, revisitado</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23101310'/%3E%3Cpath d='M32 8L45 45 32 38 19 45Z' fill='%23c09a71'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="./vendor/markercluster/MarkerCluster.css">
   <link rel="stylesheet" href="./vendor/markercluster/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="./styles.css?v=25">
+  <link rel="stylesheet" href="./styles.css?v=26">
   <script src="./vendor/leaflet/leaflet.js" defer></script>
   <script src="./vendor/markercluster/leaflet.markercluster.js" defer></script>
-  <script type="module" src="./src/app-updates.js?v=25"></script>
-  <script type="module" src="./src/main.js?v=25"></script>
-  <link rel="stylesheet" href="./download.css?v=25">
+  <script type="module" src="./src/app-updates.js?v=26"></script>
+  <script type="module" src="./src/main.js?v=26"></script>
+  <link rel="stylesheet" href="./download.css?v=26">
 </head>
 <body>
   <a class="skip-link" href="#destinations-panel">Ir para meus destinos</a>
@@ -61,7 +61,7 @@
         </div>
         <div id="examples-banner" class="examples-banner" hidden><p>Um começo pela Itália.<br><span>Estes destinos são exemplos editáveis.</span></p><button id="clear-examples" class="text-button">Limpar exemplos</button></div>
         <div id="destination-list" class="destination-list" aria-live="polite"><p class="loading">Preparando suas memórias…</p></div>
-        <footer class="sidebar-footer">Cada lugar guarda uma parte de você.<br><span>Faça backups para levar suas memórias adiante.</span><div class="app-version"><small>Versão 25</small><button type="button" data-app-update class="text-button">Atualizar site</button></div><p id="app-update-status" role="status" hidden></p></footer>
+        <footer class="sidebar-footer">Cada lugar guarda uma parte de você.<br><span>Faça backups para levar suas memórias adiante.</span><div class="app-version"><small>Versão 26</small><button type="button" data-app-update class="text-button">Atualizar site</button></div><p id="app-update-status" role="status" hidden></p></footer>
       </section>
       <section id="detail-panel" hidden aria-label="Detalhes do destino"></section>
     </aside>
@@ -70,6 +70,7 @@
       <div class="map-title"><p class="eyebrow">UM MUNDO DE MEMÓRIAS</p><h2>Seu mundo,<br><em>revisitado.</em></h2></div>
       <div class="map-toolbar"><label class="map-style-label">Mapa<select id="map-style"><option value="dark">Atlas escuro</option><option value="light">Atlas claro</option><option value="streets">Ruas</option><option value="offline">Atlas sem tiles</option></select></label><label class="map-style-label">Calor<select id="heat-mode" aria-label="Mapa de calor"><option value="off">Desativado</option><option value="visits">Por visitas</option><option value="days">Por dias</option></select></label><label class="route-switch"><input id="route-toggle" type="checkbox" aria-label="Rota cronológica"><span>Rota <span class="route-extra">cronológica</span></span></label><button id="fit-button" class="quiet" aria-label="Enquadrar todos os destinos">⌖ <span>Ver todos</span></button></div>
       <button type="button" id="clean-map-button" class="clean-map-button quiet" aria-label="Abrir mapa limpo em tela cheia" title="Tela cheia com seus lugares visitados" disabled><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></svg><span>Mapa limpo</span></button>
+      <div id="clean-map-brand" class="clean-map-brand" hidden><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><path d="M24 9 28 27 10 31Z"/><path d="m24 9-7 14 11 4"/></svg><div><p class="clean-map-name">Atlas <span>Pessoal</span></p><p class="clean-map-slogan">Memórias em movimento</p></div></div>
       <div class="clean-map-controls" hidden>
         <button type="button" id="clean-map-fit" class="quiet" aria-label="Enquadrar lugares visitados" title="Enquadrar lugares visitados">⌖</button>
         <button type="button" id="clean-map-close" class="quiet" aria-label="Sair do mapa em tela cheia" title="Sair da tela cheia (Esc)">×</button>

@@ -1,12 +1,14 @@
 import { totalDays, visitedDestinations } from './dates.js';
 import { chronologicalStops } from './stats.js';
 import { createHeatLayer, heatPoints } from './heatmap.js';
+import { createBrazilStateLayer } from './map-states.js';
 const visitedGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6 7-12A7 7 0 1 0 5 9c0 6 7 12 7 12Z"/><path d="m9 9 2 2 4-4"/></svg>';
 export function createMap(countries, onSelect, onAdd, onTileError, memories = {}) {
   const map = L.map('map', { zoomControl: false, minZoom: 2, maxZoom: 18, worldCopyJump: true }).setView([28, 15], 3);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   map.attributionControl.setPrefix(false);
   map.attributionControl.addAttribution('Países: Natural Earth');
+  map.attributionControl.addAttribution('UFs: Click That &rsquo;Hood');
   let base, theme = 'dark', cleanMode = false;
   let visitedCountries = new Set();
   const themes = {
@@ -33,6 +35,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
     country.on('mouseover', () => { if (cleanMode) return country.closeTooltip(); country.setStyle({ color: '#a5dfc6', weight: 1.8, fillColor: '#6ca78e', fillOpacity: 0.6 }); country.bringToFront(); country.getElement()?.classList.add('country-hover'); });
     country.on('mouseout', () => { layer.resetStyle(country); country.getElement()?.classList.remove('country-hover'); });
   } }).addTo(map);
+  const states = createBrazilStateLayer(map, () => theme);
   const heat = createHeatLayer(map);
   let heatMode = 'off';
   try { const saved = localStorage.getItem('atlas-heat-mode'); if (['visits', 'days'].includes(saved)) heatMode = saved; } catch {}
@@ -45,6 +48,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
       base.on('tileerror', onTileError);
     }
     layer.setStyle(style);
+    states.refresh();
     document.getElementById('map').dataset.style = cleanMode && theme === 'streets' ? 'light' : theme;
     try { localStorage.setItem('atlas-map-style', theme); } catch {}
   }
@@ -141,6 +145,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
     }
     heat.show(heatMode !== 'off' && !cleanMode);
     layer.setStyle(style);
+    states.refresh();
     document.getElementById('map').dataset.style = cleanMode && theme === 'streets' ? 'light' : theme;
     document.getElementById('map').setAttribute('aria-label', cleanMode ? 'Mapa dos lugares visitados' : 'Mapa interativo; clique para adicionar um destino');
   }
