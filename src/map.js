@@ -72,6 +72,9 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
   const allMarkers = new Map();
   let currentPhotoURLs = new Map();
   let allDestinations = [];
+  const contentModes = { all: 'Tudo', memories: 'Anotações e fotos', score: 'Só a nota (1 a 5)', notes: 'Só as anotações', photos: 'Só as fotos' };
+  let cleanContentMode = 'all';
+  try { const saved = localStorage.getItem('atlas-clean-popup-content'); if (Object.hasOwn(contentModes, saved)) cleanContentMode = saved; } catch {}
   function setHeatMode(value) {
     heatMode = ['visits', 'days'].includes(value) ? value : 'off';
     heat.update(heatPoints(allDestinations, heatMode)); heat.show(heatMode !== 'off' && !cleanMode);
@@ -92,10 +95,14 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
       const name = document.createElement('strong'); name.textContent = d.name;
       const country = document.createElement('small'); country.textContent = d.countryName || 'País não identificado';
       popup.append(name, country);
+      const display = document.createElement('label'); display.className = 'clean-place-display'; display.append('Exibir');
+      const contentSelect = document.createElement('select'); contentSelect.setAttribute('aria-label', 'Conteúdo da viagem no mapa');
+      for (const [value, label] of Object.entries(contentModes)) contentSelect.add(new Option(label, value));
+      display.append(contentSelect); popup.append(display);
       const rating = document.createElement('p'); rating.className = 'clean-place-rating';
       rating.setAttribute('aria-label', d.rating ? `Minha avaliação: ${d.rating} de 5` : 'Ainda sem avaliação');
-      rating.textContent = d.rating ? `${'★'.repeat(d.rating)}${'☆'.repeat(5 - d.rating)} · ${d.rating}/5` : 'Ainda sem avaliação'; popup.append(rating);
-      if (d.notes) { const notes = document.createElement('p'); notes.className = 'clean-place-notes'; notes.textContent = d.notes; popup.append(notes); }
+      popup.append(rating);
+      const notes = document.createElement('p'); notes.className = 'clean-place-notes'; notes.textContent = d.notes || 'Ainda sem anotações nesta memória.'; popup.append(notes);
       const photos = memories.photos?.(d.id) || [];
       if (photos.length) {
         const grid = document.createElement('div'); grid.className = 'clean-place-gallery';
@@ -109,11 +116,25 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
         });
         popup.append(grid);
       } else { const empty = document.createElement('p'); empty.className = 'clean-place-no-photos'; empty.textContent = 'Ainda sem fotos nesta memória.'; popup.append(empty); }
-      L.marker([d.lat, d.lng], { title: d.name, alt: d.name,
+      function applyContentMode() {
+        contentSelect.value = cleanContentMode;
+        rating.hidden = !['all', 'score'].includes(cleanContentMode);
+        const score = d.rating ? `${d.rating}/5` : 'Ainda sem avaliação';
+        rating.textContent = d.rating && cleanContentMode === 'all' ? `${'★'.repeat(d.rating)}${'☆'.repeat(5 - d.rating)} · ${score}` : score;
+        notes.hidden = !['all', 'memories', 'notes'].includes(cleanContentMode) || (!d.notes && cleanContentMode !== 'notes');
+        for (const element of popup.querySelectorAll('.clean-place-gallery, .clean-place-no-photos')) element.hidden = !['all', 'memories', 'photos'].includes(cleanContentMode);
+      }
+      applyContentMode();
+      const marker = L.marker([d.lat, d.lng], { title: d.name, alt: d.name,
         icon: L.divIcon({ className: 'atlas-visited-pin', html: visitedGlyph, iconSize: [32, 38], iconAnchor: [16, 34] }) })
         .bindTooltip(document.createTextNode(d.name), { direction: 'top', offset: [0, -8] })
         .bindPopup(popup, { maxWidth: 320, minWidth: 220, autoPanPaddingTopLeft: [20, 80], autoPanPaddingBottomRight: [20, 30] })
-        .on('popupopen', () => memories.previews?.()).addTo(cleanMarkers);
+        .on('popupopen', () => { applyContentMode(); marker.getPopup().update(); memories.previews?.(); }).addTo(cleanMarkers);
+      contentSelect.onchange = () => {
+        cleanContentMode = contentSelect.value;
+        try { localStorage.setItem('atlas-clean-popup-content', cleanContentMode); } catch {}
+        applyContentMode(); marker.getPopup().update(); memories.previews?.();
+      };
     }
     document.getElementById('clean-map-empty').hidden = !cleanMode || visited.length > 0;
     document.getElementById('map').dataset.visitedCount = String(visited.length);

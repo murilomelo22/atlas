@@ -65,7 +65,7 @@ export function initializeMapFocus(controller) {
     if (gallery.open) return;
     if (event.key === 'Escape') { event.preventDefault(); exit(); }
     if (event.key === 'Tab') {
-      const focusable = [...area.querySelectorAll('button, a[href], [tabindex="0"]')]
+      const focusable = [...area.querySelectorAll('button, a[href], input, select, textarea, [tabindex="0"]')]
         .filter((element) => !element.disabled && element.getClientRects().length && !element.closest('[hidden]'));
       const first = focusable[0], last = focusable.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }

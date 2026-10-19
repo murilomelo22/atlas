@@ -1,6 +1,14 @@
 # atlas
 atlas pessoal, teste usando o codex.
 
+## Conteúdo das viagens em tela cheia
+
+Na versão 27, abra uma viagem no **Mapa limpo** e use **Exibir** para escolher:
+**Tudo**, **Anotações e fotos** (sem avaliação), **Só a nota (1 a 5)** (sem estrelas),
+**Só as anotações** ou **Só as fotos**. A escolha vale para os próximos cartões e
+fica salva neste navegador, inclusive após sair da tela cheia ou recarregar.
+Ela apenas muda a visualização, preservando avaliações, textos e fotos salvos.
+
 ## Tela cheia e UFs do Brasil
 
 Na versão 26, o **Mapa limpo** mostra **Atlas Pessoal · Memórias em movimento**
