@@ -29,7 +29,7 @@ test('galeria de uma memória funciona dentro da tela cheia nativa', async ({ pa
   await page.locator('.atlas-visited-pin[title="Paris avaliada"]').click();
   await page.getByRole('combobox', { name: 'Conteúdo da viagem no mapa' }).selectOption('scorePhotos');
   await expect(page.locator('.clean-place-rating')).toBeVisible();
-  await expect(page.locator('.clean-place-rating')).toHaveText('5/5');
+  await expect(page.locator('.clean-place-rating .clean-rating-star.is-filled')).toHaveCount(5);
   await expect(page.locator('.clean-place-notes')).not.toBeVisible();
   await page.getByRole('button', { name: 'Abrir memória 1 de Paris avaliada' }).click();
   await expect(page.locator('#gallery-dialog img')).toBeVisible(); await page.locator('[data-gallery-close]').click();
@@ -46,14 +46,14 @@ test('conteúdo do cartão alterna sem fechar a viagem e lembra a escolha após 
   await select.selectOption('memories');
   await expect(rating).not.toBeVisible(); await expect(notes).toBeVisible(); await expect(photos).toBeVisible();
   await select.selectOption('score');
-  await expect(rating).toBeVisible(); await expect(rating).toHaveText('5/5');
+  await expect(rating).toBeVisible(); await expect(rating.locator('.clean-rating-star.is-filled')).toHaveCount(5); await expect(rating).not.toContainText('5/5');
   await expect(notes).not.toBeVisible(); await expect(photos).not.toBeVisible();
   await select.selectOption('notes');
   await expect(rating).not.toBeVisible(); await expect(notes).toBeVisible(); await expect(photos).not.toBeVisible();
   await select.selectOption('photos');
   await expect(rating).not.toBeVisible(); await expect(notes).not.toBeVisible(); await expect(photos).toBeVisible();
   await select.selectOption('scorePhotos');
-  await expect(rating).toBeVisible(); await expect(rating).toHaveText('5/5');
+  await expect(rating).toBeVisible(); await expect(rating.locator('.clean-rating-star.is-filled')).toHaveCount(5); await expect(rating).not.toContainText('5/5');
   await expect(notes).not.toBeVisible(); await expect(photos).toBeVisible();
   await page.getByRole('button', { name: 'Abrir memória 1 de Paris avaliada' }).click();
   await expect(page.locator('#gallery-dialog img')).toBeVisible();
@@ -64,12 +64,30 @@ test('conteúdo do cartão alterna sem fechar a viagem e lembra a escolha após 
   await page.reload(); await expect(page.locator('#clean-map-button')).toBeEnabled();
   await page.locator('#clean-map-button').click(); await pin.click();
   await expect(select).toHaveValue('scorePhotos');
-  await expect(rating).toBeVisible(); await expect(rating).toHaveText('5/5');
+  await expect(rating).toBeVisible(); await expect(rating.locator('.clean-rating-star.is-filled')).toHaveCount(5); await expect(rating).not.toContainText('5/5');
   await expect(notes).not.toBeVisible(); await expect(photos).toBeVisible();
   await select.selectOption('all');
-  await expect(rating).toContainText('★★★★★'); await expect(notes).toContainText('Uma viagem incrível');
+  await expect(rating.locator('.clean-rating-star.is-filled')).toHaveCount(5); await expect(notes).toContainText('Uma viagem incrível');
   const saved = await page.evaluate(async () => { const db = await import('/src/db.js'); const d = (await db.getDestinations()).find(d => d.id === 'review'); return { rating: d.rating, notes: d.notes, photoIds: d.photoIds }; });
   expect(saved).toEqual({ rating: 5, notes: 'Uma viagem incrível <img src=x onerror=alert(1)>', photoIds: ['review-photo'] });
+});
+test('avaliação usa estrelas preenchidas e contornadas com nota acessível', async ({ page }) => {
+  await page.evaluate(async () => {
+    const db = await import('/src/db.js');
+    const destination = (await db.getDestinations()).find(d => d.id === 'review');
+    await db.saveDestination({ ...destination, rating: 3 }, await db.getPhotos('review'));
+  });
+  await page.reload(); await expect(page.locator('#clean-map-button')).toBeEnabled();
+  await page.locator('#clean-map-button').click();
+  await page.locator('.atlas-visited-pin[title="Paris avaliada"]').click();
+  await page.getByRole('combobox', { name: 'Conteúdo da viagem no mapa' }).selectOption('scorePhotos');
+  const rating = page.getByRole('img', { name: 'Minha avaliação: 3 de 5' });
+  await expect(rating).toBeVisible();
+  await expect(rating.locator('.clean-rating-star.is-filled')).toHaveCount(3);
+  await expect(rating.locator('.clean-rating-star:not(.is-filled)')).toHaveCount(2);
+  await expect(rating).toHaveText('');
+  await expect(page.locator('.clean-place-gallery')).toBeVisible();
+  await expect(page.locator('.clean-place-notes')).not.toBeVisible();
 });
 test('escolha vale para outras viagens e trata conteúdo ausente', async ({ page }) => {
   await page.evaluate(async () => {

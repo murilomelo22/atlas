@@ -3,12 +3,14 @@ atlas pessoal, teste usando o codex.
 
 ## Conteúdo das viagens em tela cheia
 
-Na versão 28, abra uma viagem no **Mapa limpo** e use **Exibir** para escolher:
-**Tudo**, **Anotações e fotos** (sem avaliação), **Só a nota (1 a 5)** (sem estrelas),
-**Só a nota e as fotos** (nota numérica, sem estrelas nem anotações),
+Na versão 29, abra uma viagem no **Mapa limpo** e use **Exibir** para escolher:
+**Tudo**, **Anotações e fotos** (sem avaliação), **Só a nota**,
+**Só a nota e as fotos** (estrelas douradas, sem números nem anotações),
 **Só as anotações** ou **Só as fotos**. A escolha vale para os próximos cartões e
 fica salva neste navegador, inclusive após sair da tela cheia ou recarregar.
 Ela apenas muda a visualização, preservando avaliações, textos e fotos salvos.
+As avaliações aparecem como cinco estrelas: as preenchidas representam a nota e
+as restantes ficam contornadas. Leitores de tela recebem a avaliação por extenso.
 
 ## Tela cheia e UFs do Brasil
 

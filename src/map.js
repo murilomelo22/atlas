@@ -72,7 +72,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
   const allMarkers = new Map();
   let currentPhotoURLs = new Map();
   let allDestinations = [];
-  const contentModes = { all: 'Tudo', memories: 'Anotações e fotos', score: 'Só a nota (1 a 5)', scorePhotos: 'Só a nota e as fotos', notes: 'Só as anotações', photos: 'Só as fotos' };
+  const contentModes = { all: 'Tudo', memories: 'Anotações e fotos', score: 'Só a nota', scorePhotos: 'Só a nota e as fotos', notes: 'Só as anotações', photos: 'Só as fotos' };
   let cleanContentMode = 'all';
   try { const saved = localStorage.getItem('atlas-clean-popup-content'); if (Object.hasOwn(contentModes, saved)) cleanContentMode = saved; } catch {}
   function setHeatMode(value) {
@@ -101,6 +101,17 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
       display.append(contentSelect); popup.append(display);
       const rating = document.createElement('p'); rating.className = 'clean-place-rating';
       rating.setAttribute('aria-label', d.rating ? `Minha avaliação: ${d.rating} de 5` : 'Ainda sem avaliação');
+      if (d.rating) {
+        rating.setAttribute('role', 'img');
+        for (let i = 0; i < 5; i++) {
+          const star = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          star.setAttribute('viewBox', '0 0 24 24'); star.setAttribute('aria-hidden', 'true');
+          star.classList.add('clean-rating-star');
+          if (i < d.rating) star.classList.add('is-filled');
+          star.innerHTML = '<path d="m12 3 2.78 5.63L21 9.5l-4.5 4.38 1.06 6.19L12 17.15l-5.56 2.92 1.06-6.19L3 9.5l6.22-.87Z"/>';
+          rating.append(star);
+        }
+      } else { rating.classList.add('is-unrated'); rating.textContent = 'Ainda sem avaliação'; }
       popup.append(rating);
       const notes = document.createElement('p'); notes.className = 'clean-place-notes'; notes.textContent = d.notes || 'Ainda sem anotações nesta memória.'; popup.append(notes);
       const photos = memories.photos?.(d.id) || [];
@@ -119,8 +130,6 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
       function applyContentMode() {
         contentSelect.value = cleanContentMode;
         rating.hidden = !['all', 'score', 'scorePhotos'].includes(cleanContentMode);
-        const score = d.rating ? `${d.rating}/5` : 'Ainda sem avaliação';
-        rating.textContent = d.rating && cleanContentMode === 'all' ? `${'★'.repeat(d.rating)}${'☆'.repeat(5 - d.rating)} · ${score}` : score;
         notes.hidden = !['all', 'memories', 'notes'].includes(cleanContentMode) || (!d.notes && cleanContentMode !== 'notes');
         for (const element of popup.querySelectorAll('.clean-place-gallery, .clean-place-no-photos')) element.hidden = !['all', 'memories', 'photos', 'scorePhotos'].includes(cleanContentMode);
       }
