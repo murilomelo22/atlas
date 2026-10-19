@@ -72,7 +72,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
   const allMarkers = new Map();
   let currentPhotoURLs = new Map();
   let allDestinations = [];
-  const contentModes = { all: 'Tudo', memories: 'Anotações e fotos', score: 'Só a nota (1 a 5)', notes: 'Só as anotações', photos: 'Só as fotos' };
+  const contentModes = { all: 'Tudo', memories: 'Anotações e fotos', score: 'Só a nota (1 a 5)', scorePhotos: 'Só a nota e as fotos', notes: 'Só as anotações', photos: 'Só as fotos' };
   let cleanContentMode = 'all';
   try { const saved = localStorage.getItem('atlas-clean-popup-content'); if (Object.hasOwn(contentModes, saved)) cleanContentMode = saved; } catch {}
   function setHeatMode(value) {
@@ -118,11 +118,11 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
       } else { const empty = document.createElement('p'); empty.className = 'clean-place-no-photos'; empty.textContent = 'Ainda sem fotos nesta memória.'; popup.append(empty); }
       function applyContentMode() {
         contentSelect.value = cleanContentMode;
-        rating.hidden = !['all', 'score'].includes(cleanContentMode);
+        rating.hidden = !['all', 'score', 'scorePhotos'].includes(cleanContentMode);
         const score = d.rating ? `${d.rating}/5` : 'Ainda sem avaliação';
         rating.textContent = d.rating && cleanContentMode === 'all' ? `${'★'.repeat(d.rating)}${'☆'.repeat(5 - d.rating)} · ${score}` : score;
         notes.hidden = !['all', 'memories', 'notes'].includes(cleanContentMode) || (!d.notes && cleanContentMode !== 'notes');
-        for (const element of popup.querySelectorAll('.clean-place-gallery, .clean-place-no-photos')) element.hidden = !['all', 'memories', 'photos'].includes(cleanContentMode);
+        for (const element of popup.querySelectorAll('.clean-place-gallery, .clean-place-no-photos')) element.hidden = !['all', 'memories', 'photos', 'scorePhotos'].includes(cleanContentMode);
       }
       applyContentMode();
       const marker = L.marker([d.lat, d.lng], { title: d.name, alt: d.name,
