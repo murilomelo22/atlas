@@ -4,6 +4,7 @@ import { durationLabel, totalDays, validateVisits } from './dates.js';
 import { statistics } from './stats.js';
 import { createMap } from './map.js';
 import { initializeMapFocus } from './map-focus.js';
+import { initializeCountrySearch } from './country-search.js';
 import { initializePoster } from './poster.js';
 import { createGeocoder } from './geocoding.js';
 import { groupMediaFiles, processMedia, mediaLabel } from './media.js';
@@ -17,7 +18,7 @@ import { initializeRecaps } from './recap.js';
 import { initializeWishlist, publicWishlistHTML } from './wishlist.js';
 import { shareDestination } from './sharing.js';
 
-let destinations = [], allPhotos = [], selectedId = null, mapController, mapFocus, poster;
+let destinations = [], allPhotos = [], selectedId = null, mapController, mapFocus, countrySearch, poster;
 let publicView = null, social = null, journeys = null, recaps = null, wishlist = null, changingAccount = false, initializing = true;
 const urls = new Map();
 let mediaEpoch = 0, previewTimer, offlineToken = 0, offlineActive = 0, previewPaintTimer;
@@ -131,6 +132,7 @@ function renderSelected() {
 function selectDestination(id) {
   const destination = destinations.find((d) => d.id === id);
   if (!destination) return;
+  countrySearch?.reset();
   selectedId = id; renderSelected(); mapController.flyTo(destination);
   if (matchMedia('(max-width: 700px)').matches) $('#destinations-panel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   $('#destinations-panel').scrollTop = 0;
@@ -143,7 +145,7 @@ function clearFilters() {
 function setAccountLoading(value) {
   changingAccount = value;
   if (value && offlineActive) { offlineToken++; offlineActive = 0; cancelMediaDownloads(); $('#cancel-media-download').hidden = true; $('#offline-media-status').textContent = 'Download interrompido. As mídias já baixadas foram preservadas.'; }
-  for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button', '#clean-map-button', '#download-media-button', '#poster-button']) $(selector).disabled = value || initializing;
+  for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button', '#clean-map-button', '#country-search-button', '#download-media-button', '#poster-button']) $(selector).disabled = value || initializing;
 }
 async function refresh() {
   destinations = publicView ? publicView.destinations : await getDestinations();
@@ -158,6 +160,7 @@ async function refresh() {
   const stats = statistics(destinations);
   for (const [key, value] of Object.entries(stats)) $(`#stat-${key}`).textContent = new Intl.NumberFormat('pt-BR').format(value);
   mapController.update(destinations, urls);
+  countrySearch?.refresh();
   await wishlist?.refresh();
 }
 function updateCountry() {
@@ -331,7 +334,7 @@ function bindEvents() {
   $('#show-markers').checked = mapController.markersVisible();
   $('#route-toggle').disabled = !mapController.markersVisible();
   $('#show-markers').onchange = (e) => { mapController.setMarkersVisible(e.target.checked); $('#route-toggle').disabled = !e.target.checked; };
-  $('#fit-button').onclick = () => mapController.fit(destinations);
+  $('#fit-button').onclick = () => { countrySearch?.reset(); mapController.fit(destinations); };
   $('#clear-examples').onclick = async () => {
     if (!await confirmAction('Limpar os exemplos?', 'Somente os exemplos que você ainda não editou serão removidos. Suas memórias serão preservadas.', 'Limpar exemplos')) return;
     try { await removeDestinations(destinations.filter((d) => d.example).map((d) => d.id)); await refresh(); notify('Exemplos removidos. O próximo destino é seu.'); }
@@ -379,6 +382,7 @@ function bindEvents() {
 function setViewUI() {
   resetMediaView();
   mapFocus?.exit(); poster?.reset();
+  countrySearch?.reset();
   document.body.classList.toggle('viewing-profile', Boolean(publicView));
   for (const selector of ['#add-button', '#export-button', '#import-button', '#wishlist-button', '#poster-button']) $(selector).hidden = Boolean(publicView);
   $('#public-profile-header').hidden = !publicView;
@@ -408,7 +412,8 @@ async function init() {
     });
     await refresh(); bindEvents();
     mapFocus = initializeMapFocus(mapController);
-    journeys = initializeJourneys({ countries, destinations: () => destinations, preview: (stops) => { mapController.itinerary(stops); $('#route-toggle').checked = false; notify('Roteiro no mapa. As linhas unem paradas; não representam estradas.'); } });
+    countrySearch = initializeCountrySearch(countries, mapController);
+    journeys = initializeJourneys({ countries, destinations: () => destinations, preview: (stops) => { countrySearch.reset(); mapController.itinerary(stops); $('#route-toggle').checked = false; notify('Roteiro no mapa. As linhas unem paradas; não representam estradas.'); } });
     recaps = initializeRecaps(() => destinations);
     wishlist = initializeWishlist({ available: () => !changingAccount, afterMutation: () => social?.afterMutation(), diagnostic: () => social?.diagnostic(), reconnect: () => social?.reconnect() });
     poster = initializePoster({ countries, destinations: () => destinations, available: () => !initializing && !changingAccount && !publicView });

@@ -34,6 +34,17 @@ function inRing(lng, lat, ring) {
 function inPolygon(lng, lat, rings) {
   return inRing(lng, lat, rings[0]) && !rings.slice(1).some((ring) => inRing(lng, lat, ring));
 }
+export function containsCoordinates(feature, lat, lng) {
+  const { type, coordinates } = feature.geometry;
+  return type === 'Polygon' ? inPolygon(lng, lat, coordinates) : coordinates.some(rings => inPolygon(lng, lat, rings));
+}
+export function wrapFeature(feature, anchor) {
+  function shift(coordinates) {
+    if (typeof coordinates[0] === 'number') return [coordinates[0] + 360 * Math.round((anchor - coordinates[0]) / 360), coordinates[1]];
+    return coordinates.map(shift);
+  }
+  return { ...feature, geometry: { ...feature.geometry, coordinates: shift(feature.geometry.coordinates) } };
+}
 export function countryAt(lat, lng) {
   let found = collection?.features.find((feature) => {
     const { type, coordinates } = feature.geometry;

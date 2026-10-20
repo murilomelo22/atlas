@@ -21,7 +21,8 @@ export function initializeMapFocus(controller) {
     for (const [element, inert] of blocked) element.inert = inert;
     blocked = [];
     controller.setCleanMode(false); controller.resize();
-    controller.map.setView(previousView.center, previousView.zoom, { animate: false });
+    if (controller.hasCountryFocus()) controller.fitCountry();
+    else controller.map.setView(previousView.center, previousView.zoom, { animate: false });
     previousFocus?.focus({ preventScroll: true });
   }
 
@@ -40,7 +41,7 @@ export function initializeMapFocus(controller) {
     blocked.push(document.getElementById('destinations-panel'));
     blocked = blocked.map((element) => [element, element.inert]);
     for (const [element] of blocked) element.inert = true;
-    controller.setCleanMode(true); controller.resize(); controller.fitVisited();
+    controller.setCleanMode(true); controller.resize(); fitCurrent();
     close.focus({ preventScroll: true });
     // Fixed viewport mode also works on browsers that cannot enter native fullscreen.
     if (area.requestFullscreen && document.fullscreenEnabled) {
@@ -49,13 +50,14 @@ export function initializeMapFocus(controller) {
           if (document.fullscreenElement === area && !active) document.exitFullscreen().catch(() => {});
           return;
         }
-        controller.resize(); controller.fitVisited();
+        controller.resize(); fitCurrent();
       }).catch(() => {});
     }
   }
 
   open.onclick = enter; close.onclick = exit;
-  document.getElementById('clean-map-fit').onclick = () => controller.fitVisited();
+  function fitCurrent() { if (controller.hasCountryFocus()) controller.fitCountry(); else controller.fitVisited(); }
+  document.getElementById('clean-map-fit').onclick = fitCurrent;
   document.addEventListener('fullscreenchange', () => {
     if (active && document.fullscreenElement !== area) exit();
     controller.resize();

@@ -1,6 +1,25 @@
 # atlas
 atlas pessoal, teste usando o codex.
 
+## Pesquisar países no mapa
+
+Na versão 30, **Pesquisar** no mapa também funciona em tela cheia. Digite o nome
+de um país (com ou sem acentos, em português ou inglês) ou uma sigla como **BR**
+ou **EUA**, e escolha um resultado. O mapa aproxima o território principal e
+mostra as viagens já realizadas naquele país, mesmo com os marcadores gerais
+ocultos. Exemplos, moradias e viagens futuras não entram nesses destaques.
+
+As divisões administrativas disponíveis aparecem contornadas e as que contêm
+lugares visitados ficam douradas. A base cobre 213 países e territórios, com
+níveis administrativos que variam entre estados, províncias, departamentos e
+outras regiões. Ausência de cobertura é informada no mapa. **×** no resumo limpa
+a pesquisa e volta ao mapa das viagens. A busca não altera registros nem estatísticas.
+
+A lista de países e as UFs brasileiras ficam disponíveis offline após carregar
+o atlas. As divisões dos demais países são baixadas somente na primeira pesquisa
+e ficam em cache para novas consultas sem internet. A origem e preparação dos
+contornos estão em `vendor/subdivisions/SOURCE.md`.
+
 ## Conteúdo das viagens em tela cheia
 
 Na versão 29, abra uma viagem no **Mapa limpo** e use **Exibir** para escolher:

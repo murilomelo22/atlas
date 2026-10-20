@@ -2,14 +2,16 @@ import { totalDays, visitedDestinations } from './dates.js';
 import { chronologicalStops } from './stats.js';
 import { createHeatLayer, heatPoints } from './heatmap.js';
 import { createBrazilStateLayer } from './map-states.js';
+import { countryFocusBounds } from './country-search.js';
+import { wrapFeature } from './geography.js';
 const visitedGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6 7-12A7 7 0 1 0 5 9c0 6 7 12 7 12Z"/><path d="m9 9 2 2 4-4"/></svg>';
 export function createMap(countries, onSelect, onAdd, onTileError, memories = {}) {
   const map = L.map('map', { zoomControl: false, minZoom: 2, maxZoom: 18, worldCopyJump: true }).setView([28, 15], 3);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   map.attributionControl.setPrefix(false);
-  map.attributionControl.addAttribution('Países: Natural Earth');
+  map.attributionControl.addAttribution('Países e divisões: Natural Earth');
   map.attributionControl.addAttribution('UFs: Click That &rsquo;Hood');
-  let base, theme = 'dark', cleanMode = false;
+  let base, theme = 'dark', cleanMode = false, focusedCountry = null, countryOutline, resolvedCountryVisits = [];
   let visitedCountries = new Set();
   const themes = {
     dark: null,
@@ -19,9 +21,10 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
   let durations = new Map(), homes = new Set(), max = 1, routeVisible = false, markersVisible = true, plannedVisible = false;
   try { markersVisible = localStorage.getItem('atlas-show-markers') !== 'false'; } catch {}
   const style = (feature) => {
-    if (cleanMode) {
-      const visited = visitedCountries.has(String(feature.id)), light = theme !== 'dark';
-      return { color: visited ? '#b99671' : light ? '#a8b3aa' : '#39483e', weight: 0.7,
+    if (cleanMode || focusedCountry) {
+      const chosen = focusedCountry && String(feature.id) === String(focusedCountry.id);
+      const visited = !chosen && visitedCountries.has(String(feature.id)), light = theme !== 'dark';
+      return { color: chosen ? '#91b6a1' : visited ? '#b99671' : light ? '#a8b3aa' : '#39483e', weight: chosen ? 1.4 : 0.7,
         fillColor: visited ? '#c09a71' : light ? '#e3ede3' : '#202923', fillOpacity: visited ? .5 : .85 };
     }
     const days = durations.get(String(feature.id));
@@ -32,7 +35,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
   const layer = L.geoJSON(countries, { style, onEachFeature: (feature, country) => {
     country.bindTooltip(document.createTextNode(feature.properties.name), { sticky: true });
     country.on('add', () => { const path = country.getElement(); if (path) { path.dataset.countryId = String(feature.id); path.setAttribute('aria-label', feature.properties.name); } });
-    country.on('mouseover', () => { if (cleanMode) return country.closeTooltip(); country.setStyle({ color: '#a5dfc6', weight: 1.8, fillColor: '#6ca78e', fillOpacity: 0.6 }); country.bringToFront(); country.getElement()?.classList.add('country-hover'); });
+    country.on('mouseover', () => { if (cleanMode || focusedCountry) return country.closeTooltip(); country.setStyle({ color: '#a5dfc6', weight: 1.8, fillColor: '#6ca78e', fillOpacity: 0.6 }); country.bringToFront(); country.getElement()?.classList.add('country-hover'); });
     country.on('mouseout', () => { layer.resetStyle(country); country.getElement()?.classList.remove('country-hover'); });
   } }).addTo(map);
   const states = createBrazilStateLayer(map, () => theme);
@@ -48,6 +51,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
       base.on('tileerror', onTileError);
     }
     layer.setStyle(style);
+    countryOutline?.setStyle(style);
     states.refresh();
     document.getElementById('map').dataset.style = cleanMode && theme === 'streets' ? 'light' : theme;
     try { localStorage.setItem('atlas-map-style', theme); } catch {}
@@ -65,7 +69,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
   if (!markersVisible) map.removeLayer(markers);
   function setMarkersVisible(value) {
     markersVisible = Boolean(value);
-    if (markersVisible && !cleanMode) { markers.addTo(map); if (routeVisible) routes.addTo(map); if (plannedVisible) planned.addTo(map); }
+    if (markersVisible && !cleanMode && !focusedCountry) { markers.addTo(map); if (routeVisible) routes.addTo(map); if (plannedVisible) planned.addTo(map); }
     else { map.removeLayer(markers); map.removeLayer(routes); map.removeLayer(planned); }
     try { localStorage.setItem('atlas-show-markers', String(markersVisible)); } catch {}
   }
@@ -77,7 +81,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
   try { const saved = localStorage.getItem('atlas-clean-popup-content'); if (Object.hasOwn(contentModes, saved)) cleanContentMode = saved; } catch {}
   function setHeatMode(value) {
     heatMode = ['visits', 'days'].includes(value) ? value : 'off';
-    heat.update(heatPoints(allDestinations, heatMode)); heat.show(heatMode !== 'off' && !cleanMode);
+    heat.update(heatPoints(allDestinations, heatMode)); heat.show(heatMode !== 'off' && !cleanMode && !focusedCountry);
     const legend = document.getElementById('heat-legend');
     legend.hidden = heatMode === 'off';
     legend.querySelector('[data-heat-label]').textContent = heatMode === 'days' ? 'Dias registrados por lugar' : 'Visitas registradas por lugar';
@@ -87,8 +91,9 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
   setHeatMode(heatMode);
   map.on('click', (e) => { if (!cleanMode) onAdd({ lat: Number(e.latlng.lat.toFixed(5)), lng: Number((((e.latlng.lng + 180) % 360 + 360) % 360 - 180).toFixed(5)) }); });
   function updateCleanPlaces() {
-    const visited = visitedDestinations(allDestinations);
-    visitedCountries = new Set(visited.map((d) => d.countryId).filter(Boolean));
+    const allVisited = visitedDestinations(allDestinations);
+    visitedCountries = new Set(allVisited.map((d) => d.countryId).filter(Boolean));
+    const visited = focusedCountry ? countryVisits(focusedCountry).map(d => d.countryId ? d : { ...d, countryName: focusedCountry.properties.name }) : allVisited;
     cleanMarkers.clearLayers();
     for (const d of visited) {
       const popup = document.createElement('div'); popup.className = 'clean-place-popup';
@@ -134,7 +139,10 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
         for (const element of popup.querySelectorAll('.clean-place-gallery, .clean-place-no-photos')) element.hidden = !['all', 'memories', 'photos', 'scorePhotos'].includes(cleanContentMode);
       }
       applyContentMode();
-      const marker = L.marker([d.lat, d.lng], { title: d.name, alt: d.name,
+      const view = focusedCountry && countryFocusBounds(focusedCountry);
+      const anchor = view && (view[0][1] + view[1][1]) / 2;
+      const lng = focusedCountry ? d.lng + 360 * Math.round((anchor - d.lng) / 360) : d.lng;
+      const marker = L.marker([d.lat, lng], { title: d.name, alt: d.name,
         icon: L.divIcon({ className: 'atlas-visited-pin', html: visitedGlyph, iconSize: [32, 38], iconAnchor: [16, 34] }) })
         .bindTooltip(document.createTextNode(d.name), { direction: 'top', offset: [0, -8] })
         .bindPopup(popup, { maxWidth: 320, minWidth: 220, autoPanPaddingTopLeft: [20, 80], autoPanPaddingBottomRight: [20, 30] })
@@ -145,12 +153,59 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
         applyContentMode(); marker.getPopup().update(); memories.previews?.();
       };
     }
-    document.getElementById('clean-map-empty').hidden = !cleanMode || visited.length > 0;
+    document.getElementById('clean-map-empty').hidden = !cleanMode || Boolean(focusedCountry) || visited.length > 0;
     document.getElementById('map').dataset.visitedCount = String(visited.length);
   }
   function fit(destinations) {
     if (!destinations.length) { map.setView([20, 0], 2, { animate: false }); return; }
     map.fitBounds(destinations.map((d) => [d.lat, d.lng]), { padding: [48, 48], maxZoom: 6, animate: false });
+  }
+  function countryVisits(country) {
+    const resolved = focusedCountry && String(focusedCountry.id) === String(country.id) ? new Set(resolvedCountryVisits.map(d => d.id)) : new Set();
+    return visitedDestinations(allDestinations).filter(d => String(d.countryId) === String(country.id) || resolved.has(d.id));
+  }
+  function fitCountry() {
+    if (!focusedCountry) return;
+    const view = countryFocusBounds(focusedCountry), bounds = L.latLngBounds(view), anchor = (view[0][1] + view[1][1]) / 2;
+    for (const d of countryVisits(focusedCountry)) bounds.extend([d.lat, d.lng + 360 * Math.round((anchor - d.lng) / 360)]);
+    map.fitBounds(bounds, { paddingTopLeft: [24, 108], paddingBottomRight: [24, 140], maxZoom: 9, animate: false });
+  }
+  function restoreLayers() {
+    if (cleanMode || focusedCountry) {
+      map.removeLayer(markers); map.removeLayer(routes); map.removeLayer(planned); cleanMarkers.addTo(map);
+    } else {
+      map.removeLayer(cleanMarkers);
+      if (markersVisible) { markers.addTo(map); if (routeVisible) routes.addTo(map); if (plannedVisible) planned.addTo(map); }
+    }
+    heat.show(heatMode !== 'off' && !cleanMode && !focusedCountry);
+  }
+  function clearCountry() {
+    focusedCountry = null; resolvedCountryVisits = [];
+    if (countryOutline) { map.removeLayer(countryOutline); countryOutline = null; }
+    document.getElementById('map-area').classList.remove('has-country-search');
+    delete document.getElementById('map').dataset.focusedCountry;
+    map.closePopup(); updateCleanPlaces(); restoreLayers(); states.selectCountry(null); layer.setStyle(style);
+  }
+  async function showCountry(country, { fit = true } = {}) {
+    focusedCountry = country; resolvedCountryVisits = [];
+    if (countryOutline) map.removeLayer(countryOutline);
+    const view = countryFocusBounds(country), anchor = (view[0][1] + view[1][1]) / 2;
+    countryOutline = L.geoJSON(wrapFeature(country, anchor), { style, interactive: false }).addTo(map);
+    document.getElementById('map-area').classList.add('has-country-search');
+    document.getElementById('map').dataset.focusedCountry = String(country.id);
+    map.closePopup(); map.eachLayer(item => item.closeTooltip?.());
+    updateCleanPlaces(); restoreLayers(); layer.setStyle(style);
+    // Start this request before fitting, so zoom events cannot reload the old country.
+    const candidates = visitedDestinations(allDestinations).filter(d => !d.countryId || String(d.countryId) === String(country.id));
+    const result = states.selectCountry(country, candidates);
+    if (fit) fitCountry();
+    const divisions = await result;
+    if (focusedCountry === country) {
+      resolvedCountryVisits = divisions.places || [];
+      updateCleanPlaces();
+      if (fit) fitCountry();
+    }
+    return divisions;
   }
   function setCleanMode(value) {
     cleanMode = Boolean(value);
@@ -164,17 +219,18 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
       cleanMarkers.addTo(map);
     } else {
       map.setMinZoom(2);
-      map.removeLayer(cleanMarkers);
+      if (!focusedCountry) map.removeLayer(cleanMarkers);
       if (base) base.addTo(map);
-      if (markersVisible) {
+      if (markersVisible && !focusedCountry) {
         markers.addTo(map);
         if (routeVisible) routes.addTo(map);
         if (plannedVisible) planned.addTo(map);
       }
       document.getElementById('clean-map-empty').hidden = true;
     }
-    heat.show(heatMode !== 'off' && !cleanMode);
+    heat.show(heatMode !== 'off' && !cleanMode && !focusedCountry);
     layer.setStyle(style);
+    countryOutline?.setStyle(style);
     states.refresh();
     document.getElementById('map').dataset.style = cleanMode && theme === 'streets' ? 'light' : theme;
     document.getElementById('map').setAttribute('aria-label', cleanMode ? 'Mapa dos lugares visitados' : 'Mapa interativo; clique para adicionar um destino');
@@ -195,10 +251,12 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
       });
       L.polyline(points, { color: '#d0ac83', weight: 2, opacity: 0.8, dashArray: '5 7', interactive: false, smoothFactor: 0 }).addTo(routes);
     }
-    if (routeVisible && markersVisible && !cleanMode) routes.addTo(map);
+    if (routeVisible && markersVisible && !cleanMode && !focusedCountry) routes.addTo(map);
   }
   return {
     map,
+    showCountry, clearCountry, countryVisits, fitCountry,
+    hasCountryFocus: () => Boolean(focusedCountry),
     setStyle,
     getStyle: () => theme,
     setMarkersVisible,
@@ -224,8 +282,10 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
     update(destinations, photoURLs) {
       plannedVisible = false; planned.clearLayers(); map.removeLayer(planned);
       allDestinations = destinations;
+      resolvedCountryVisits = [];
       currentPhotoURLs = photoURLs;
-      if (cleanMode) updateCleanPlaces();
+      if (cleanMode || focusedCountry) updateCleanPlaces();
+      if (focusedCountry) states.updateVisits(countryVisits(focusedCountry));
       heat.update(heatPoints(destinations, heatMode));
       durations = new Map();
       homes = new Set(destinations.filter((d) => d.kind === 'home').map((d) => d.countryId).filter(Boolean));
@@ -249,7 +309,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
     },
     flyTo(destination) { map.flyTo([destination.lat, destination.lng], 9, { duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 0.7 }); },
     fit,
-    route(show) { plannedVisible = false; planned.clearLayers(); map.removeLayer(planned); routeVisible = show; if (show && markersVisible && !cleanMode) routes.addTo(map); else map.removeLayer(routes); },
+    route(show) { plannedVisible = false; planned.clearLayers(); map.removeLayer(planned); routeVisible = show; if (show && markersVisible && !cleanMode && !focusedCountry) routes.addTo(map); else map.removeLayer(routes); },
     itinerary(stops) {
       routeVisible = false; map.removeLayer(routes); planned.clearLayers();
       let previous;
