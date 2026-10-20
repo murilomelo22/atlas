@@ -1,6 +1,6 @@
 # Atlas para uma coleção pessoal, amigos e família
 
-Esta atualização reduz o trabalho por sincronização sem mudar o projeto Supabase, as regras de acesso ou os arquivos existentes. Não é necessário executar SQL.
+A sincronização sob demanda reduz o trabalho sem mudar os arquivos existentes e não exige SQL. A correção dos conflitos de revisão na versão 31 inclui as migrações descritas abaixo.
 
 ## O que muda
 
@@ -40,7 +40,21 @@ CPU é capacidade de processamento, diferente de armazenamento. Desativar confir
 
 As mensagens de sincronização distinguem cancelamento por demora (`57014`), falta de permissão (`42501`/HTTP 403), conflito de revisão e migração ausente. Erros sem tradução mostram apenas HTTP/código, sem expor detalhes internos do banco. A wish list aberta acompanha a falha em vez de permanecer indefinidamente em “Aguardando sincronização”. Sua falha não impede que os destinos recebidos sejam incorporados ao mapa.
 
-Edições feitas durante uma sincronização agendam outra passagem depois dela. Conflitos de revisão da wish list (`40001`) permitem uma tentativa adicional após comparar a última versão confirmada com as mudanças locais e remotas. Alterações independentes são combinadas; casos ambíguos oferecem revisão na wish list, preservando ambas as versões. Uma falha não inicia um ciclo ilimitado de gravações. A confirmação “Tudo salvo na sua conta” exige sucesso; alterações pendentes continuam locais.
+Edições feitas durante uma sincronização agendam outra passagem depois dela. Conflitos de revisão da wish list (`PT409`, com compatibilidade com o antigo `40001`) permitem uma tentativa adicional após comparar a última versão confirmada com as mudanças locais e remotas. Alterações independentes são combinadas; casos ambíguos oferecem revisão na wish list, preservando ambas as versões. Uma falha não inicia um ciclo ilimitado de gravações no navegador. A confirmação “Tudo salvo na sua conta” exige sucesso; alterações pendentes continuam locais.
+
+### Correção de repetições no PostgREST (versão 31)
+
+As RPCs de destinos, roteiros e wish list retornam `PT409` (HTTP 409) para revisões desatualizadas. `40001` é reservado a falhas reais de serialização do PostgreSQL; usá-lo como conflito da aplicação pode provocar repetições infinitas no PostgREST 14, mesmo com o Atlas fechado. A proteção por revisão, os bloqueios transacionais, as regras de acesso e as mensagens de recuperação continuam funcionando. O navegador reconhece ambos os códigos para permitir atualizar banco e site separadamente.
+
+Instalações existentes devem aplicar [atlas_conflict_http409.sql](../supabase/migrations/20261020010835_atlas_conflict_http409.sql). A migração altera somente o código explícito de conflito nas cinco funções conhecidas, preservando suas definições instaladas, permissões e atualizações opcionais de mídia/colaboração. Os scripts de instalação novos já usam `PT409`.
+
+Depois de corrigir as funções, confira logs recentes, `pg_stat_activity` e a evolução dos contadores em `pg_stat_statements`. Sessões antigas podem continuar repetindo uma função já carregada; se isso acontecer, identifique seus PIDs pelos erros repetidos e confirme a identidade atual antes de encerrá-las. Não encerre todas as conexões da API. Veja o [diagnóstico oficial do Supabase](https://supabase.com/docs/guides/troubleshooting/high-cpu-and-infinite-transaction-retries-when-using-custom-error-codes-in-rpc-functions-77326b).
+
+Para instalações com colaboração, [atlas_policy_initplans_photo_uploader_index.sql](../supabase/migrations/20261020010920_atlas_policy_initplans_photo_uploader_index.sql) calcula `auth.uid()` uma vez por consulta nas políticas de participantes/publicações e cria o índice da chave estrangeira de quem enviou uma foto. Os critérios de visibilidade permanecem iguais. Essas otimizações são complementares à correção das repetições.
+
+Verifique o banco com `npm run test:conflicts-db` e `npm run test:sharing-db`. O primeiro testa a migração de uma instalação antiga, revisões desatualizadas, gravações/exclusões, replay seguro da wish list e permissões. O segundo executa a migração de políticas/índice e confere o acesso de visitantes, participantes e organizadores. Ambos usam PostgreSQL em memória com usuários fictícios. Os testes de navegador cobrem `PT409`, o código legado e a preservação de alterações pendentes.
+
+O Advisor ainda pode apontar [políticas permissivas sobrepostas](https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies) na leitura de fotos e [índices ainda sem uso](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index). A correção preserva essas políticas e os índices: esses avisos, isoladamente, não justificam remover regras de privacidade ou um índice recém-criado. As [funções com SECURITY DEFINER](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable) mantêm seus controles explícitos de acesso; não foram concedidas permissões adicionais.
 
 Para diagnóstico real, correlacione o horário de uma tentativa com os logs Postgres/API e a tela Query Performance do projeto. Identifique consultas de maior tempo acumulado e bloqueios; confirme o código HTTP/SQL da gravação antes de alterar políticas ou aplicar SQL. Esses dados exigem acesso administrativo conectado e não são disponíveis pela chave pública do site.
 

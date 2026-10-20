@@ -64,7 +64,7 @@ export async function mockCloud(page) {
       const old = state.wishlists.find(w => w.owner_id === owner);
       if ((old?.revision || null) !== body.p_expected_revision) {
         if (old && old.is_public === body.p_public && JSON.stringify(old.items) === JSON.stringify(body.p_items)) return ok(old.revision);
-        return ok({ code: '40001', message: 'ATLAS_WISHLIST_CONFLICT' }, 409);
+        return ok({ code: 'PT409', message: 'ATLAS_WISHLIST_CONFLICT' }, 409);
       }
       const row = { owner_id: owner, items: body.p_items, is_public: body.p_public, revision: randomUUID() };
       state.wishlists = state.wishlists.filter(w => w !== old); state.wishlists.push(row); return ok(row.revision);
@@ -74,7 +74,7 @@ export async function mockCloud(page) {
     if (path === '/rest/v1/rpc/save_destination') {
       if (!owner) return denied();
       const old = state.posts.find((p) => p.owner_id === owner && p.id === body.p_id);
-      if ((old?.revision || null) !== body.p_expected_revision) return ok({ code: '40001', message: 'ATLAS_CONFLICT' }, 409);
+      if ((old?.revision || null) !== body.p_expected_revision) return ok({ code: 'PT409', message: 'ATLAS_CONFLICT' }, 409);
       const row = { id: body.p_id, owner_id: owner, data: body.p_data, visibility: body.p_visibility, revision: randomUUID() };
       state.posts = state.posts.filter((p) => p !== old); state.posts.push(row);
       state.photos = state.photos.filter((p) => !(p.owner_id === owner && p.destination_id === row.id));
@@ -84,7 +84,7 @@ export async function mockCloud(page) {
     if (path === '/rest/v1/rpc/delete_destination') {
       if (!owner) return denied();
       const old = state.posts.find((p) => p.owner_id === owner && p.id === body.p_id);
-      if (old && old.revision !== body.p_expected_revision) return ok({ code: '40001', message: 'ATLAS_CONFLICT' }, 409);
+      if (old && old.revision !== body.p_expected_revision) return ok({ code: 'PT409', message: 'ATLAS_CONFLICT' }, 409);
       state.posts = state.posts.filter((p) => p !== old); state.photos = state.photos.filter((p) => !(p.owner_id === owner && p.destination_id === body.p_id));
       return ok(null, 204);
     }

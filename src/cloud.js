@@ -46,7 +46,7 @@ function apiError(body, status, path, method) {
   error.code = body?.code || body?.error_code;
   error.status = status;
   error.diagnostic = cloudDiagnostic({ status, code: error.code, path, method, message: body?.message || body?.msg || body?.error_description || (typeof body?.error === 'string' ? body.error : '') });
-  if (error.code === '40001') {
+  if (['PT409', '40001'].includes(error.code)) {
     error.code = 'conflict';
     error.message = path?.endsWith('/atlas_save_wishlist')
       ? 'Sua wish list mudou em outro dispositivo. Abra a wish list e use “Revisar e combinar listas”. Suas alterações locais foram preservadas.'

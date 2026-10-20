@@ -44,7 +44,7 @@ drop policy if exists atlas_trip_read on public.trips;
 create policy atlas_trip_read on public.trips for select to anon, authenticated using (public.atlas_can_read_trip(id));
 drop policy if exists atlas_trip_member_read on public.trip_members;
 create policy atlas_trip_member_read on public.trip_members for select to authenticated
-  using (user_id = auth.uid() or public.atlas_trip_role(trip_id) in ('owner','viewer','editor'));
+  using (user_id = (select auth.uid()) or public.atlas_trip_role(trip_id) in ('owner','viewer','editor'));
 
 -- Browser writes go only through checked RPCs; public links never grant editing.
 create or replace function public.atlas_save_trip(p_id uuid, p_expected_revision uuid, p_name text, p_notes text, p_cover_path text, p_public boolean, p_stops jsonb)
@@ -69,9 +69,9 @@ begin
   if found then
     access := public.atlas_trip_role(p_id);
     if access is null or access not in ('owner','editor') then raise exception 'ATLAS_TRIP_FORBIDDEN' using errcode = '42501'; end if;
-    if p_expected_revision is distinct from previous.revision then raise exception 'ATLAS_TRIP_CONFLICT' using errcode = '40001'; end if;
+    if p_expected_revision is distinct from previous.revision then raise exception 'ATLAS_TRIP_CONFLICT' using errcode = 'PT409'; end if;
     if access <> 'owner' and p_public is distinct from previous.is_public then raise exception 'ATLAS_TRIP_FORBIDDEN' using errcode = '42501'; end if;
-  elsif p_expected_revision is not null then raise exception 'ATLAS_TRIP_CONFLICT' using errcode = '40001';
+  elsif p_expected_revision is not null then raise exception 'ATLAS_TRIP_CONFLICT' using errcode = 'PT409';
   end if;
   if p_cover_path is not null and p_cover_path is distinct from previous.cover_path then
     if split_part(p_cover_path,'/',1) <> auth.uid()::text or not exists
@@ -132,7 +132,7 @@ declare previous public.trips;
 begin
   select * into previous from public.trips where id=p_trip for update;
   if previous.id is null or previous.owner_id is distinct from auth.uid() then raise exception 'ATLAS_TRIP_FORBIDDEN' using errcode='42501'; end if;
-  if previous.revision is distinct from p_expected_revision then raise exception 'ATLAS_TRIP_CONFLICT' using errcode='40001'; end if;
+  if previous.revision is distinct from p_expected_revision then raise exception 'ATLAS_TRIP_CONFLICT' using errcode='PT409'; end if;
   delete from public.trips where id=p_trip;
 end;
 $$;

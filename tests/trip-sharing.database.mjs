@@ -26,6 +26,8 @@ try {
   const files=await readdir(new URL('../supabase/migrations/',import.meta.url));
   const migration=await readFile(new URL(`../supabase/migrations/${files.find(file=>file.endsWith('_atlas_trip_view_sharing.sql'))}`,import.meta.url),'utf8');
   await db.exec(migration);await db.exec(migration);
+  const performanceMigration=await readFile(new URL(`../supabase/migrations/${files.find(file=>file.endsWith('_atlas_policy_initplans_photo_uploader_index.sql'))}`,import.meta.url),'utf8');
+  await db.exec(performanceMigration);await db.exec(performanceMigration);
   for(const [id,name] of [[alice,'Alice'],[bob,'Bob privado'],[charlie,'Charlie privado']]){
     await db.query('insert into auth.users(id,email,raw_user_meta_data) values($1,$2,$3::jsonb)',[id,`${id}@test.invalid`,JSON.stringify({display_name:name})]);
   }

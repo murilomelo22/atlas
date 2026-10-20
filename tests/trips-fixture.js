@@ -10,7 +10,7 @@ export async function mockTrips(page) {
   const auth=req.headers().authorization || '',owner=auth.startsWith('Bearer token-')?auth.slice(13):null;
   let body;try{body=req.postDataJSON();}catch{body={};}
   const ok=(data,status=200)=>route.fulfill({status,contentType:'application/json',body:data==null?'':JSON.stringify(data)});
-  const error=(message,status=403)=>ok({code:status===409?'40001':'42501',message},status);
+  const error=(message,status=403)=>ok({code:status===409?'PT409':'42501',message},status);
   const role=trip=>trip?.owner_id===owner&&owner?'owner':state.members.find(m=>m.trip_id===trip?.id&&m.user_id===owner)?.status==='accepted'?state.members.find(m=>m.trip_id===trip?.id&&m.user_id===owner)?.role:null;
   const canRead=trip=>trip.is_public||trip.owner_id===owner||state.members.some(m=>m.trip_id===trip.id&&m.user_id===owner);
   state.requests.push({path,method:req.method(),owner});

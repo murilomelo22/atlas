@@ -119,11 +119,11 @@ test('HTTP 400/40001 ao reabrir uma lista antiga oferece recuperação sem mensa
   bareConflict = false; await save(page, true); expect(cloud.wishlists[0].items.map(i => i.name)).toEqual(['Osaka local', 'Kyoto na nuvem']);
 });
 
-test('conflito persistente tem só duas tentativas e mantém a revisão local para recuperação', async ({ page }) => {
+test('HTTP 409/PT409 persistente tem só duas tentativas e mantém a revisão local para recuperação', async ({ page }) => {
   await mockTrips(page); await ready(page); await login(page);
   let writes = 0;
   await page.route('**/rpc/atlas_save_wishlist', route => {
-    writes++; return route.fulfill({ status: 400, contentType: 'application/json', body: '{"code":"40001"}' });
+    writes++; return route.fulfill({ status: 409, contentType: 'application/json', body: '{"code":"PT409"}' });
   });
   await open(page); await add(page, 'Desejo pendente'); await save(page);
   await expect(page.locator('#wishlist-resolve')).toBeVisible();

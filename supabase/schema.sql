@@ -149,7 +149,7 @@ begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(owner::text || ':' || p_id, 0));
   select revision into previous from public.destinations where owner_id = owner and id = p_id for update;
   if previous is distinct from p_expected_revision then
-    raise exception 'ATLAS_CONFLICT' using errcode = '40001';
+    raise exception 'ATLAS_CONFLICT' using errcode = 'PT409';
   end if;
   if p_photos is null or jsonb_typeof(p_photos) <> 'array' or jsonb_array_length(p_photos) > 100 then
     raise exception 'Invalid photos' using errcode = '22023';
@@ -178,7 +178,7 @@ begin
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(owner::text || ':' || p_id, 0));
   select revision into previous from public.destinations where owner_id = owner and id = p_id for update;
   if previous is null then return; end if;
-  if previous is distinct from p_expected_revision then raise exception 'ATLAS_CONFLICT' using errcode = '40001'; end if;
+  if previous is distinct from p_expected_revision then raise exception 'ATLAS_CONFLICT' using errcode = 'PT409'; end if;
   delete from public.destinations where owner_id = owner and id = p_id;
 end;
 $$;

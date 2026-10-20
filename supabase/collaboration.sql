@@ -81,6 +81,7 @@ create table if not exists public.trip_photos (
   created_at timestamptz not null default now()
 );
 create index if not exists atlas_trip_photo_trip on public.trip_photos(trip_id);
+create index if not exists atlas_trip_photo_uploader on public.trip_photos(uploader_id);
 alter table public.trip_photos enable row level security;
 revoke all on public.trip_photos from anon,authenticated;
 grant select on public.trip_photos to anon,authenticated;
@@ -133,7 +134,7 @@ revoke all on public.trip_publications from anon,authenticated;
 grant select on public.trip_publications to anon,authenticated;
 drop policy if exists atlas_trip_publication_read on public.trip_publications;
 create policy atlas_trip_publication_read on public.trip_publications for select to anon,authenticated
-  using(user_id=auth.uid() or public.atlas_trip_publication_visible(trip_id,user_id));
+  using(user_id=(select auth.uid()) or public.atlas_trip_publication_visible(trip_id,user_id));
 create or replace function public.atlas_publish_trip_profile(p_trip uuid,p_publish boolean)
 returns void language plpgsql security definer set search_path='' as $$
 begin
@@ -214,7 +215,7 @@ begin
   if found then
     access := public.atlas_trip_role(p_id);
     if access is null or access not in ('owner','editor','viewer') then raise exception 'ATLAS_TRIP_FORBIDDEN' using errcode = '42501'; end if;
-    if p_expected_revision is distinct from previous.revision then raise exception 'ATLAS_TRIP_CONFLICT' using errcode = '40001'; end if;
+    if p_expected_revision is distinct from previous.revision then raise exception 'ATLAS_TRIP_CONFLICT' using errcode = 'PT409'; end if;
 
     if access <> 'owner' then
       if not public.atlas_trip_permission(p_id,'itinerary') and not public.atlas_trip_permission(p_id,'description') then raise exception 'ATLAS_TRIP_FORBIDDEN' using errcode='42501'; end if;
@@ -232,7 +233,7 @@ begin
           select 1 from jsonb_array_elements(previous.stops) old where old->>'id'=s->>'id' or old=s)))
         then raise exception 'ATLAS_TRIP_FORBIDDEN' using errcode='42501'; end if;
     end if;
-  elsif p_expected_revision is not null then raise exception 'ATLAS_TRIP_CONFLICT' using errcode = '40001';
+  elsif p_expected_revision is not null then raise exception 'ATLAS_TRIP_CONFLICT' using errcode = 'PT409';
   end if;
   if p_cover_path is not null and p_cover_path is distinct from previous.cover_path then
     if split_part(p_cover_path,'/',1) <> auth.uid()::text or not exists

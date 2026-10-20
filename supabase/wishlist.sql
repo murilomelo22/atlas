@@ -47,7 +47,7 @@ begin
  if previous.revision is distinct from p_expected_revision then
   -- A lost response can be retried safely, without adding duplicate items.
   if previous.revision is not null and previous.items=p_items and previous.is_public=p_public then return previous.revision;end if;
-  raise exception 'ATLAS_WISHLIST_CONFLICT' using errcode='40001';
+  raise exception 'ATLAS_WISHLIST_CONFLICT' using errcode='PT409';
  end if;
  insert into public.wishlists(owner_id,items,is_public,revision)
  values(owner,p_items,p_public,next_revision)
