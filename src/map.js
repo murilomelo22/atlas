@@ -3,6 +3,7 @@ import { chronologicalStops } from './stats.js';
 import { createHeatLayer, heatPoints } from './heatmap.js';
 import { createBrazilStateLayer } from './map-states.js';
 import { countryFocusBounds } from './country-search.js';
+import { initializePopupResize } from './popup-resize.js';
 import { wrapFeature } from './geography.js';
 const visitedGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6 7-12A7 7 0 1 0 5 9c0 6 7 12 7 12Z"/><path d="m9 9 2 2 4-4"/></svg>';
 export function createMap(countries, onSelect, onAdd, onTileError, memories = {}) {
@@ -84,8 +85,15 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
     medium: { label: 'Médio', width: 320, height: 400 },
     large: { label: 'Grande', width: 480, height: 560 },
   };
-  let cleanPopupSize = 'compact', resizeOpenPopup;
-  try { const saved = localStorage.getItem('atlas-clean-popup-size'); if (Object.hasOwn(popupSizes, saved)) cleanPopupSize = saved; } catch {}
+  let cleanPopupSize = 'compact', customPopupSize, resizeOpenPopup;
+  try {
+    const custom = JSON.parse(localStorage.getItem('atlas-clean-popup-custom-size'));
+    if (custom && Number.isFinite(custom.width) && Number.isFinite(custom.height)) {
+      customPopupSize = { width: Math.max(160, Math.min(custom.width, 640)), height: Math.max(112, Math.min(custom.height, 720)) };
+    }
+    const saved = localStorage.getItem('atlas-clean-popup-size');
+    if (Object.hasOwn(popupSizes, saved) || saved === 'custom' && customPopupSize) cleanPopupSize = saved;
+  } catch {}
   map.on('resize', () => resizeOpenPopup?.());
   function setHeatMode(value) {
     heatMode = ['visits', 'days'].includes(value) ? value : 'off';
@@ -106,6 +114,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
     for (const d of visited) {
       const popup = document.createElement('div'); popup.className = 'clean-place-popup';
       const name = document.createElement('strong'); name.textContent = d.name;
+      name.title = d.name;
       const country = document.createElement('small'); country.textContent = d.countryName || 'País não identificado';
       popup.append(name, country);
       const display = document.createElement('label'); display.className = 'clean-place-display'; display.append('Exibir');
@@ -115,8 +124,22 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
       const sizeLabel = document.createElement('label'); sizeLabel.className = 'clean-place-size'; sizeLabel.append('Tamanho');
       const sizeSelect = document.createElement('select'); sizeSelect.setAttribute('aria-label', 'Tamanho do cartão da viagem');
       for (const [value, { label }] of Object.entries(popupSizes)) sizeSelect.add(new Option(label, value));
+      const customOption = new Option('Personalizado', 'custom');
+      sizeSelect.add(customOption);
       sizeLabel.append(sizeSelect);
       const options = document.createElement('div'); options.className = 'clean-place-options'; options.append(display, sizeLabel); popup.append(options);
+      options.id = `clean-place-options-${crypto.randomUUID()}`;
+      const tools = document.createElement('button'); tools.type = 'button'; tools.className = 'clean-place-tools';
+      tools.setAttribute('aria-label', 'Opções do cartão'); tools.setAttribute('aria-expanded', 'false');
+      tools.setAttribute('aria-controls', options.id);
+      tools.title = 'Exibir opções do cartão';
+      tools.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14m-10-12v4m6 1v4m-6 1v4"/></svg>'; popup.append(tools);
+      tools.onclick = () => tools.setAttribute('aria-expanded', String(popup.classList.toggle('show-popup-options')));
+      options.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || !popup.classList.contains('show-popup-options')) return;
+        event.preventDefault(); event.stopPropagation(); popup.classList.remove('show-popup-options');
+        tools.setAttribute('aria-expanded', 'false'); tools.focus();
+      });
       const body = document.createElement('div'); body.className = 'clean-place-body'; popup.append(body);
       const rating = document.createElement('p'); rating.className = 'clean-place-rating';
       rating.setAttribute('aria-label', d.rating ? `Minha avaliação: ${d.rating} de 5` : 'Ainda sem avaliação');
@@ -156,31 +179,64 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
       const view = focusedCountry && countryFocusBounds(focusedCountry);
       const anchor = view && (view[0][1] + view[1][1]) / 2;
       const lng = focusedCountry ? d.lng + 360 * Math.round((anchor - d.lng) / 360) : d.lng;
+      let resizer;
       const marker = L.marker([d.lat, lng], { title: d.name, alt: d.name,
         icon: L.divIcon({ className: 'atlas-visited-pin', html: visitedGlyph, iconSize: [32, 38], iconAnchor: [16, 34] }) })
         .bindTooltip(document.createTextNode(d.name), { direction: 'top', offset: [0, -8] })
-        .bindPopup(popup, { maxWidth: 240, minWidth: 240, autoPanPaddingTopLeft: [12, 80], autoPanPaddingBottomRight: [12, 30] })
-        .on('popupopen', () => { applyContentMode(); resizeOpenPopup = applyPopupSize; applyPopupSize(); memories.previews?.(); })
-        .on('popupclose', () => { if (resizeOpenPopup === applyPopupSize) resizeOpenPopup = null; }).addTo(cleanMarkers);
-      function applyPopupSize() {
-        const size = popupSizes[cleanPopupSize], available = map.getSize();
-        const width = Math.max(120, Math.min(size.width, available.x - 64));
-        const height = Math.max(140, Math.min(size.height, available.y - (cleanMode ? 220 : 60)));
+        .bindPopup(popup, { className: 'clean-place-card', maxWidth: 240, minWidth: 240, autoPanPaddingTopLeft: [12, 80], autoPanPaddingBottomRight: [12, 30] })
+        .on('popupopen', () => {
+          applyContentMode(); resizeOpenPopup = applyPopupSize; applyPopupSize();
+          resizer ||= initializePopupResize(marker.getPopup(), popup, (width, height, pan) => {
+            popup.classList.remove('show-popup-options'); tools.setAttribute('aria-expanded', 'false');
+            customPopupSize = dimensions({ width, height }); cleanPopupSize = 'custom'; applyPopupSize(pan);
+          }, () => { savePopupSize(); if (marker.isPopupOpen()) applyPopupSize(); });
+          memories.previews?.();
+        })
+        .on('popupclose', () => {
+          resizer?.cancel();
+          if (resizeOpenPopup === applyPopupSize) resizeOpenPopup = null;
+        }).addTo(cleanMarkers);
+      function dimensions(size) {
+        const available = map.getSize();
+        return {
+          width: Math.round(Math.max(160, Math.min(size.width, available.x - 76, 640))),
+          height: Math.round(Math.max(112, Math.min(size.height, available.y - (cleanMode ? 220 : 60), 720))),
+        };
+      }
+      function savePopupSize() {
+        try {
+          if (customPopupSize) localStorage.setItem('atlas-clean-popup-custom-size', JSON.stringify(customPopupSize));
+          localStorage.setItem('atlas-clean-popup-size', cleanPopupSize);
+        } catch {}
+      }
+      function applyPopupSize(pan = true) {
+        const manual = cleanPopupSize === 'custom';
+        const { width, height } = dimensions(manual ? customPopupSize : popupSizes[cleanPopupSize]);
+        customOption.disabled = !customPopupSize;
         sizeSelect.value = cleanPopupSize;
         popup.style.setProperty('--clean-popup-height', `${height}px`);
+        popup.style.height = manual ? `${height}px` : '';
+        popup.classList.toggle('is-small', manual && (width < 220 || height < 200));
+        if (!popup.classList.contains('is-small')) {
+          popup.classList.remove('show-popup-options'); tools.setAttribute('aria-expanded', 'false');
+        }
         const card = marker.getPopup();
         card.options.minWidth = width; card.options.maxWidth = width;
         card.options.autoPanPaddingTopLeft = [12, cleanMode ? 150 : 12];
-        card.update();
+        card.options.autoPan = pan;
+        card.update(); card.options.autoPan = true;
       }
       sizeSelect.onchange = () => {
         cleanPopupSize = sizeSelect.value;
-        try { localStorage.setItem('atlas-clean-popup-size', cleanPopupSize); } catch {}
+        savePopupSize();
         applyPopupSize(); memories.previews?.();
       };
       contentSelect.onchange = () => {
         cleanContentMode = contentSelect.value;
         try { localStorage.setItem('atlas-clean-popup-content', cleanContentMode); } catch {}
+        if (popup.classList.contains('show-popup-options')) {
+          popup.classList.remove('show-popup-options'); tools.setAttribute('aria-expanded', 'false'); tools.focus();
+        }
         applyContentMode(); marker.getPopup().update(); memories.previews?.();
       };
     }

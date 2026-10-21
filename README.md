@@ -1,6 +1,21 @@
 # atlas
 atlas pessoal, teste usando o codex.
 
+## Redimensionar a caixa livremente
+
+Na versão 34, **arraste a alça no canto superior esquerdo da caixa** para mudar
+a largura e a altura, com mouse ou dedo. A caixa pode ficar menor que o preset
+Compacto, mantendo a avaliação visível e a seta apontada para o destino.
+Em tamanhos pequenos, **Opções do cartão** reúne os seletores de conteúdo e
+tamanho. As dimensões personalizadas ficam salvas no navegador; os presets
+permitem restaurar um tamanho anterior. Com a alça focada, as setas do teclado
+também redimensionam; Shift usa passos maiores. A caixa se adapta à janela e
+notas e fotos continuam acessíveis por rolagem.
+
+Verificação: **53 testes passaram** em desktop e celular, incluindo arraste por
+mouse e toque, teclado, dimensões salvas, galeria, tela cheia e cache offline.
+O caso de gesto por toque foi pulado no projeto desktop.
+
 ## Tamanho do cartão no mapa
 
 Na versão 33, ao abrir um destino em tela cheia, o cartão começa em tamanho

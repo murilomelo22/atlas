@@ -1,11 +1,11 @@
-const VERSION = '33';
+const VERSION = '34';
 const CACHE = `atlas-pessoal-v${VERSION}-fresh-assets`;
 const SUBDIVISIONS_CACHE = 'atlas-subdivisions-v1';
 const FILES = [ './', './index.html', './styles.css', './src/main.js', './src/ui.js', './src/db.js', './src/map.js', './src/geography.js', './src/geocoding.js', './src/gallery.js', './src/photos.js', './src/stats.js', './src/dates.js', './vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css', './vendor/leaflet/images/marker-icon.png', './vendor/leaflet/images/marker-icon-2x.png', './vendor/leaflet/images/marker-shadow.png', './vendor/leaflet/images/layers.png', './vendor/leaflet/images/layers-2x.png', './vendor/markercluster/leaflet.markercluster.js', './vendor/markercluster/MarkerCluster.css', './vendor/markercluster/MarkerCluster.Default.css', './vendor/countries.geojson' ];
 FILES.push('./config.js', './src/cloud.js', './src/session.js', './src/sync.js', './src/social.js');
 FILES.push('./src/journeys.js', './src/trip-data.js', './src/sharing.js', './src/recap.js');
 FILES.push('./src/heatmap.js', './src/trip-gallery.js', './src/trip-view.js', './src/trip-route.js', './src/trip-photo-location.js', './src/media.js', './src/wishlist.js', './src/wishlist-data.js', './src/wishlist-sync.js');
-FILES.push('./src/map-focus.js');
+FILES.push('./src/map-focus.js', './src/popup-resize.js');
 FILES.push('./src/map-states.js', './vendor/brazil-states.geojson');
 FILES.push('./src/country-search.js', './vendor/subdivisions/index.json');
 FILES.push('./src/cloud-media.js');

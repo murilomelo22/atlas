@@ -179,3 +179,85 @@ test('cartão grande se adapta a uma janela menor e mantém controles e galeria 
   await page.locator('[data-gallery-close]').click();
   await expect(page.locator('#map-area')).toHaveClass(/is-focused/);
 });
+
+async function openScoreCard(page) {
+  await page.evaluate(() => { document.getElementById('map-area').requestFullscreen = () => Promise.reject(new Error('Fallback')); });
+  await page.locator('#clean-map-button').click();
+  await page.locator('.atlas-visited-pin[title="Paris avaliada"]').click();
+  await page.getByRole('combobox', { name: 'Conteúdo da viagem no mapa' }).selectOption('score');
+  const handle = page.getByRole('button', { name: 'Redimensionar cartão da viagem' });
+  await handle.hover();
+  return handle;
+}
+
+test('arrastar o canto reduz a caixa abaixo de Compacto e salva as dimensões livres', async ({ page }) => {
+  const handle = await openScoreCard(page);
+  const card = page.locator('.clean-place-popup'), compact = await card.boundingBox();
+  const beforeMap = await page.locator('.leaflet-map-pane').getAttribute('style');
+  const grip = await handle.boundingBox();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 + 40, grip.y + grip.height / 2 + 100, { steps: 8 });
+  await page.mouse.up();
+  const small = await card.boundingBox();
+  expect(small.width).toBeLessThan(compact.width - 50);
+  expect(small.height).toBeLessThan(compact.height - 60);
+  expect(await page.locator('.leaflet-map-pane').getAttribute('style')).toBe(beforeMap);
+  await expect(page.getByRole('img', { name: 'Minha avaliação: 5 de 5' })).toBeVisible();
+  await expect(page.locator('.clean-place-rating .clean-rating-star')).toHaveCount(5);
+  await page.locator('.leaflet-popup-close-button').click();
+  await page.locator('.atlas-visited-pin[title="Paris avaliada"]').click();
+  const reopened = await card.boundingBox();
+  expect(reopened.width).toBeCloseTo(small.width, 0); expect(reopened.height).toBeCloseTo(small.height, 0);
+  await page.locator('#clean-map-close').click();
+  await page.reload(); await expect(page.locator('#clean-map-button')).toBeEnabled();
+  await page.locator('#clean-map-button').click(); await page.locator('.atlas-visited-pin[title="Paris avaliada"]').click();
+  const restored = await card.boundingBox();
+  expect(restored.width).toBeCloseTo(small.width, 0); expect(restored.height).toBeCloseTo(small.height, 0);
+  await page.getByRole('button', { name: 'Opções do cartão' }).click();
+  const size = page.getByRole('combobox', { name: 'Tamanho do cartão da viagem' });
+  await expect(size).toHaveValue('custom');
+  await size.selectOption('compact');
+  await expect(page.getByRole('combobox', { name: 'Conteúdo da viagem no mapa' })).toBeVisible();
+  expect((await card.boundingBox()).width).toBeGreaterThan(small.width);
+});
+
+test('setas ajustam largura e altura e a caixa respeita os limites da tela', async ({ page }) => {
+  const handle = await openScoreCard(page);
+  const card = page.locator('.clean-place-popup'), initial = await card.boundingBox();
+  await handle.focus(); await handle.press('ArrowRight'); await handle.press('ArrowDown');
+  const larger = await card.boundingBox();
+  expect(larger.width).toBeCloseTo(initial.width + 8, 0);
+  expect(larger.height).toBeCloseTo(initial.height + 8, 0);
+  await handle.press('ArrowLeft'); await handle.press('ArrowUp');
+  const smaller = await card.boundingBox();
+  expect(smaller.width).toBeCloseTo(initial.width, 0); expect(smaller.height).toBeCloseTo(initial.height, 0);
+  await page.setViewportSize({ width: 320, height: 480 });
+  await handle.press('Shift+ArrowRight'); await handle.press('Shift+ArrowDown');
+  await expect(async () => {
+    const bounds = await page.locator('.leaflet-popup').boundingBox();
+    expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
+    expect(bounds.y).toBeGreaterThanOrEqual(0); expect(bounds.y + bounds.height).toBeLessThanOrEqual(480);
+  }).toPass();
+  await expect(page.locator('#map-area')).toHaveClass(/is-focused/);
+});
+
+test('arrastar com o dedo redimensiona sem arrastar o mapa ou abrir o editor', async ({ page, context }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile', 'Gesto em tela de toque');
+  const handle = await openScoreCard(page);
+  const initial = await page.locator('.clean-place-popup').boundingBox();
+  const grip = await handle.boundingBox(), session = await context.newCDPSession(page);
+  const beforeMap = await page.locator('.leaflet-map-pane').getAttribute('style');
+  const x = grip.x + grip.width / 2, y = grip.y + grip.height / 2;
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
+  for (let step = 1; step <= 6; step++) {
+    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + step * 6, y: y + step * 15, id: 1 }] });
+  }
+  await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await session.detach();
+  const resized = await page.locator('.clean-place-popup').boundingBox();
+  expect(resized.width).toBeLessThan(initial.width - 50); expect(resized.height).toBeLessThan(initial.height - 60);
+  expect(await page.locator('.leaflet-map-pane').getAttribute('style')).toBe(beforeMap);
+  await expect(page.locator('#editor-dialog')).not.toBeVisible();
+  await expect(page.getByRole('img', { name: 'Minha avaliação: 5 de 5' })).toBeVisible();
+});
