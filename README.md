@@ -1,6 +1,38 @@
 # atlas
 atlas pessoal, teste usando o codex.
 
+## Tamanho do cartão no mapa
+
+Na versão 33, ao abrir um destino em tela cheia, o cartão começa em tamanho
+**Compacto**. Use **Tamanho** ao lado de **Exibir** para alternar entre
+**Compacto**, **Médio** e **Grande**. O Atlas lembra a escolha neste navegador
+e adapta as dimensões ao espaço disponível, inclusive ao girar o celular.
+Notas e fotos têm rolagem interna; os controles permanecem visíveis.
+O ajuste muda apenas a apresentação do cartão.
+
+Verificação: **46 testes passaram** em desktop e celular, cobrindo tamanhos,
+preferência salva, notas longas, galeria, busca e tela cheia. Dois casos
+exclusivos de celular foram pulados no projeto desktop.
+
+## Interface no celular
+
+Na versão 32, o título, a legenda e a dica de uso ficam fora da área interativa
+do mapa. Os botões de pesquisa e tela cheia ficam juntos no cabeçalho, enquanto
+zoom e enquadramento permanecem sobre o mapa.
+
+**Ajustes**, abaixo do mapa, reúne tema, mapa de calor, rota e visibilidade das
+viagens em um painel recolhível. Escape fecha o painel e devolve o foco ao botão;
+abrir a pesquisa ou a tela cheia também o recolhe. As preferências existentes
+continuam salvas no navegador. No computador, as opções continuam visíveis.
+
+O cabeçalho usa ações compactas e o menu pode ser deslizado na horizontal.
+A divulgação do aplicativo para Mac aparece somente na tela de computador.
+
+Verificação: **102 testes de interface passaram** em desktop e celular; dois
+casos exclusivos de celular foram pulados no projeto desktop. O layout foi
+checado de 320 a 700 px, incluindo abertura dos ajustes, pesquisa, tela cheia,
+preferências persistidas e ausência de sobreposição dos controles.
+
 ## Pesquisar países no mapa
 
 Na versão 30, **Pesquisar** no mapa também funciona em tela cheia. Digite o nome

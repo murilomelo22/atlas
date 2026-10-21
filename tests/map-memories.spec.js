@@ -120,3 +120,62 @@ test('grupos de lugares usam o check do mapa limpo, com quantidade acessível', 
   await expect(page.locator('.cluster-check svg')).toBeVisible(); await expect(page.locator('.cluster-check')).toHaveAttribute('aria-label', /lugares próximos/);
   expect((await page.locator('.cluster-check').textContent()).trim()).toBe('');
 });
+
+test('cartão abre compacto e permite mudar tamanho sem alterar a avaliação', async ({ page }) => {
+  await page.evaluate(async () => {
+    const db = await import('/src/db.js');
+    const destination = (await db.getDestinations()).find(d => d.id === 'review');
+    await db.saveDestination({ ...destination, notes: 'Uma memória longa para ler com calma.\n'.repeat(100) }, await db.getPhotos('review'));
+  });
+  await page.reload(); await expect(page.locator('#clean-map-button')).toBeEnabled();
+  await page.locator('#clean-map-button').click();
+  const pin = page.locator('.atlas-visited-pin[title="Paris avaliada"]');
+  await pin.click();
+  const size = page.getByRole('combobox', { name: 'Tamanho do cartão da viagem' });
+  const card = page.locator('.clean-place-popup');
+  await expect(size).toHaveValue('compact');
+  const compact = await card.boundingBox();
+  expect(compact.height).toBeLessThanOrEqual(261);
+  expect(await page.locator('.clean-place-body').evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);
+  await size.selectOption('large');
+  const large = await card.boundingBox();
+  expect(large.height).toBeGreaterThan(compact.height);
+  expect(large.width).toBeGreaterThanOrEqual(compact.width);
+  await expect(page.locator('.clean-place-rating')).toHaveAttribute('aria-label', 'Minha avaliação: 5 de 5');
+  await size.selectOption('medium');
+  const medium = await card.boundingBox();
+  expect(medium.height).toBeGreaterThan(compact.height);
+  expect(medium.height).toBeLessThan(large.height);
+  await page.locator('.leaflet-popup-close-button').click(); await pin.click();
+  await expect(size).toHaveValue('medium');
+  await page.locator('#clean-map-close').click();
+  await page.reload(); await expect(page.locator('#clean-map-button')).toBeEnabled();
+  await page.locator('#clean-map-button').click(); await pin.click();
+  await expect(size).toHaveValue('medium');
+  const saved = await page.evaluate(async () => {
+    const db = await import('/src/db.js');
+    const destination = (await db.getDestinations()).find(d => d.id === 'review');
+    return { rating: destination.rating, notes: destination.notes, photoIds: destination.photoIds };
+  });
+  expect(saved).toEqual({ rating: 5, notes: 'Uma memória longa para ler com calma.\n'.repeat(100), photoIds: ['review-photo'] });
+});
+
+test('cartão grande se adapta a uma janela menor e mantém controles e galeria acessíveis', async ({ page }) => {
+  await page.locator('#clean-map-button').click();
+  await page.locator('.atlas-visited-pin[title="Paris avaliada"]').click();
+  const size = page.getByRole('combobox', { name: 'Tamanho do cartão da viagem' });
+  await size.selectOption('large');
+  await page.setViewportSize({ width: 320, height: 480 });
+  await expect(async () => {
+    const card = await page.locator('.leaflet-popup').boundingBox();
+    expect(card.x).toBeGreaterThanOrEqual(0);
+    expect(card.x + card.width).toBeLessThanOrEqual(320);
+    expect(card.y).toBeGreaterThanOrEqual(0);
+    expect(card.y + card.height).toBeLessThanOrEqual(480);
+  }).toPass();
+  await expect(size).toBeVisible();
+  await page.getByRole('button', { name: 'Abrir memória 1 de Paris avaliada' }).click();
+  await expect(page.locator('#gallery-dialog img')).toBeVisible();
+  await page.locator('[data-gallery-close]').click();
+  await expect(page.locator('#map-area')).toHaveClass(/is-focused/);
+});

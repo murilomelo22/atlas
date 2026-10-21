@@ -1,3 +1,4 @@
+import { openMapSettings } from './map-settings-helper.js';
 import {test,expect} from '@playwright/test';
 import {mockTrips} from './trips-fixture.js';
 import {ALICE} from './cloud-fixture.js';
@@ -22,9 +23,9 @@ test('notas de viagem são copiadas apenas com escolha explícita',async({page})
 });
 
 test('países pintados permanecem com marcadores e números ocultos, inclusive após recarregar',async({page})=>{
- await mockTrips(page);await ready(page);await expect(page.locator('.atlas-cluster')).toHaveCount(1);await page.locator('#route-toggle').check();await page.locator('#show-markers').uncheck();
+ await mockTrips(page);await ready(page);await expect(page.locator('.atlas-cluster')).toHaveCount(1);await openMapSettings(page); await page.locator('#route-toggle').check();await openMapSettings(page); await page.locator('#show-markers').uncheck();
  await expect(page.locator('.atlas-pin,.atlas-cluster')).toHaveCount(0);await expect(page.locator('#map path[stroke-dasharray]')).toHaveCount(0);await expect(page.locator('#route-toggle')).toBeDisabled();await expect(page.locator('#map path[data-country-id="380"]')).toHaveAttribute('fill','#c09a71');
- await page.reload();await expect(page.locator('#show-markers')).not.toBeChecked();await expect(page.locator('.atlas-cluster')).toHaveCount(0);await expect(page.locator('#map path[data-country-id="380"]')).toHaveAttribute('fill','#c09a71');await page.locator('#show-markers').check();await expect(page.locator('.atlas-cluster')).toHaveCount(1);
+ await page.reload();await expect(page.locator('#show-markers')).not.toBeChecked();await expect(page.locator('.atlas-cluster')).toHaveCount(0);await expect(page.locator('#map path[data-country-id="380"]')).toHaveAttribute('fill','#c09a71');await openMapSettings(page); await page.locator('#show-markers').check();await expect(page.locator('.atlas-cluster')).toHaveCount(1);
 });
 
 test('moradia sincroniza com símbolo de casa e fica fora das estatísticas de viagens',async({page})=>{

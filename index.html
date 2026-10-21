@@ -4,19 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101310">
-  <meta name="atlas-version" content="31">
+  <meta name="atlas-version" content="33">
   <meta name="description" content="Um mapa das suas viagens, fotografias e memórias. Seus dados ficam no seu navegador.">
   <title>Atlas Pessoal — seu mundo, revisitado</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23101310'/%3E%3Cpath d='M32 8L45 45 32 38 19 45Z' fill='%23c09a71'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="./vendor/markercluster/MarkerCluster.css">
   <link rel="stylesheet" href="./vendor/markercluster/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="./styles.css?v=31">
+  <link rel="stylesheet" href="./styles.css?v=33">
   <script src="./vendor/leaflet/leaflet.js" defer></script>
   <script src="./vendor/markercluster/leaflet.markercluster.js" defer></script>
-  <script type="module" src="./src/app-updates.js?v=31"></script>
-  <script type="module" src="./src/main.js?v=31"></script>
-  <link rel="stylesheet" href="./download.css?v=31">
+  <script type="module" src="./src/app-updates.js?v=33"></script>
+  <script type="module" src="./src/main.js?v=33"></script>
+  <link rel="stylesheet" href="./download.css?v=33">
 </head>
 <body>
   <a class="skip-link" href="#destinations-panel">Ir para meus destinos</a>
@@ -25,10 +25,10 @@
     <div class="header-actions">
       <div class="app-download"><a id="download-app-button" class="app-download-button" href="https://github.com/murilomelo22/atlas/releases/download/desktop-v0.1.1/Atlas-Pessoal-0.1.1-universal.dmg" aria-label="Baixar aplicativo Atlas Pessoal 0.1.1 para Mac"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 15v5h14v-5"/></svg><span>Baixar aplicativo<small>v0.1.1 · Mac · DMG</small></span></a><a class="app-download-help" href="./instalar.html">Como instalar no Mac</a></div>
       <span class="local-badge" title="Dados armazenados apenas neste navegador"><span></span> Salvo no seu navegador</span>
-      <button id="export-button" class="quiet" aria-label="Exportar backup"><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m-4 4 4-4 4 4M4 12v5h12v-5"/></svg> <span>Exportar</span></button>
-      <button id="import-button" class="quiet" aria-label="Importar backup"><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 12v5h12v-5"/></svg> <span>Importar</span></button>
+      <button id="export-button" class="quiet" aria-label="Exportar backup" title="Exportar backup"><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3m-4 4 4-4 4 4M4 12v5h12v-5"/></svg> <span>Exportar</span></button>
+      <button id="import-button" class="quiet" aria-label="Importar backup" title="Importar backup"><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 12v5h12v-5"/></svg> <span>Importar</span></button>
       <input type="file" id="import-input" accept="application/json,.json" hidden aria-label="Arquivo de backup">
-      <button id="add-button" class="primary">＋ <span>Adicionar destino</span></button>
+      <button id="add-button" class="primary" aria-label="Adicionar destino" title="Adicionar destino">＋ <span>Adicionar destino</span></button>
     </div>
   </header>
   <nav class="social-nav" aria-label="Conta e comunidade">
@@ -61,21 +61,27 @@
         </div>
         <div id="examples-banner" class="examples-banner" hidden><p>Um começo pela Itália.<br><span>Estes destinos são exemplos editáveis.</span></p><button id="clear-examples" class="text-button">Limpar exemplos</button></div>
         <div id="destination-list" class="destination-list" aria-live="polite"><p class="loading">Preparando suas memórias…</p></div>
-        <footer class="sidebar-footer">Cada lugar guarda uma parte de você.<br><span>Faça backups para levar suas memórias adiante.</span><div class="app-version"><small>Versão 31</small><button type="button" data-app-update class="text-button">Atualizar site</button></div><p id="app-update-status" role="status" hidden></p></footer>
+        <footer class="sidebar-footer">Cada lugar guarda uma parte de você.<br><span>Faça backups para levar suas memórias adiante.</span><div class="app-version"><small>Versão 33</small><button type="button" data-app-update class="text-button">Atualizar site</button></div><p id="app-update-status" role="status" hidden></p></footer>
       </section>
       <section id="detail-panel" hidden aria-label="Detalhes do destino"></section>
     </aside>
     <section class="map-area" aria-label="Mapa dos seus destinos" id="map-area">
       <div id="map" aria-label="Mapa interativo; clique para adicionar um destino"></div>
-      <button type="button" id="country-search-button" class="country-search-toggle quiet" aria-expanded="false" aria-controls="country-search-panel" disabled><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>Pesquisar</button>
+      <button type="button" id="country-search-button" class="country-search-toggle quiet" aria-label="Pesquisar país" title="Pesquisar país" aria-expanded="false" aria-controls="country-search-panel" disabled><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><span>Pesquisar</span></button>
       <section id="country-search-panel" class="country-search-panel" aria-labelledby="country-search-title" hidden>
         <header><h3 id="country-search-title">Pesquisar país</h3><button type="button" id="country-search-close" class="icon-button" aria-label="Fechar pesquisa">×</button></header>
         <form id="country-search-form"><label for="country-search-input">País</label><div class="country-search-field"><input type="search" id="country-search-input" placeholder="Ex.: Brasil, Itália, Japão…" autocomplete="off" aria-controls="country-search-results" aria-describedby="country-search-feedback"><button type="submit" class="quiet">Buscar</button></div></form>
         <p id="country-search-feedback" role="status">Pesquise um país pelo nome ou pela sigla.</p><div id="country-search-results" class="country-search-results"></div>
       </section>
       <section id="country-search-summary" class="country-search-summary" aria-label="País pesquisado" hidden><button type="button" id="country-search-clear" class="icon-button" aria-label="Limpar país pesquisado" title="Voltar ao mapa de viagens">×</button><h3 id="country-search-name"></h3><p id="country-search-count"></p><p id="country-search-status" role="status"></p><small><span aria-hidden="true">●</span> Dourado: lugares e regiões visitados</small></section>
-      <div class="map-title"><p class="eyebrow">UM MUNDO DE MEMÓRIAS</p><h2>Seu mundo,<br><em>revisitado.</em></h2></div>
-      <div class="map-toolbar"><label class="map-style-label">Mapa<select id="map-style"><option value="dark">Atlas escuro</option><option value="light">Atlas claro</option><option value="streets">Ruas</option><option value="offline">Atlas sem tiles</option></select></label><label class="map-style-label">Calor<select id="heat-mode" aria-label="Mapa de calor"><option value="off">Desativado</option><option value="visits">Por visitas</option><option value="days">Por dias</option></select></label><label class="route-switch"><input id="route-toggle" type="checkbox" aria-label="Rota cronológica"><span>Rota <span class="route-extra">cronológica</span></span></label><button id="fit-button" class="quiet" aria-label="Enquadrar todos os destinos">⌖ <span>Ver todos</span></button></div>
+      <div class="map-title"><p class="eyebrow">UM MUNDO DE MEMÓRIAS</p><h2>Seu mundo,<br> <em>revisitado.</em></h2></div>
+      <button id="fit-button" class="map-fit-button quiet" aria-label="Enquadrar todos os destinos" title="Enquadrar todos os destinos">⌖ <span>Ver todos</span></button>
+      <button type="button" id="map-settings-button" class="map-settings-button quiet" aria-expanded="false" aria-controls="map-settings"><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/><path d="M7 3v4m6 1v4m-6 1v4"/></svg>Ajustes</button>
+      <div id="map-settings" class="map-settings" role="group" aria-label="Ajustes do mapa">
+        <div class="map-toolbar"><label class="map-style-label">Tema do mapa<select id="map-style"><option value="dark">Atlas escuro</option><option value="light">Atlas claro</option><option value="streets">Ruas</option><option value="offline">Atlas sem tiles</option></select></label><label class="map-style-label">Mapa de calor<select id="heat-mode" aria-label="Mapa de calor"><option value="off">Desativado</option><option value="visits">Por visitas</option><option value="days">Por dias</option></select></label><label class="route-switch"><input id="route-toggle" type="checkbox" aria-label="Rota cronológica"><span>Rota <span class="route-extra">cronológica</span></span></label></div>
+        <label class="marker-switch"><input id="show-markers" type="checkbox" checked> Mostrar viagens no mapa <small>memórias e grupos de lugares</small></label>
+        <div id="heat-legend" class="heat-legend" hidden><strong data-heat-label></strong><span class="heat-scale"></span><small>Menos ← concentração → Mais</small><small>Lugares registrados, sem rastreamento GPS.</small></div>
+      </div>
       <button type="button" id="clean-map-button" class="clean-map-button quiet" aria-label="Abrir mapa limpo em tela cheia" title="Tela cheia com seus lugares visitados" disabled><svg class="button-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></svg><span>Mapa limpo</span></button>
       <div id="clean-map-brand" class="clean-map-brand" hidden><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><path d="M24 9 28 27 10 31Z"/><path d="m24 9-7 14 11 4"/></svg><div><p class="clean-map-name">Atlas <span>Pessoal</span></p><p class="clean-map-slogan">Memórias em movimento</p></div></div>
       <div class="clean-map-controls" hidden>
@@ -83,9 +89,7 @@
         <button type="button" id="clean-map-close" class="quiet" aria-label="Sair do mapa em tela cheia" title="Sair da tela cheia (Esc)">×</button>
       </div>
       <p id="clean-map-empty" class="clean-map-empty" role="status" hidden>Ainda não há lugares visitados nesta coleção.<br><span>Adicione suas memórias para vê-las aqui.</span></p>
-      <div id="heat-legend" class="heat-legend" hidden><strong data-heat-label></strong><span class="heat-scale"></span><small>Menos ← concentração → Mais</small><small>Lugares registrados, sem rastreamento GPS.</small></div>
-      <label class="marker-switch"><input id="show-markers" type="checkbox" checked> Mostrar viagens no mapa <small>memórias e grupos de lugares</small></label>
-      <div class="map-status" id="map-status" role="status">Clique em qualquer lugar para guardar uma memória</div>
+      <div class="map-status" id="map-status" role="status">Toque no mapa para guardar uma memória</div>
       <div class="map-legend"><span></span> Países visitados <span class="home-legend"></span> Moradia <small>mais tempo, mais intensidade</small></div>
     </section>
   </main>

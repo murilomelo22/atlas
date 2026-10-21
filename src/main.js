@@ -335,6 +335,21 @@ function bindEvents() {
   $('#route-toggle').disabled = !mapController.markersVisible();
   $('#show-markers').onchange = (e) => { mapController.setMarkersVisible(e.target.checked); $('#route-toggle').disabled = !e.target.checked; };
   $('#fit-button').onclick = () => { countrySearch?.reset(); mapController.fit(destinations); };
+  const mapSettingsButton = $('#map-settings-button');
+  const closeMapSettings = () => {
+    $('#map-area').classList.remove('settings-open');
+    mapSettingsButton.setAttribute('aria-expanded', 'false');
+  };
+  mapSettingsButton.onclick = () => {
+    const expanded = $('#map-area').classList.toggle('settings-open');
+    mapSettingsButton.setAttribute('aria-expanded', String(expanded));
+  };
+  $('#map-settings').addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault(); closeMapSettings(); mapSettingsButton.focus();
+  });
+  $('#clean-map-button').addEventListener('click', closeMapSettings);
+  $('#country-search-button').addEventListener('click', closeMapSettings);
   $('#clear-examples').onclick = async () => {
     if (!await confirmAction('Limpar os exemplos?', 'Somente os exemplos que você ainda não editou serão removidos. Suas memórias serão preservadas.', 'Limpar exemplos')) return;
     try { await removeDestinations(destinations.filter((d) => d.example).map((d) => d.id)); await refresh(); notify('Exemplos removidos. O próximo destino é seu.'); }

@@ -1,3 +1,4 @@
+import { openMapSettings } from './map-settings-helper.js';
 import { test,expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { mockTrips } from './trips-fixture.js';
@@ -69,7 +70,7 @@ test('resumos com sobreposição, virada de mês, comparação e exportações',
 });
 
 test('estilos de mapa persistem e modal de roteiro não transborda',async({page})=>{
- await mockTrips(page);await ready(page);await page.locator('#map-style').selectOption('light');await expect(page.locator('#map')).toHaveAttribute('data-style','light');await page.reload();await expect(page.locator('#map-style')).toHaveValue('light');await page.locator('#map-style').selectOption('offline');await expect(page.locator('#map .leaflet-tile')).toHaveCount(0);
+ await mockTrips(page);await ready(page);await openMapSettings(page); await page.locator('#map-style').selectOption('light');await expect(page.locator('#map')).toHaveAttribute('data-style','light');await page.reload();await expect(page.locator('#map-style')).toHaveValue('light');await openMapSettings(page); await page.locator('#map-style').selectOption('offline');await expect(page.locator('#map .leaflet-tile')).toHaveCount(0);
  await newTrip(page);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await page.locator('#trips-dialog').evaluate(d=>d.scrollWidth<=d.clientWidth)).toBe(true);
 });
 

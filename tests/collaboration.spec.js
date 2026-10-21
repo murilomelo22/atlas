@@ -1,3 +1,4 @@
+import { openMapSettings } from './map-settings-helper.js';
 import { test, expect } from '@playwright/test';
 import { mockTrips } from './trips-fixture.js';
 import { ALICE } from './cloud-fixture.js';
@@ -91,14 +92,14 @@ test('mapa de calor por visitas/dias, privacidade e estilos locais sem tiles de 
   const home = cloud.addPost('home', 'Minha casa'); home.data.kind = 'home';
   cloud.addPost('future', 'Viagem futura').data.visits = [{ arrival: '2099-01-01', departure: '2099-01-04', manualDays: null }];
   const tiles = []; page.on('request', r => { if (/cartocdn|tile.openstreetmap/.test(r.url())) tiles.push(r.url()); });
-  await ready(page); await page.locator('#heat-mode').selectOption('visits'); await expect(page.locator('.atlas-heatmap')).toHaveAttribute('data-points', '0');
+  await ready(page); await openMapSettings(page); await page.locator('#heat-mode').selectOption('visits'); await expect(page.locator('.atlas-heatmap')).toHaveAttribute('data-points', '0');
   await login(page); await page.locator('#fit-button').click(); await expect(page.locator('.atlas-heatmap')).toHaveAttribute('data-points', '2'); await expect(page.locator('.atlas-heatmap')).toHaveAttribute('data-weight', '3');
-  await page.locator('#heat-mode').selectOption('days'); await expect(page.locator('.atlas-heatmap')).toHaveAttribute('data-weight', '8');
+  await openMapSettings(page); await page.locator('#heat-mode').selectOption('days'); await expect(page.locator('.atlas-heatmap')).toHaveAttribute('data-weight', '8');
   expect(await page.locator('.atlas-heatmap').evaluate(c => c.getContext('2d').getImageData(0, 0, c.width, c.height).data.some((v, i) => i % 4 === 3 && v > 0))).toBe(true);
-  await page.locator('#show-markers').uncheck(); await expect(page.locator('.atlas-heatmap')).toBeVisible();
-  await page.locator('#map-style').selectOption('light'); await expect(page.locator('#map .leaflet-tile')).toHaveCount(0); await page.reload(); await expect(page.locator('#heat-mode')).toHaveValue('days'); await expect(page.locator('#map-style')).toHaveValue('light');
-  await page.locator('#map-style').selectOption('offline'); await expect(page.locator('#map .leaflet-tile')).toHaveCount(0); expect(tiles).toHaveLength(0); await expect(page.locator('.leaflet-control-attribution')).toContainText('Natural Earth');
+  await openMapSettings(page); await page.locator('#show-markers').uncheck(); await expect(page.locator('.atlas-heatmap')).toBeVisible();
+  await openMapSettings(page); await page.locator('#map-style').selectOption('light'); await expect(page.locator('#map .leaflet-tile')).toHaveCount(0); await page.reload(); await expect(page.locator('#heat-mode')).toHaveValue('days'); await expect(page.locator('#map-style')).toHaveValue('light');
+  await openMapSettings(page); await page.locator('#map-style').selectOption('offline'); await expect(page.locator('#map .leaflet-tile')).toHaveCount(0); expect(tiles).toHaveLength(0); await expect(page.locator('.leaflet-control-attribution')).toContainText('Natural Earth');
   await logout(page); await page.goto('/#/perfil/alice'); await expect(page.locator('#public-profile-header')).toContainText('@alice'); await expect(page.locator('.atlas-heatmap')).toHaveAttribute('data-points', '1'); await expect(page.locator('.atlas-heatmap')).toHaveAttribute('data-weight', '3');
-  await page.locator('#heat-mode').click({trial:true}); await page.locator('#heat-mode').selectOption('off'); await expect(page.locator('.atlas-heatmap')).toHaveCount(0); await expect(page.locator('#heat-legend')).not.toBeVisible();
+  await openMapSettings(page); await page.locator('#heat-mode').click({trial:true}); await openMapSettings(page); await page.locator('#heat-mode').selectOption('off'); await expect(page.locator('.atlas-heatmap')).toHaveCount(0); await expect(page.locator('#heat-legend')).not.toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

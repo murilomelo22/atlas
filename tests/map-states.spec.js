@@ -1,3 +1,4 @@
+import { openMapSettings } from './map-settings-helper.js';
 import { test, expect } from '@playwright/test';
 
 test.use({ serviceWorkers: 'block' });
@@ -26,7 +27,7 @@ test('UFs aparecem ao aproximar o Brasil, acompanham o tema e somem na visão mu
   const brazil = page.locator('#map path[data-country-id="076"]');
   await expect(brazil).toHaveAttribute('fill', '#c09a71');
   for (const [theme, stroke] of [['light', '#566c58'], ['offline', '#566c58'], ['streets', '#566c58'], ['dark', '#a3b29a']]) {
-    await page.locator('#map-style').selectOption(theme);
+    await openMapSettings(page); await page.locator('#map-style').selectOption(theme);
     await expect(states.first()).toHaveAttribute('stroke', stroke);
     await expect(states.first()).toHaveAttribute('fill', 'none');
   }

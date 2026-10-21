@@ -1,3 +1,4 @@
+import { openMapSettings } from './map-settings-helper.js';
 import { test, expect } from '@playwright/test';
 
 test.use({ serviceWorkers: 'block' });
@@ -25,7 +26,7 @@ async function search(page, query, name) {
 }
 
 test('pesquisa aproxima o Brasil e pinta somente UFs e lugares realmente visitados', async ({ page }) => {
-  await page.locator('#show-markers').uncheck();
+  await openMapSettings(page); await page.locator('#show-markers').uncheck();
   const before = await page.locator('#map path[data-country-id="076"]').getAttribute('d');
   await search(page, 'brasil', 'Brasil');
   await expect(page.locator('#map')).toHaveAttribute('data-focused-country', '076');

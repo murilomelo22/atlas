@@ -1,3 +1,4 @@
+import { openMapSettings } from './map-settings-helper.js';
 import { test, expect } from '@playwright/test';
 
 test.use({ serviceWorkers: 'block' });
@@ -40,7 +41,7 @@ async function expectViewport(page) {
 test('mapa limpo ocupa a tela sem API nativa e mostra apenas lugares já visitados', async ({ page }) => {
   const errors = []; page.on('pageerror', (error) => errors.push(error.message));
   await seed(page); await useFallback(page);
-  await page.locator('#route-toggle').check(); await page.locator('#heat-mode').selectOption('days');
+  await openMapSettings(page); await page.locator('#route-toggle').check(); await openMapSettings(page); await page.locator('#heat-mode').selectOption('days');
   await page.locator('#clean-map-button').click();
   await expect(page.locator('#map-area')).toHaveAttribute('aria-modal', 'true');
   await expectViewport(page);
@@ -75,8 +76,8 @@ test('mapa limpo ocupa a tela sem API nativa e mostra apenas lugares já visitad
 
 test('preferências e enquadramento voltam ao sair com Esc, mesmo com marcadores ocultos', async ({ page }) => {
   await seed(page); await useFallback(page);
-  await page.locator('#map-style').selectOption('light');
-  await page.locator('#show-markers').uncheck(); await page.locator('#heat-mode').selectOption('visits');
+  await openMapSettings(page); await page.locator('#map-style').selectOption('light');
+  await openMapSettings(page); await page.locator('#show-markers').uncheck(); await openMapSettings(page); await page.locator('#heat-mode').selectOption('visits');
   const before = await page.evaluate(() => ({ prefs: ['atlas-map-style', 'atlas-show-markers', 'atlas-heat-mode'].map((key) => localStorage.getItem(key)), transform: document.querySelector('.leaflet-map-pane').style.transform }));
   await page.locator('#clean-map-button').click();
   await expect(page.locator('.atlas-visited-pin')).toHaveCount(4);
@@ -138,7 +139,7 @@ test('filtros rápidos combinam com busca sem acentos e limpeza restaura a cole�
 
 test('modo limpo retira tiles de ruas temporariamente', async ({ page }) => {
   await seed(page); await useFallback(page);
-  await page.locator('#map-style').selectOption('streets');
+  await openMapSettings(page); await page.locator('#map-style').selectOption('streets');
   await expect(page.locator('.leaflet-tile')).not.toHaveCount(0);
   await page.locator('#clean-map-button').click();
   await expect(page.locator('.leaflet-tile')).toHaveCount(0);

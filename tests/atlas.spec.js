@@ -1,3 +1,4 @@
+import { openMapSettings } from './map-settings-helper.js';
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 const tile = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64');
@@ -189,7 +190,7 @@ test('exporta e importa JSON com fotos sem duplicar; exclusão tem confirmação
 test('falhas de busca e tiles preservam o atlas; imagens e backup inválidos não alteram os dados', async ({ page }) => {
   await page.route('https://nominatim.openstreetmap.org/**', (route) => route.abort());
   await page.route('https://tile.openstreetmap.org/**', (route) => route.abort());
-  await page.locator('#map-style').selectOption('streets');
+  await openMapSettings(page); await page.locator('#map-style').selectOption('streets');
   await page.reload();
   await expect(page.locator('#map-status')).toContainText('continuam acessíveis');
   await openNew(page, 'Sem rede');
@@ -239,11 +240,11 @@ test('ordenação, rota curva, clustering e cores dos países visitados', async 
   await expect(page.locator('.destination-card').first()).toHaveAttribute('aria-label', 'Abrir destino Roma');
   await expect(page.locator('.atlas-cluster')).toHaveCount(1);
   const pathCount = await page.locator('#map path').count();
-  await page.getByLabel('Rota cronológica').check();
+  await openMapSettings(page); await page.getByLabel('Rota cronológica').check();
   await expect(page.locator('#map path')).toHaveCount(pathCount + 4);
   const path = page.locator('#map path[stroke-dasharray]').first();
   expect((await path.getAttribute('d')).split('L').length).toBeGreaterThan(10);
-  await page.getByLabel('Rota cronológica').uncheck();
+  await openMapSettings(page); await page.getByLabel('Rota cronológica').uncheck();
   await expect(page.locator('#map path')).toHaveCount(pathCount);
   await expect(page.locator('#map path[fill="#c09a71"]')).toHaveCount(1);
 });
