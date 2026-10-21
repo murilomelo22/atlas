@@ -430,7 +430,7 @@ async function init() {
     countrySearch = initializeCountrySearch(countries, mapController);
     journeys = initializeJourneys({ countries, destinations: () => destinations, preview: (stops) => { countrySearch.reset(); mapController.itinerary(stops); $('#route-toggle').checked = false; notify('Roteiro no mapa. As linhas unem paradas; não representam estradas.'); } });
     recaps = initializeRecaps(() => destinations);
-    wishlist = initializeWishlist({ available: () => !changingAccount, afterMutation: () => social?.afterMutation(), diagnostic: () => social?.diagnostic(), reconnect: () => social?.reconnect() });
+    wishlist = initializeWishlist({ countries, available: () => !changingAccount, afterMutation: () => social?.afterMutation(), diagnostic: () => social?.diagnostic(), reconnect: () => social?.reconnect() });
     poster = initializePoster({ countries, destinations: () => destinations, available: () => !initializing && !changingAccount && !publicView });
     social = await initializeSocial({
       refresh,

@@ -1186,6 +1186,50 @@
 .public-profile-header:has(.profile-wishlist){flex-wrap:wrap}.profile-wishlist{flex-basis:100%;min-width:0;max-width:100%}.wishlist-public-items,.wishlist-editor-items{list-style:none;padding:0;margin:16px 0;display:grid;gap:12px}.wishlist-public-items{grid-template-columns:repeat(2,minmax(0,1fr))}.wishlist-public-items li,.wishlist-editor-items li{padding:16px;background:var(--raised);border:1px solid var(--line);border-radius:10px;min-width:0;overflow-wrap:anywhere}.wishlist-public-items small,.wishlist-editor-items small{display:block;color:var(--accent);font-size:12px;margin-top:6px}.wishlist-public-items p,.wishlist-editor-items p{white-space:pre-wrap;margin:10px 0 0;font-size:13px}.wishlist-editor-items li{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.wishlist-editor-items li>div:first-child{min-width:0;flex:1}.wishlist-item-actions{display:flex;gap:4px}.wishlist-empty{color:var(--muted);font-size:13px}#wishlist-entry-form{display:grid;gap:14px;border-top:1px solid var(--line);padding-top:18px}.wishlist-save-actions{border-top:1px solid var(--line);padding-top:18px;margin-top:18px}
 @media(max-width:700px){.wishlist-public-items{grid-template-columns:1fr}.wishlist-editor-items li{flex-direction:column}.wishlist-item-actions{align-self:flex-end}}
 .wishlist-public-items,.wishlist-editor-items{max-height:360px;overflow:auto}
+#wishlist-dialog{width:min(1100px,calc(100vw - 24px));padding:0;overflow:hidden;display:none;flex-direction:column}
+#wishlist-dialog[open]{display:flex}
+#wishlist-dialog .dialog-header{flex-shrink:0}
+#wishlist-dialog .account-scroll{min-height:0;overscroll-behavior:contain}
+.wishlist-footer{flex-shrink:0;padding:14px 24px;border-top:1px solid var(--line);background:var(--panel);max-height:35dvh;overflow:auto}
+#wishlist-dialog .wishlist-save-actions{margin:0;padding:0;border:0}
+.wishlist-footer>.field-hint{margin-top:8px;line-height:1.6}
+#wishlist-dialog .wishlist-intro{font-size:17px;color:var(--text);margin-bottom:20px}
+#wishlist-draft-state{margin-top:8px}
+.wishlist-toolbar{display:flex;align-items:end;justify-content:space-between;gap:16px;margin:20px 0 14px;flex-wrap:wrap}
+.wishlist-toolbar label{min-width:190px}
+.wishlist-view-buttons{display:flex;gap:6px}
+.wishlist-view-buttons [aria-pressed=true]{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.wishlist-explorer{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;margin-bottom:24px;align-items:start}
+.wishlist-explorer.wishlist-list-only{grid-template-columns:minmax(0,1fr)}
+#wishlist-map-panel{min-width:0}
+.wishlist-map-top{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:12px;margin-bottom:8px}
+#wishlist-map{height:340px;border:1px solid var(--line);border-radius:12px;background:#14231d;isolation:isolate}
+#wishlist-map-panel>.field-hint{margin-top:9px;line-height:1.6}
+#wishlist-dialog #wishlist-items{margin:0;max-height:450px;padding-right:4px}
+#wishlist-dialog #wishlist-items li{flex-direction:column;gap:12px}
+#wishlist-dialog .wishlist-item-actions{display:flex;flex-wrap:wrap;align-self:stretch;gap:4px;justify-content:flex-end}
+#wishlist-dialog .wishlist-item-actions .text-button{padding:6px 8px;min-height:36px}
+.wishlist-status{display:inline-block;margin-top:9px;padding:4px 8px;border-radius:20px;background:#30291e;color:#e3c293;font-size:11px;line-height:1.4}
+.wishlist-status-planning{background:#18372f;color:#a4dec7}
+.wishlist-status-visited{background:#233441;color:#b3d5ed}
+#wishlist-dialog .wishlist-unlocated{color:var(--muted)}
+.wishlist-empty{line-height:1.8}
+#wishlist-entry-title{font-size:17px;color:var(--text)}
+.wishlist-search-results{display:grid;gap:6px;margin-top:8px}
+.wishlist-search-results button{text-align:left;white-space:normal;overflow-wrap:anywhere}
+#wishlist-coordinates{padding:12px;border:1px solid var(--line);border-radius:8px}
+#wishlist-coordinates summary{color:var(--muted);font-size:12px;cursor:pointer}
+#wishlist-coordinates .form-row{margin-top:14px}
+.wishlist-pin{width:32px;height:32px;display:grid;place-items:center;font-size:22px;border:2px solid #eed4ad;border-radius:50% 50% 50% 6px;background:#7b5734;color:#fff4e1;box-shadow:0 3px 12px #0006}
+.wishlist-pin svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.wishlist-pin-planning{background:#235d49;border-color:#a4dec7}
+.wishlist-pin-visited{background:#2b506b;border-color:#b3d5ed}
+.wishlist-cluster-face{display:grid;place-items:center;width:38px;height:38px;border:2px solid #d9b784;border-radius:50%;background:#4e402b;color:#fff4df;font-size:14px;font-weight:700;box-shadow:0 0 0 5px #d9b78428}
+.wishlist-place-popup{min-width:140px;max-width:230px;overflow-wrap:anywhere}
+.wishlist-place-popup strong,.wishlist-place-popup small{display:block}
+.wishlist-place-popup small{margin-top:5px}
+.wishlist-place-popup p{white-space:pre-wrap;max-height:150px;overflow:auto}
+@media(max-width:700px){#wishlist-dialog{max-height:94dvh}.wishlist-explorer{grid-template-columns:minmax(0,1fr)}#wishlist-map{height:260px}#wishlist-dialog #wishlist-items{max-height:280px}.wishlist-toolbar{gap:12px}.wishlist-toolbar label{flex:1}.wishlist-map-top{flex-wrap:wrap}#wishlist-entry-form .form-row{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}}
 @media(max-width:700px){.wishlist-public-items,.wishlist-editor-items{max-height:280px}}
 
 /* Collection shortcuts and a quiet, full-viewport map. */

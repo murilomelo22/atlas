@@ -1,6 +1,27 @@
 # atlas
 atlas pessoal, teste usando o codex.
 
+## Mapa da wish list · versão 35
+
+**Wish list → Mapa e lista** mostra os lugares salvos com agrupamento de pontos
+próximos. Busque uma localização, toque no mapa ou informe coordenadas; guarde
+uma nota e escolha **Quero conhecer**, **Planejando** ou **Já visitei**. Também é
+possível usar **Só lista**, filtrar por etapa e reenquadrar os lugares. Clique em
+**Adicionar à lista / Aplicar alteração** e depois em **Salvar wish list**.
+
+Lugares antigos permanecem na lista e podem ser localizados ao editar. O mapa
+usa cartografia local, funciona offline depois do primeiro carregamento e não
+envia notas ao serviço de busca. As etapas não criam viagens nem alteram países
+visitados, resumos ou estatísticas. Privacidade, backup e sincronização continuam
+usando a mesma wish list.
+
+Para sincronizar os novos campos na nuvem, execute a
+[migração do mapa](supabase/migrations/20261021191932_atlas_wishlist_map.sql)
+depois de `wishlist.sql`. Ela preserva listas, revisões e permissões. Veja o
+[guia da wish list](docs/WISHLIST.md). A validação PostgreSQL pode ser executada
+com `npm run test:wishlist-map-db`; a interface, com
+`npm test -- tests/wishlist-map.spec.js`.
+
 ## Redimensionar a caixa livremente
 
 Na versão 34, **arraste a alça no canto superior esquerdo da caixa** para mudar
@@ -31,7 +52,7 @@ exclusivos de celular foram pulados no projeto desktop.
 
 ## Interface no celular
 
-Na versão 32, o título, a legenda e a dica de uso ficam fora da área interativa
+Na versão 35, o título, a legenda e a dica de uso ficam fora da área interativa
 do mapa. Os botões de pesquisa e tela cheia ficam juntos no cabeçalho, enquanto
 zoom e enquadramento permanecem sobre o mapa.
 
