@@ -54,7 +54,9 @@ function apiError(body, status, path, method) {
   }
   if (error.code === '57014') error.message = 'O banco demorou demais e cancelou a operação. Seus dados continuam neste dispositivo. Tente sincronizar novamente quando o Supabase se recuperar.';
   if (error.code === '42501' || status === 403) error.message = 'O banco recusou a operação por falta de permissão. Seus dados locais foram preservados. É necessário verificar as permissões no Supabase.';
-  if (error.code === '22023') error.message = 'O banco recusou os dados enviados. Suas alterações locais foram preservadas.';
+  if (error.code === '22023') error.message = path?.endsWith('/atlas_save_wishlist')
+    ? 'O banco recusou a wish list. Se o mapa ainda não foi ativado na nuvem, execute a migração atlas_wishlist_map indicada em docs/WISHLIST.md. Suas alterações locais foram preservadas.'
+    : 'O banco recusou os dados enviados. Suas alterações locais foram preservadas.';
   const providerMessage = String(body?.message || body?.msg || body?.error_description || '');
   if (path?.startsWith('/auth/v1/token') && (['refresh_token_not_found', 'refresh_token_already_used', 'session_not_found'].some(code => code === error.code || code === body?.error_code) || /invalid refresh token|refresh token (?:not found|already used)/i.test(providerMessage))) {
     error.code = 'reauth_required'; error.message = reconnectError().message;

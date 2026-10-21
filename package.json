@@ -15,6 +15,7 @@
     "test:premium-db": "node tests/premium.database.mjs",
     "test:sharing-db": "node tests/trip-sharing.database.mjs",
     "test:conflicts-db": "node tests/conflicts.database.mjs",
+    "test:wishlist-map-db": "node tests/wishlist-map.database.mjs",
     "vendor": "node tools/vendor.mjs"
   }
 }
