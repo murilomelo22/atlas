@@ -1,6 +1,17 @@
 # atlas
 atlas pessoal, teste usando o codex.
 
+## Caixa de avaliação menor · versão 36
+
+**Só a nota → Compacto** abre uma caixa pequena, com as opções recolhidas.
+As margens, o título e as estrelas foram reduzidos. O redimensionamento permite
+encolher mais a caixa, mantendo as cinco estrelas visíveis. O mínimo salvo da
+versão anterior é ajustado automaticamente para o novo mínimo.
+
+Verificação: **31 testes passaram** em desktop e celular, incluindo as cinco
+estrelas no novo mínimo, arraste, teclado, dimensões salvas e uso offline.
+O teste de gesto por toque foi pulado no projeto desktop.
+
 ## Mapa da wish list · versão 35
 
 **Wish list → Mapa e lista** mostra os lugares salvos com agrupamento de pontos

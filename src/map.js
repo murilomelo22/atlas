@@ -81,7 +81,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
   let cleanContentMode = 'all';
   try { const saved = localStorage.getItem('atlas-clean-popup-content'); if (Object.hasOwn(contentModes, saved)) cleanContentMode = saved; } catch {}
   const popupSizes = {
-    compact: { label: 'Compacto', width: 240, height: 260 },
+    compact: { label: 'Compacto', width: 220, height: 240 },
     medium: { label: 'Médio', width: 320, height: 400 },
     large: { label: 'Grande', width: 480, height: 560 },
   };
@@ -89,7 +89,10 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
   try {
     const custom = JSON.parse(localStorage.getItem('atlas-clean-popup-custom-size'));
     if (custom && Number.isFinite(custom.width) && Number.isFinite(custom.height)) {
-      customPopupSize = { width: Math.max(160, Math.min(custom.width, 640)), height: Math.max(112, Math.min(custom.height, 720)) };
+      const oldMinimum = custom.version !== 2 && custom.width === 160 && custom.height === 112;
+      customPopupSize = oldMinimum ? { width: 104, height: 64 } : {
+        width: Math.max(104, Math.min(custom.width, 640)), height: Math.max(64, Math.min(custom.height, 720)),
+      };
     }
     const saved = localStorage.getItem('atlas-clean-popup-size');
     if (Object.hasOwn(popupSizes, saved) || saved === 'custom' && customPopupSize) cleanPopupSize = saved;
@@ -183,7 +186,7 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
       const marker = L.marker([d.lat, lng], { title: d.name, alt: d.name,
         icon: L.divIcon({ className: 'atlas-visited-pin', html: visitedGlyph, iconSize: [32, 38], iconAnchor: [16, 34] }) })
         .bindTooltip(document.createTextNode(d.name), { direction: 'top', offset: [0, -8] })
-        .bindPopup(popup, { className: 'clean-place-card', maxWidth: 240, minWidth: 240, autoPanPaddingTopLeft: [12, 80], autoPanPaddingBottomRight: [12, 30] })
+        .bindPopup(popup, { className: 'clean-place-card', maxWidth: 220, minWidth: 220, autoPanPaddingTopLeft: [12, 80], autoPanPaddingBottomRight: [12, 30] })
         .on('popupopen', () => {
           applyContentMode(); resizeOpenPopup = applyPopupSize; applyPopupSize();
           resizer ||= initializePopupResize(marker.getPopup(), popup, (width, height, pan) => {
@@ -199,24 +202,25 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
       function dimensions(size) {
         const available = map.getSize();
         return {
-          width: Math.round(Math.max(160, Math.min(size.width, available.x - 76, 640))),
-          height: Math.round(Math.max(112, Math.min(size.height, available.y - (cleanMode ? 220 : 60), 720))),
+          width: Math.round(Math.max(104, Math.min(size.width, available.x - 76, 640))),
+          height: Math.round(Math.max(64, Math.min(size.height, available.y - (cleanMode ? 220 : 60), 720))),
         };
       }
       function savePopupSize() {
         try {
-          if (customPopupSize) localStorage.setItem('atlas-clean-popup-custom-size', JSON.stringify(customPopupSize));
+          if (customPopupSize) localStorage.setItem('atlas-clean-popup-custom-size', JSON.stringify({ ...customPopupSize, version: 2 }));
           localStorage.setItem('atlas-clean-popup-size', cleanPopupSize);
         } catch {}
       }
       function applyPopupSize(pan = true) {
         const manual = cleanPopupSize === 'custom';
-        const { width, height } = dimensions(manual ? customPopupSize : popupSizes[cleanPopupSize]);
+        const scoreCompact = cleanPopupSize === 'compact' && cleanContentMode === 'score';
+        const { width, height } = dimensions(manual ? customPopupSize : scoreCompact ? { width: 140, height: 80 } : popupSizes[cleanPopupSize]);
         customOption.disabled = !customPopupSize;
         sizeSelect.value = cleanPopupSize;
         popup.style.setProperty('--clean-popup-height', `${height}px`);
-        popup.style.height = manual ? `${height}px` : '';
-        popup.classList.toggle('is-small', manual && (width < 220 || height < 200));
+        popup.style.height = manual || scoreCompact ? `${height}px` : '';
+        popup.classList.toggle('is-small', scoreCompact || manual && (width < 220 || height < 200));
         if (!popup.classList.contains('is-small')) {
           popup.classList.remove('show-popup-options'); tools.setAttribute('aria-expanded', 'false');
         }
@@ -237,7 +241,8 @@ export function createMap(countries, onSelect, onAdd, onTileError, memories = {}
         if (popup.classList.contains('show-popup-options')) {
           popup.classList.remove('show-popup-options'); tools.setAttribute('aria-expanded', 'false'); tools.focus();
         }
-        applyContentMode(); marker.getPopup().update(); memories.previews?.();
+        applyContentMode(); applyPopupSize(); memories.previews?.();
+        if (popup.classList.contains('is-small')) tools.focus({ preventScroll: true });
       };
     }
     document.getElementById('clean-map-empty').hidden = !cleanMode || Boolean(focusedCountry) || visited.length > 0;

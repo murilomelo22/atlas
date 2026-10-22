@@ -27,7 +27,7 @@ test('galeria de uma memória funciona dentro da tela cheia nativa', async ({ pa
   test.skip(!await page.evaluate(() => document.fullscreenEnabled), 'Native fullscreen unavailable');
   await page.locator('#clean-map-button').click(); await expect.poll(() => page.evaluate(() => document.fullscreenElement?.id)).toBe('map-area');
   await page.locator('.atlas-visited-pin[title="Paris avaliada"]').click();
-  await page.getByRole('combobox', { name: 'Conteúdo da viagem no mapa' }).selectOption('scorePhotos');
+  await chooseContent(page, 'scorePhotos');
   await expect(page.locator('.clean-place-rating')).toBeVisible();
   await expect(page.locator('.clean-place-rating .clean-rating-star.is-filled')).toHaveCount(5);
   await expect(page.locator('.clean-place-notes')).not.toBeVisible();
@@ -40,19 +40,19 @@ test('conteúdo do cartão alterna sem fechar a viagem e lembra a escolha após 
   await page.locator('#clean-map-button').click();
   const pin = page.locator('.atlas-visited-pin[title="Paris avaliada"]');
   await pin.click();
-  const select = page.getByRole('combobox', { name: 'Conteúdo da viagem no mapa' });
+  const select = page.getByRole('combobox', { name: 'Conteúdo da viagem no mapa', includeHidden: true });
   const rating = page.locator('.clean-place-rating'), notes = page.locator('.clean-place-notes'), photos = page.locator('.clean-place-gallery');
   await expect(select).toHaveValue('all');
-  await select.selectOption('memories');
+  await chooseContent(page, 'memories');
   await expect(rating).not.toBeVisible(); await expect(notes).toBeVisible(); await expect(photos).toBeVisible();
-  await select.selectOption('score');
+  await chooseContent(page, 'score');
   await expect(rating).toBeVisible(); await expect(rating.locator('.clean-rating-star.is-filled')).toHaveCount(5); await expect(rating).not.toContainText('5/5');
   await expect(notes).not.toBeVisible(); await expect(photos).not.toBeVisible();
-  await select.selectOption('notes');
+  await chooseContent(page, 'notes');
   await expect(rating).not.toBeVisible(); await expect(notes).toBeVisible(); await expect(photos).not.toBeVisible();
-  await select.selectOption('photos');
+  await chooseContent(page, 'photos');
   await expect(rating).not.toBeVisible(); await expect(notes).not.toBeVisible(); await expect(photos).toBeVisible();
-  await select.selectOption('scorePhotos');
+  await chooseContent(page, 'scorePhotos');
   await expect(rating).toBeVisible(); await expect(rating.locator('.clean-rating-star.is-filled')).toHaveCount(5); await expect(rating).not.toContainText('5/5');
   await expect(notes).not.toBeVisible(); await expect(photos).toBeVisible();
   await page.getByRole('button', { name: 'Abrir memória 1 de Paris avaliada' }).click();
@@ -66,7 +66,7 @@ test('conteúdo do cartão alterna sem fechar a viagem e lembra a escolha após 
   await expect(select).toHaveValue('scorePhotos');
   await expect(rating).toBeVisible(); await expect(rating.locator('.clean-rating-star.is-filled')).toHaveCount(5); await expect(rating).not.toContainText('5/5');
   await expect(notes).not.toBeVisible(); await expect(photos).toBeVisible();
-  await select.selectOption('all');
+  await chooseContent(page, 'all');
   await expect(rating.locator('.clean-rating-star.is-filled')).toHaveCount(5); await expect(notes).toContainText('Uma viagem incrível');
   const saved = await page.evaluate(async () => { const db = await import('/src/db.js'); const d = (await db.getDestinations()).find(d => d.id === 'review'); return { rating: d.rating, notes: d.notes, photoIds: d.photoIds }; });
   expect(saved).toEqual({ rating: 5, notes: 'Uma viagem incrível <img src=x onerror=alert(1)>', photoIds: ['review-photo'] });
@@ -80,7 +80,7 @@ test('avaliação usa estrelas preenchidas e contornadas com nota acessível', a
   await page.reload(); await expect(page.locator('#clean-map-button')).toBeEnabled();
   await page.locator('#clean-map-button').click();
   await page.locator('.atlas-visited-pin[title="Paris avaliada"]').click();
-  await page.getByRole('combobox', { name: 'Conteúdo da viagem no mapa' }).selectOption('scorePhotos');
+  await chooseContent(page, 'scorePhotos');
   const rating = page.getByRole('img', { name: 'Minha avaliação: 3 de 5' });
   await expect(rating).toBeVisible();
   await expect(rating.locator('.clean-rating-star.is-filled')).toHaveCount(3);
@@ -97,22 +97,22 @@ test('escolha vale para outras viagens e trata conteúdo ausente', async ({ page
   await page.reload(); await expect(page.locator('#clean-map-button')).toBeEnabled();
   await page.locator('#clean-map-button').click();
   await page.locator('.atlas-visited-pin[title="Paris avaliada"]').click();
-  const select = page.getByRole('combobox', { name: 'Conteúdo da viagem no mapa' });
-  await select.selectOption('photos');
+  const select = page.getByRole('combobox', { name: 'Conteúdo da viagem no mapa', includeHidden: true });
+  await chooseContent(page, 'photos');
   await page.locator('.leaflet-popup-close-button').click();
   await expect(select).toHaveCount(0);
   await page.locator('.atlas-visited-pin[title="Viagem sem detalhes"]').click();
   await expect(select).toHaveValue('photos');
   await expect(page.locator('.clean-place-no-photos')).toBeVisible();
   await expect(page.locator('.clean-place-rating')).not.toBeVisible();
-  await select.selectOption('notes');
+  await chooseContent(page, 'notes');
   await expect(page.locator('.clean-place-notes')).toHaveText('Ainda sem anotações nesta memória.');
   await expect(page.locator('.clean-place-notes')).toBeVisible();
   await expect(page.locator('.clean-place-no-photos')).not.toBeVisible();
-  await select.selectOption('score');
+  await chooseContent(page, 'score');
   await expect(page.locator('.clean-place-rating')).toHaveText('Ainda sem avaliação');
   await expect(page.locator('.clean-place-rating')).toBeVisible();
-  await select.focus(); await page.keyboard.press('Tab');
+  await page.getByRole('button', { name: 'Opções do cartão' }).focus(); await page.keyboard.press('Tab');
   expect(await page.evaluate(() => document.getElementById('map-area').contains(document.activeElement))).toBe(true);
 });
 test('grupos de lugares usam o check do mapa limpo, com quantidade acessível', async ({ page }) => {
@@ -180,13 +180,21 @@ test('cartão grande se adapta a uma janela menor e mantém controles e galeria 
   await expect(page.locator('#map-area')).toHaveClass(/is-focused/);
 });
 
+async function chooseContent(page, value) {
+  const tools = page.getByRole('button', { name: 'Opções do cartão' });
+  if (await tools.isVisible() && await tools.getAttribute('aria-expanded') === 'false') await tools.click();
+  await page.locator('.clean-place-display select').selectOption(value);
+}
+
 async function openScoreCard(page) {
   await page.evaluate(() => { document.getElementById('map-area').requestFullscreen = () => Promise.reject(new Error('Fallback')); });
   await page.locator('#clean-map-button').click();
   await page.locator('.atlas-visited-pin[title="Paris avaliada"]').click();
-  await page.getByRole('combobox', { name: 'Conteúdo da viagem no mapa' }).selectOption('score');
+  await chooseContent(page, 'score');
   const handle = page.getByRole('button', { name: 'Redimensionar cartão da viagem' });
   await handle.hover();
+  const box = await page.locator('.leaflet-popup').boundingBox();
+  expect(box.width).toBeLessThan(180); expect(box.height).toBeLessThan(110);
   return handle;
 }
 
@@ -200,8 +208,8 @@ test('arrastar o canto reduz a caixa abaixo de Compacto e salva as dimensões li
   await page.mouse.move(grip.x + grip.width / 2 + 40, grip.y + grip.height / 2 + 100, { steps: 8 });
   await page.mouse.up();
   const small = await card.boundingBox();
-  expect(small.width).toBeLessThan(compact.width - 50);
-  expect(small.height).toBeLessThan(compact.height - 60);
+  expect(small.width).toBeLessThan(compact.width - 20);
+  expect(small.height).toBeLessThan(compact.height - 8);
   expect(await page.locator('.leaflet-map-pane').getAttribute('style')).toBe(beforeMap);
   await expect(page.getByRole('img', { name: 'Minha avaliação: 5 de 5' })).toBeVisible();
   await expect(page.locator('.clean-place-rating .clean-rating-star')).toHaveCount(5);
@@ -218,7 +226,7 @@ test('arrastar o canto reduz a caixa abaixo de Compacto e salva as dimensões li
   const size = page.getByRole('combobox', { name: 'Tamanho do cartão da viagem' });
   await expect(size).toHaveValue('custom');
   await size.selectOption('compact');
-  await expect(page.getByRole('combobox', { name: 'Conteúdo da viagem no mapa' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Opções do cartão' })).toBeVisible();
   expect((await card.boundingBox()).width).toBeGreaterThan(small.width);
 });
 
@@ -256,8 +264,28 @@ test('arrastar com o dedo redimensiona sem arrastar o mapa ou abrir o editor', a
   await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await session.detach();
   const resized = await page.locator('.clean-place-popup').boundingBox();
-  expect(resized.width).toBeLessThan(initial.width - 50); expect(resized.height).toBeLessThan(initial.height - 60);
+  expect(resized.width).toBeLessThan(initial.width - 20); expect(resized.height).toBeLessThan(initial.height - 8);
   expect(await page.locator('.leaflet-map-pane').getAttribute('style')).toBe(beforeMap);
   await expect(page.locator('#editor-dialog')).not.toBeVisible();
   await expect(page.getByRole('img', { name: 'Minha avaliação: 5 de 5' })).toBeVisible();
+});
+
+test('o mínimo antigo fica menor e as cinco estrelas cabem sem rolagem', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('atlas-clean-popup-content', 'score');
+    localStorage.setItem('atlas-clean-popup-size', 'custom');
+    localStorage.setItem('atlas-clean-popup-custom-size', JSON.stringify({ width: 160, height: 112 }));
+  });
+  await page.reload(); await expect(page.locator('#clean-map-button')).toBeEnabled();
+  await page.locator('#clean-map-button').click(); await page.locator('.atlas-visited-pin[title="Paris avaliada"]').click();
+  const box = await page.locator('.leaflet-popup').boundingBox();
+  expect(box.width).toBeLessThan(150); expect(box.height).toBeLessThan(90);
+  const fits = await page.locator('.clean-place-body').evaluate(body => {
+    const bounds = body.getBoundingClientRect();
+    return [...body.querySelectorAll('.clean-rating-star')].every(star => {
+      const rect = star.getBoundingClientRect();
+      return rect.left >= bounds.left && rect.right <= bounds.right && rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+    });
+  });
+  expect(fits).toBe(true);
 });
